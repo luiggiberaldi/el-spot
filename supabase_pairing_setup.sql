@@ -116,3 +116,38 @@ GRANT EXECUTE ON FUNCTION public.generate_pairing_token(TEXT) TO anon, authentic
 GRANT EXECUTE ON FUNCTION public.pair_monitor_device(TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.unpair_monitor(TEXT) TO anon, authenticated;
 
+-- 6. Política RLS para permitir a usuarios anónimos (monitores) leer documentos de la caja vinculada
+DROP POLICY IF EXISTS "sync_documents_monitor_access" ON public.sync_documents;
+CREATE POLICY "sync_documents_monitor_access" ON public.sync_documents
+    FOR SELECT
+    TO anon
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.device_pairings
+            WHERE device_pairings.primary_device_id = sync_documents.device_id
+        )
+    );
+
+-- 7. Asegurar que las tablas estén registradas en la publicación de realtime para transmisión en tiempo real
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' 
+          AND schemaname = 'public' 
+          AND tablename = 'sync_documents'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.sync_documents;
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' 
+          AND schemaname = 'public' 
+          AND tablename = 'device_pairings'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.device_pairings;
+    END IF;
+END $$;
+
+
