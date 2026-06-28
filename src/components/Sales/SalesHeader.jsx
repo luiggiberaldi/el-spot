@@ -28,17 +28,20 @@ export default function SalesHeader({
 }) {
     const isCopMode = copEnabled && copPrimary && tasaCop > 0;
 
-    // Local states to prevent realtime cloud loopbacks from clearing/deleting input values on keystroke
+    // Local states to prevent realtime cloud loopbacks from clearing/deleting input values on keystroke,
+    // and to avoid full app-wide re-renders (causing lag) while selecting different rates inside the modal.
+    const [localRateMode, setLocalRateMode] = useState(rateMode);
     const [localCustomRate, setLocalCustomRate] = useState(customRate || '');
     const [localTasaCop, setLocalTasaCop] = useState(tasaCopManual || '');
 
     // Reset local states to context values when modal is toggled
     useEffect(() => {
         if (showRateConfig) {
+            setLocalRateMode(rateMode);
             setLocalCustomRate(customRate || '');
             setLocalTasaCop(tasaCopManual || '');
         }
-    }, [showRateConfig, customRate, tasaCopManual]);
+    }, [showRateConfig, rateMode, customRate, tasaCopManual]);
 
     const handleRateToggle = () => {
         setShowRateConfig(!showRateConfig);
@@ -66,7 +69,9 @@ export default function SalesHeader({
                 pushLocalSync('tasa_cop', parseFloat(localTasaCop));
             }
         } else {
-            if (rateMode === 'manual' && localCustomRate) {
+            // Commit rate selection and custom rate to the context in a single render batch
+            setRateMode(localRateMode);
+            if (localRateMode === 'manual' && localCustomRate) {
                 setCustomRate(localCustomRate);
             }
         }
@@ -187,14 +192,14 @@ export default function SalesHeader({
                                         { id: 'usdt', label: 'USDT', val: rates?.usdt?.price ? `${formatBs(rates.usdt.price)}` : 'No disp.' },
                                         { id: 'manual', label: 'Manual', val: customRate && parseFloat(customRate) > 0 ? `${formatBs(parseFloat(customRate))}` : 'Manual' },
                                     ].map((opt) => {
-                                        const isActive = rateMode === opt.id;
+                                        const isActive = localRateMode === opt.id;
                                         return (
                                             <button
                                                 key={opt.id}
                                                 type="button"
                                                 onClick={() => {
                                                     triggerHaptic && triggerHaptic();
-                                                    setRateMode(opt.id);
+                                                    setLocalRateMode(opt.id);
                                                 }}
                                                 className={`flex-1 py-1.5 px-0.5 rounded-lg text-center transition-all duration-200 active:scale-[0.97] ${
                                                     isActive
@@ -213,7 +218,7 @@ export default function SalesHeader({
                                     })}
                                 </div>
 
-                                {rateMode === 'manual' && (
+                                {localRateMode === 'manual' && (
                                     <div className="space-y-1.5 animate-in fade-in duration-200 pt-1">
                                         <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">Fijar Tasa Personalizada (Bs)</span>
                                         <input

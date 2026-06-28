@@ -181,7 +181,14 @@ export function ProductProvider({ children, rates }) {
             }
             if (e.key === 'bodega_use_auto_rate') {
                 // HOOK-022: antes catch silencioso; loguear en dev para detectar corrupción.
-                try { setUseAutoRate(!!JSON.parse(e.newValue)); }
+                try {
+                    const isAuto = !!JSON.parse(e.newValue);
+                    if (isAuto) {
+                        setRateMode(prev => ['bcv', 'euro', 'usdt'].includes(prev) ? prev : 'bcv');
+                    } else {
+                        setRateMode('manual');
+                    }
+                }
                 catch (err) { console.warn('[ProductContext] storage bodega_use_auto_rate parse error:', err); }
             }
             if (e.key === 'cop_enabled') {
