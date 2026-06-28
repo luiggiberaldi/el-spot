@@ -157,6 +157,7 @@ export function ProductProvider({ children, rates }) {
         localStorage.setItem('bodega_rate_mode', rateMode);
         localStorage.setItem('bodega_use_auto_rate', JSON.stringify(rateMode !== 'manual'));
         pushLocalSync('bodega_use_auto_rate', rateMode !== 'manual');
+        pushLocalSync('bodega_rate_mode', rateMode);
         if (customRate) {
             localStorage.setItem('bodega_custom_rate', customRate.toString());
             pushLocalSync('bodega_custom_rate', parseFloat(customRate));
@@ -168,6 +169,9 @@ export function ProductProvider({ children, rates }) {
         const handleStorageChange = (e) => {
             if (e.key === 'bodega_custom_rate') {
                 if (e.newValue && parseFloat(e.newValue) > 0) setCustomRate(e.newValue);
+            }
+            if (e.key === 'bodega_rate_mode') {
+                if (e.newValue) setRateMode(e.newValue);
             }
             if (e.key === 'bodega_use_auto_rate') {
                 // HOOK-022: antes catch silencioso; loguear en dev para detectar corrupción.

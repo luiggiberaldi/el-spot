@@ -13,6 +13,7 @@ const SYNC_KEYS = [
     'abasto_audit_log_v1',
     'bodega_custom_rate',
     'bodega_use_auto_rate',
+    'bodega_rate_mode',
     'tasa_cop',
     'cop_enabled',
     'auto_cop_enabled'
@@ -25,6 +26,7 @@ const SYNC_KEYS = [
 const LOCAL_KEYS = [
     'bodega_custom_rate',
     'bodega_use_auto_rate',
+    'bodega_rate_mode',
     'tasa_cop',
     'cop_enabled',
     'auto_cop_enabled'

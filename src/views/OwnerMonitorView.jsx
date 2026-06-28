@@ -38,6 +38,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
     const [sales, setSales] = useState([]);
     const [activeCashier, setActiveCashier] = useState({ nombre: 'Ninguno', rol: '' });
     const [loadingData, setLoadingData] = useState(true);
+    const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
 
     const today = getLocalISODate();
 
@@ -196,7 +197,6 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
 
     // 8. Desvincular Monitor
     const handleDisconnect = async () => {
-        if (!window.confirm('¿Seguro que deseas desvincular este dispositivo? Perderás el acceso en tiempo real.')) return;
         triggerHaptic?.();
         
         try {
@@ -271,7 +271,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                     </div>
 
                     <button 
-                        onClick={handleDisconnect}
+                        onClick={() => { triggerHaptic?.(); setShowDisconnectConfirm(true); }}
                         className="p-2.5 rounded-2xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 border border-slate-200 bg-white transition-colors"
                         title="Desvincular Dispositivo"
                     >
@@ -295,48 +295,68 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                 {/* ── Fila 1: Tarjetas de Métricas ── */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                     {/* Ventas Hoy USD */}
-                    <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/60 shadow-sm flex items-center justify-between">
-                        <div className="space-y-0.5 min-w-0">
-                            <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-slate-400 block">Vendido (USD)</span>
-                            <span className="text-lg sm:text-2xl font-black text-slate-800 tabular-nums truncate block">${metrics.totalUsd.toFixed(2)}</span>
+                    <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/60 shadow-sm flex flex-col justify-between min-h-[105px] sm:min-h-[125px]">
+                        <div className="flex items-center justify-between w-full">
+                            <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-slate-400">Vendido (USD)</span>
+                            <div className="w-7 h-7 sm:w-9 sm:h-9 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-500 shrink-0">
+                                <DollarSign size={16} />
+                            </div>
                         </div>
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-500 shrink-0">
-                            <DollarSign size={22} />
+                        <div className="mt-2.5 min-w-0">
+                            <span className="text-base sm:text-xl lg:text-2xl font-black text-slate-800 tabular-nums block break-words leading-none">
+                                ${metrics.totalUsd.toFixed(2)}
+                            </span>
                         </div>
                     </div>
 
                     {/* Ventas Hoy Bs */}
-                    <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/60 shadow-sm flex items-center justify-between">
-                        <div className="space-y-0.5 min-w-0">
-                            <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-slate-400 block">Vendido (Bs)</span>
-                            <span className="text-lg sm:text-2xl font-black text-emerald-600 tabular-nums truncate block">{formatBs(metrics.totalBs)} Bs</span>
-                            <span className="text-[9px] sm:text-[10px] text-slate-400 block font-medium mt-0.5">Tasa: {bcvRate ? `${bcvRate.toFixed(2)} Bs/$` : 'N/D'}</span>
+                    <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/60 shadow-sm flex flex-col justify-between min-h-[105px] sm:min-h-[125px]">
+                        <div className="flex items-center justify-between w-full">
+                            <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-slate-400">Vendido (Bs)</span>
+                            <div className="w-7 h-7 sm:w-9 sm:h-9 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-500 shrink-0">
+                                <Coins size={16} />
+                            </div>
                         </div>
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-500 shrink-0">
-                            <Coins size={22} />
+                        <div className="mt-2.5 min-w-0">
+                            <span className="text-base sm:text-xl lg:text-2xl font-black text-emerald-600 tabular-nums block break-words leading-none">
+                                {formatBs(metrics.totalBs)} Bs
+                            </span>
+                            <span className="text-[9px] text-slate-400 block font-medium mt-1">
+                                Tasa: {bcvRate ? `${bcvRate.toFixed(2)} Bs/$` : 'N/D'}
+                            </span>
                         </div>
                     </div>
 
                     {/* Margen Estimado */}
-                    <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/60 shadow-sm flex items-center justify-between">
-                        <div className="space-y-0.5 min-w-0">
-                            <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-slate-400 block">Margen Neto</span>
-                            <span className="text-lg sm:text-2xl font-black text-blue-600 tabular-nums truncate block">${metrics.profitUsd.toFixed(2)}</span>
+                    <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/60 shadow-sm flex flex-col justify-between min-h-[105px] sm:min-h-[125px]">
+                        <div className="flex items-center justify-between w-full">
+                            <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-slate-400">Margen Neto</span>
+                            <div className="w-7 h-7 sm:w-9 sm:h-9 bg-blue-50 rounded-xl flex items-center justify-center text-blue-500 shrink-0">
+                                <TrendingUp size={16} />
+                            </div>
                         </div>
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-500 shrink-0">
-                            <TrendingUp size={22} />
+                        <div className="mt-2.5 min-w-0">
+                            <span className="text-base sm:text-xl lg:text-2xl font-black text-blue-600 tabular-nums block break-words leading-none">
+                                ${metrics.profitUsd.toFixed(2)}
+                            </span>
                         </div>
                     </div>
 
                     {/* Transacciones y Cajero */}
-                    <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/60 shadow-sm flex items-center justify-between">
-                        <div className="space-y-0.5 min-w-0">
-                            <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-slate-400 block">Cajero en Caja</span>
-                            <span className="text-base sm:text-lg font-black text-slate-800 truncate max-w-[120px] sm:max-w-[150px] block">{activeCashier.nombre}</span>
-                            <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase">{metrics.count} {metrics.count === 1 ? 'venta' : 'ventas'} hoy</span>
+                    <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/60 shadow-sm flex flex-col justify-between min-h-[105px] sm:min-h-[125px]">
+                        <div className="flex items-center justify-between w-full">
+                            <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-slate-400">Cajero en Caja</span>
+                            <div className="w-7 h-7 sm:w-9 sm:h-9 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 shrink-0">
+                                <Users size={16} />
+                            </div>
                         </div>
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 shrink-0">
-                            <Users size={22} />
+                        <div className="mt-2.5 min-w-0">
+                            <span className="text-sm sm:text-base lg:text-lg font-black text-slate-800 block truncate leading-none">
+                                {activeCashier.nombre}
+                            </span>
+                            <span className="text-[9px] text-slate-400 block font-medium mt-1">
+                                {metrics.count} {metrics.count === 1 ? 'venta' : 'ventas'} hoy
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -547,6 +567,40 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                     </div>
                 </div>
             </main>
+
+            {/* Modal de Confirmación de Desvinculación Custom y Premium */}
+            {showDisconnectConfirm && (
+                <div className="fixed inset-0 z-[999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-white rounded-3xl border border-slate-200/80 p-6 max-w-sm w-full shadow-2xl space-y-5 animate-scale-in">
+                        <div className="w-12 h-12 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-500 mx-auto">
+                            <LogOut size={22} />
+                        </div>
+                        <div className="space-y-1.5 text-center">
+                            <h4 className="text-base font-black text-slate-800">Desvincular Supervisor</h4>
+                            <p className="text-xs font-semibold text-slate-500 leading-relaxed">
+                                ¿Estás seguro de que deseas desvincular este dispositivo? Se perderá el acceso en tiempo real a las transacciones de esta caja.
+                            </p>
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => { triggerHaptic?.(); setShowDisconnectConfirm(false); }}
+                                className="flex-1 py-3 px-4 bg-slate-50 hover:bg-slate-100 text-slate-600 font-black text-xs rounded-2xl border border-slate-200 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={() => { 
+                                    setShowDisconnectConfirm(false);
+                                    handleDisconnect();
+                                }}
+                                className="flex-1 py-3 px-4 bg-rose-500 hover:bg-rose-600 text-white font-black text-xs rounded-2xl shadow-lg shadow-rose-500/20 transition-colors"
+                            >
+                                Desvincular
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
