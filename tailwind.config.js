@@ -95,6 +95,7 @@ export default {
         sans: ['"Work Sans"', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
         display: ['"Instrument Serif"', 'Georgia', '"Times New Roman"', 'serif'],
         mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+        outfit: ['"Outfit"', 'sans-serif'],
       },
       fontSize: {
         // Fluid typography via clamp()

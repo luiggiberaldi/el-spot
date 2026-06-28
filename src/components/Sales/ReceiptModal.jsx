@@ -181,22 +181,28 @@ export default function ReceiptModal({ receipt, onClose, onShareWhatsApp, curren
                 </div>
 
                 {/* Botones de acción — diseño premium */}
-                <div className="p-4 sm:p-5 bg-white flex gap-2.5 relative z-20 shrink-0 border-t border-slate-100">
+                <div className="p-4 sm:p-5 bg-white dark:bg-slate-900 flex gap-2 relative z-20 shrink-0 border-t border-slate-100 dark:border-slate-800">
                     {/* Imprimir */}
-                    <button onClick={() => printThermalTicket(receipt, currentRate || receipt.rate)}
-                        className="flex-1 py-3.5 bg-gradient-to-b from-slate-700 to-slate-800 text-white font-bold rounded-2xl hover:from-slate-600 hover:to-slate-700 transition-all shadow-lg shadow-slate-800/20 hover:shadow-xl hover:shadow-slate-800/30 text-sm flex items-center justify-center gap-2 focus:outline-none active:scale-[0.97] hover:-translate-y-0.5">
-                        <Printer size={17} strokeWidth={2.5} /> Imprimir
+                    <button 
+                        onClick={() => printThermalTicket(receipt, currentRate || receipt.rate)}
+                        className="flex-1 py-3.5 px-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 font-bold rounded-2xl transition-all text-xs sm:text-sm flex items-center justify-center gap-1.5 focus:outline-none active:scale-[0.97]"
+                    >
+                        <Printer size={15} strokeWidth={2.5} /> Imprimir
                     </button>
 
                     {/* WhatsApp */}
-                    <button onClick={() => onShareWhatsApp(receipt)}
-                        className="flex-1 py-3.5 bg-gradient-to-b from-emerald-500 to-emerald-600 text-white font-bold rounded-2xl hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/35 text-sm flex items-center justify-center gap-2 focus:outline-none active:scale-[0.97] hover:-translate-y-0.5">
-                        <Send size={17} strokeWidth={2.5} /> WhatsApp
+                    <button 
+                        onClick={() => onShareWhatsApp(receipt)}
+                        className="flex-1 py-3.5 px-2 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/20 dark:hover:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-bold rounded-2xl transition-all text-xs sm:text-sm flex items-center justify-center gap-1.5 focus:outline-none active:scale-[0.97]"
+                    >
+                        <Send size={15} strokeWidth={2.5} /> WhatsApp
                     </button>
 
                     {/* Nueva Venta — Primary CTA */}
-                    <button onClick={onClose}
-                        className="flex-[1.3] py-3.5 bg-gradient-to-b from-brand to-brand-dark text-white font-extrabold rounded-2xl hover:from-brand hover:to-brand-dark transition-all shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/35 text-sm flex items-center justify-center gap-2 focus:outline-none active:scale-[0.97] hover:-translate-y-0.5 ring-2 ring-brand/30 ring-offset-2 ring-offset-white">
+                    <button 
+                        onClick={onClose}
+                        className="flex-[1.2] py-3.5 px-2 bg-brand text-white font-extrabold rounded-2xl hover:bg-brand-dark transition-all shadow-md shadow-brand/20 text-xs sm:text-sm flex items-center justify-center gap-1.5 focus:outline-none active:scale-[0.97]"
+                    >
                         Nueva Venta
                     </button>
                 </div>

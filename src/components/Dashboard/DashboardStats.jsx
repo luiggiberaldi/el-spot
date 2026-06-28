@@ -26,7 +26,7 @@ export default function DashboardStats({
                         </div>
                         <div>
                             <h3 className="text-[13px] font-bold text-amber-50 leading-tight">Licencia de Prueba</h3>
-                            <p className="text-2xl font-display font-semibold mt-0.5">{demoTimeLeft}</p>
+                            <p className="text-2xl font-outfit font-semibold mt-0.5">{demoTimeLeft}</p>
                         </div>
                     </div>
                     <div className="relative z-10 text-right">
@@ -50,7 +50,7 @@ export default function DashboardStats({
                     {copEnabled && copPrimary && tasaCop > 0 ? (
                         <>
                             <div className="flex items-baseline gap-1">
-                                <span className="text-3xl font-display font-semibold text-amber-600 dark:text-amber-400 tracking-tight">
+                                <span className="text-3xl font-outfit font-semibold text-amber-600 dark:text-amber-400 tracking-tight">
                                     {formatCop(todayTotalCop || Math.round(todayTotalUsd * tasaCop))} <span className="text-base">COP</span>
                                 </span>
                             </div>
@@ -59,7 +59,7 @@ export default function DashboardStats({
                     ) : (
                         <>
                             <div className="flex items-baseline gap-1">
-                                <span className="text-3xl font-display font-semibold text-slate-800 dark:text-white tracking-tight">
+                                <span className="text-3xl font-outfit font-semibold text-slate-800 dark:text-white tracking-tight">
                                     $<AnimatedCounter value={todayTotalUsd} />
                                 </span>
                             </div>
@@ -82,7 +82,7 @@ export default function DashboardStats({
                         <ShoppingBag size={18} className="text-brand" />
                     </div>
                 </div>
-                <p className="text-2xl font-display font-semibold text-slate-800 dark:text-white leading-none"><AnimatedCounter value={todaySales.length} /> <span className="text-xs font-bold text-slate-400">{todaySales.length === 1 ? 'venta' : 'ventas'}</span></p>
+                <p className="text-2xl font-outfit font-semibold text-slate-800 dark:text-white leading-none"><AnimatedCounter value={todaySales.length} /> <span className="text-xs font-bold text-slate-400">{todaySales.length === 1 ? 'venta' : 'ventas'}</span></p>
                 <p className="text-[11px] text-slate-400 mt-1"><AnimatedCounter value={todayItemsSold} /> {todayItemsSold === 1 ? 'artículo vendido' : 'artículos vendidos'}</p>
             </div>
 
@@ -99,14 +99,14 @@ export default function DashboardStats({
                                 <p className="text-[11px] font-medium text-slate-400">Egresos del dia (Proveedores)</p>
                                 {copEnabled && copPrimary && tasaCop > 0 ? (
                                     <>
-                                        <p className="text-2xl font-display font-semibold text-orange-600 dark:text-orange-400">
+                                        <p className="text-2xl font-outfit font-semibold text-orange-600 dark:text-orange-400">
                                             -{formatCop(todayExpensesUsd * tasaCop)} COP
                                         </p>
                                         <p className="text-[10px] text-orange-400">-${todayExpensesUsd.toFixed(2)} · {formatBs(todayExpensesUsd * bcvRate)} Bs</p>
                                     </>
                                 ) : (
                                     <>
-                                        <p className="text-2xl font-display font-semibold text-orange-600 dark:text-orange-400">
+                                        <p className="text-2xl font-outfit font-semibold text-orange-600 dark:text-orange-400">
                                             -$<AnimatedCounter value={todayExpensesUsd} />
                                         </p>
                                         {copEnabled && tasaCop > 0 && (
@@ -133,7 +133,7 @@ export default function DashboardStats({
                     {copEnabled && copPrimary && tasaCop > 0 ? (
                         <>
                             <div className="flex items-baseline gap-1">
-                                <span className={`text-3xl font-display font-semibold tracking-tight ${todayProfit >= 0 ? 'text-amber-600 dark:text-amber-400' : 'text-red-500'}`}>
+                                <span className={`text-3xl font-outfit font-semibold tracking-tight ${todayProfit >= 0 ? 'text-amber-600 dark:text-amber-400' : 'text-red-500'}`}>
                                     {todayProfit >= 0 ? '+' : ''}{formatCop((bcvRate > 0 ? todayProfit / bcvRate : 0) * tasaCop)} <span className="text-base">COP</span>
                                 </span>
                             </div>
@@ -142,7 +142,7 @@ export default function DashboardStats({
                     ) : (
                         <>
                             <div className="flex items-baseline gap-1">
-                                <span className={`text-3xl font-display font-semibold tracking-tight ${todayProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+                                <span className={`text-3xl font-outfit font-semibold tracking-tight ${todayProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
                                     {todayProfit >= 0 ? '+' : ''}${bcvRate > 0 ? (todayProfit / bcvRate).toFixed(2) : '0.00'}
                                 </span>
                             </div>
@@ -168,12 +168,12 @@ export default function DashboardStats({
                         <ArrowUpRight size={18} className="text-brand" />
                     </div>
                 </div>
-                <p className="text-2xl font-display font-semibold text-slate-800 dark:text-white leading-none">{formatBs(bcvRate)} <span className="text-xs font-bold text-slate-400">Bs/$</span></p>
+                <p className="text-2xl font-outfit font-semibold text-slate-800 dark:text-white leading-none">{formatBs(bcvRate)} <span className="text-xs font-bold text-slate-400">Bs/$</span></p>
                 <p className="text-[11px] text-slate-400 mt-0.5">Tasa BCV</p>
                 {copEnabled && tasaCop > 0 && (
                     <>
                         <div className="border-t border-slate-100 dark:border-slate-800 my-2"></div>
-                        <p className="text-xl font-display font-semibold text-amber-600 dark:text-amber-400 leading-none">
+                        <p className="text-xl font-outfit font-semibold text-amber-600 dark:text-amber-400 leading-none">
                             {tasaCop.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-xs font-bold text-amber-500/60">COP/$</span>
                         </p>
                         <p className="text-[11px] text-slate-400 mt-0.5">Tasa COP</p>
@@ -235,14 +235,14 @@ export default function DashboardStats({
                                 <p className="text-[10px] font-bold text-red-400 uppercase">Deudas por cobrar</p>
                                 {copEnabled && copPrimary && tasaCop > 0 ? (
                                     <>
-                                        <p className="text-2xl font-display font-semibold text-red-500">
+                                        <p className="text-2xl font-outfit font-semibold text-red-500">
                                             {formatCop(totalDeudas.totalUsd * tasaCop)} COP
                                         </p>
                                         <p className="text-[10px] text-red-400">${totalDeudas.totalUsd.toFixed(2)} · {formatBs(totalDeudas.totalUsd * bcvRate)} Bs</p>
                                     </>
                                 ) : (
                                     <>
-                                        <p className="text-2xl font-display font-semibold text-red-500">
+                                        <p className="text-2xl font-outfit font-semibold text-red-500">
                                             ${totalDeudas.totalUsd.toFixed(2)}
                                         </p>
                                         {copEnabled && tasaCop > 0 && (

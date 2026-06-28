@@ -155,21 +155,21 @@ export default function MonitorView({ rates: propRates, loading, isOffline, onRe
 
             {/* Tarjetas Informativas */}
             <div 
-                className="w-full max-w-md rounded-[2.5rem] border border-slate-200 p-6 sm:p-8 flex justify-between items-center mb-8 relative z-10 shadow-sm"
+                className={`w-full max-w-sm sm:max-w-md rounded-[2rem] sm:rounded-[2.5rem] border border-slate-200/80 p-4 sm:p-6 md:p-8 grid ${rates.usdt.price > 0 ? 'grid-cols-3' : 'grid-cols-2'} gap-1 sm:gap-2 mb-8 relative z-10 shadow-sm`}
                 style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(10px)' }}
             >
-                <div className="text-center flex-1 border-r border-slate-200 pr-4">
-                    <p className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-2 font-outfit">BCV DÓLAR</p>
-                    <p className="text-2xl sm:text-3xl font-dm-mono font-bold text-slate-900">{formatExactRate(rates.bcv.price)}</p>
+                <div className="text-center w-full border-r border-slate-200/80 pr-1 sm:pr-2">
+                    <p className="text-[10px] sm:text-xs font-bold uppercase text-slate-500 tracking-wider mb-2 font-outfit truncate">BCV DÓLAR</p>
+                    <p className="text-lg sm:text-xl md:text-2xl font-dm-mono font-bold text-slate-900 truncate">{formatExactRate(rates.bcv.price)}</p>
                 </div>
-                <div className={`text-center flex-1 px-4 ${rates.usdt.price > 0 ? 'border-r border-slate-200' : ''}`}>
-                    <p className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-2 font-outfit">BCV EURO</p>
-                    <p className="text-2xl sm:text-3xl font-dm-mono font-bold text-slate-900">{formatExactRate(rates.euro.price)}</p>
+                <div className={`text-center w-full px-1 sm:px-2 ${rates.usdt.price > 0 ? 'border-r border-slate-200/80' : ''}`}>
+                    <p className="text-[10px] sm:text-xs font-bold uppercase text-slate-500 tracking-wider mb-2 font-outfit truncate">BCV EURO</p>
+                    <p className="text-lg sm:text-xl md:text-2xl font-dm-mono font-bold text-slate-900 truncate">{formatExactRate(rates.euro.price)}</p>
                 </div>
                 {rates.usdt.price > 0 && (
-                    <div className="text-center flex-1 pl-4">
-                        <p className="text-xs font-bold uppercase text-amber-600 tracking-wider mb-2 font-outfit">USDT</p>
-                        <p className="text-2xl sm:text-3xl font-dm-mono font-bold text-slate-900">{formatExactRate(rates.usdt.price)}</p>
+                    <div className="text-center w-full pl-1 sm:pl-2">
+                        <p className="text-[10px] sm:text-xs font-bold uppercase text-amber-600 tracking-wider mb-2 font-outfit truncate">USDT</p>
+                        <p className="text-lg sm:text-xl md:text-2xl font-dm-mono font-bold text-slate-900 truncate">{formatExactRate(rates.usdt.price)}</p>
                     </div>
                 )}
             </div>

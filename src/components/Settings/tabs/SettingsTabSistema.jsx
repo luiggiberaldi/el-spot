@@ -169,31 +169,33 @@ export default function SettingsTabSistema({
                 </SectionCard>
             )}
 
-            {/* Audit Log */}
-            {isAdmin && (
+            {/* Audit Log — Ocultado por solicitud del usuario */}
+            {false && isAdmin && (
                 <SectionCard icon={FileText} title="Bitacora de Actividad" subtitle="Registro de todas las acciones" iconColor="text-slate-500">
                     <AuditLogViewer triggerHaptic={triggerHaptic} />
                 </SectionCard>
             )}
 
-            {/* Zona de Peligro */}
-            <SectionCard icon={AlertTriangle} title="Zona de Peligro" subtitle="Acciones irreversibles" iconColor="text-red-500">
-                <div className="p-2.5 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/30 rounded-xl mb-3">
-                    <p className="text-[10px] text-red-700 dark:text-red-400 leading-relaxed font-bold">
-                        Esta accion eliminara todo el historial de ventas y reportes estadisticos. El inventario NO sera afectado.
-                    </p>
-                </div>
-                <button
-                    onClick={() => setShowDeleteConfirm(true)}
-                    className="w-full flex items-center gap-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded-xl hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors group active:scale-[0.98]"
-                >
-                    <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-lg"><Trash2 size={18} className="text-red-600 dark:text-red-400" /></div>
-                    <div className="text-left flex-1">
-                        <p className="text-sm font-bold text-red-700 dark:text-red-400">Borrar Historial de Ventas</p>
-                        <p className="text-[10px] text-red-500/80 dark:text-red-400/80">El inventario no se borrara</p>
+            {/* Zona de Peligro — Ocultado por solicitud del usuario */}
+            {false && (
+                <SectionCard icon={AlertTriangle} title="Zona de Peligro" subtitle="Acciones irreversibles" iconColor="text-red-500">
+                    <div className="p-2.5 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/30 rounded-xl mb-3">
+                        <p className="text-[10px] text-red-700 dark:text-red-400 leading-relaxed font-bold">
+                            Esta accion eliminara todo el historial de ventas y reportes estadisticos. El inventario NO sera afectado.
+                        </p>
                     </div>
-                </button>
-            </SectionCard>
+                    <button
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="w-full flex items-center gap-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded-xl hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors group active:scale-[0.98]"
+                    >
+                        <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-lg"><Trash2 size={18} className="text-red-600 dark:text-red-400" /></div>
+                        <div className="text-left flex-1">
+                            <p className="text-sm font-bold text-red-700 dark:text-red-400">Borrar Historial de Ventas</p>
+                            <p className="text-[10px] text-red-500/80 dark:text-red-400/80">El inventario no se borrara</p>
+                        </div>
+                    </button>
+                </SectionCard>
+            )}
         </>
     );
 }
