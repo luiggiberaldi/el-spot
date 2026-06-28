@@ -106,3 +106,13 @@ BEGIN
     WHERE primary_device_id = p_device_id OR monitor_device_id = p_device_id;
 END;
 $$;
+
+-- 5. Otorgar permisos explícitos a los roles 'anon' y 'authenticated'
+-- Esto soluciona el error 401 / permission denied al conectar dispositivos sin login.
+GRANT SELECT ON public.sync_documents TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.device_pairings TO anon, authenticated;
+
+GRANT EXECUTE ON FUNCTION public.generate_pairing_token(TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.pair_monitor_device(TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.unpair_monitor(TEXT) TO anon, authenticated;
+
