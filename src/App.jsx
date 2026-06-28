@@ -29,11 +29,16 @@ import { LogOut } from 'lucide-react';
 import { purgeOldEntries } from './services/auditService';
 import { useCloudSync } from './hooks/useCloudSync';
 
+import OwnerMonitorView from './views/OwnerMonitorView';
+import PairingScanScreen from './components/PairingScanScreen';
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('inicio');
   const [installPrompt, setInstallPrompt] = useState(null);
   const [showIOSInstall, setShowIOSInstall] = useState(false);
   const [mountedViews, setMountedViews] = useState({});
+  const [showPairingScan, setShowPairingScan] = useState(false);
+  const isMonitorMode = localStorage.getItem('pda_pairing_mode') === 'monitor';
 
   useEffect(() => {
     setMountedViews(prev => ({...prev, [activeTab]: true}));
@@ -55,7 +60,7 @@ export default function App() {
 
 
   // Inicializar Sincronización Realtime con Supabase (device_id como clave)
-  useCloudSync(deviceId);
+  useCloudSync(isMonitorMode ? null : deviceId);
 
   // Detectar iOS Safari (no standalone) para mostrar instrucciones manuales
   const isIOS = useMemo(() => /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream, []);
@@ -194,6 +199,16 @@ export default function App() {
     (!tab.premiumOnly || isPremium) && (!tab.adminOnly || !isCajero)
   );
 
+  if (isMonitorMode) {
+    return (
+      <ErrorBoundary>
+        <ProductProvider rates={rates}>
+          <OwnerMonitorView theme={theme} toggleTheme={toggleTheme} triggerHaptic={triggerHaptic} />
+        </ProductProvider>
+      </ErrorBoundary>
+    );
+  }
+
   return (
     <div className="font-sans antialiased bg-slate-50 dark:bg-black h-[100dvh] flex flex-col overflow-clip transition-colors duration-300">
 
@@ -201,7 +216,11 @@ export default function App() {
       <TermsOverlay />
 
       {/* Lock Screen — solo si login está activado y no hay sesión activa */}
-      {requireLogin && !usuarioActivo && <LockScreen />}
+      {requireLogin && !usuarioActivo && <LockScreen onOpenPairing={() => setShowPairingScan(true)} />}
+
+      {showPairingScan && (
+        <PairingScanScreen onCancel={() => setShowPairingScan(false)} triggerHaptic={triggerHaptic} />
+      )}
 
 
       {/* Offline Banner */}

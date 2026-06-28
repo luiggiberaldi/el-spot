@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
     Database, Palette, Fingerprint, Upload, Download, Share2,
-    Check, Sun, Moon, ChevronRight, Trash2, AlertTriangle, FileText, ZoomIn, ZoomOut, RotateCcw
+    Check, Sun, Moon, ChevronRight, Trash2, AlertTriangle, FileText, ZoomIn, ZoomOut, RotateCcw, QrCode
 } from 'lucide-react';
 import { SectionCard, Toggle } from '../../SettingsShared';
 import AuditLogViewer from '../AuditLogViewer';
+import PairingManager from '../PairingManager';
 
 export default function SettingsTabSistema({
     theme, toggleTheme,
@@ -175,6 +176,13 @@ export default function SettingsTabSistema({
                 </div>
                 <p className="text-[9px] text-slate-400">Comparte este ID si necesitas soporte tecnico.</p>
             </SectionCard>
+
+            {/* Celular del Dueño (QR Monitoreo) */}
+            {isAdmin && (
+                <SectionCard icon={QrCode} title="Celular del Dueño" subtitle="Monitoreo remoto en tiempo real" iconColor="text-emerald-500">
+                    <PairingManager deviceId={deviceId} triggerHaptic={triggerHaptic} />
+                </SectionCard>
+            )}
 
             {/* Audit Log */}
             {isAdmin && (
