@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Camera, X, AlertTriangle, Package, Tag, Scale, Droplets, ChevronDown, ChevronUp, Barcode, Banknote, CheckCircle, Plus, Search, Link } from 'lucide-react';
+import { Camera, X, AlertTriangle, Package, Tag, Scale, Droplets, ChevronDown, ChevronUp, Barcode, Banknote, CheckCircle, Plus, Search, Link, Sparkles } from 'lucide-react';
 import { useProductContext } from '../../context/ProductContext';
 import CustomSelect from '../CustomSelect';
 
@@ -40,7 +40,8 @@ export default function ProductFormQuick({
     handleImageUpload,
     categories,
     isSearchingImage,
-    handleLoadImageFromUrl
+    handleLoadImageFromUrl,
+    handleAutoSearchImage
 }) {
     const fileInputRef = useRef(null);
     const [showSummary, setShowSummary] = useState(false);
@@ -117,19 +118,34 @@ export default function ProductFormQuick({
                 <div className="sm:col-span-7 h-28 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-2.5 flex flex-col justify-between">
                     <div className="flex justify-between items-center">
                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Foto de la Web</span>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                if (!name || name.trim().length < 3) {
-                                    alert('Ingresa el nombre del producto (mín. 3 letras) para buscar');
-                                    return;
-                                }
-                                window.open(`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(name.trim())}`, '_blank');
-                            }}
-                            className="flex items-center gap-1 text-[9px] font-extrabold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors uppercase"
-                        >
-                            <Search size={10} /> Buscar en Google
-                        </button>
+                        <div className="flex gap-2.5">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (!name || name.trim().length < 3) {
+                                        alert('Ingresa el nombre del producto (mín. 3 letras) para buscar automáticamente');
+                                        return;
+                                    }
+                                    handleAutoSearchImage(name);
+                                }}
+                                className="flex items-center gap-1 text-[9px] font-black text-amber-500 hover:text-amber-600 transition-colors uppercase"
+                            >
+                                <Sparkles size={10} /> Auto-buscar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (!name || name.trim().length < 3) {
+                                        alert('Ingresa el nombre del producto (mín. 3 letras) para buscar');
+                                        return;
+                                    }
+                                    window.open(`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(name.trim())}`, '_blank');
+                                }}
+                                className="flex items-center gap-1 text-[9px] font-extrabold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors uppercase"
+                            >
+                                <Search size={10} /> En Google
+                            </button>
+                        </div>
                     </div>
 
                     <div className="relative mt-1">
@@ -164,8 +180,18 @@ export default function ProductFormQuick({
                 {/* Name */}
                 <div className="relative">
                     <label className="text-xs font-bold text-slate-400 ml-1 mb-1 block uppercase">Nombre</label>
-                    <input value={name} onChange={e => setName(e.target.value)} autoFocus placeholder="Ej: Harina PAN 1kg"
-                        className="w-full bg-slate-50 dark:bg-slate-800 p-3.5 pr-10 rounded-xl font-bold text-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/50 capitalize text-sm sm:text-base" />
+                    <input 
+                        value={name} 
+                        onChange={e => setName(e.target.value)} 
+                        autoFocus 
+                        placeholder="Ej: Harina PAN 1kg"
+                        onBlur={() => {
+                            if (!image && name && name.trim().length >= 3) {
+                                handleAutoSearchImage(name);
+                            }
+                        }}
+                        className="w-full bg-slate-50 dark:bg-slate-800 p-3.5 pr-10 rounded-xl font-bold text-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/50 capitalize text-sm sm:text-base" 
+                    />
                     {name && name.trim().length >= 3 && (
                         <CheckCircle size={18} className="absolute right-3 top-[38px] text-emerald-500 transition-all duration-300" />
                     )}

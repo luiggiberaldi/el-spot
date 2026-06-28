@@ -102,6 +102,30 @@ export default function ProductFormModal({
         }
     };
 
+    const handleAutoSearchImage = async (productName) => {
+        if (!productName || productName.trim().length < 3) {
+            showToast('Ingresa un nombre de producto (mín. 3 letras) para buscar automáticamente', 'warning');
+            return;
+        }
+        setIsSearchingImage(true);
+        try {
+            const response = await fetch(`https://preciosaldia.vercel.app/api/search-image?q=${encodeURIComponent(productName.trim())}`);
+            const data = await response.json();
+            if (data.success && data.dataUri) {
+                const compressed = await compressBase64Image(data.dataUri);
+                setImage(compressed);
+                showToast(`¡Foto automática de "${productName}" cargada!`, 'success');
+            } else {
+                showToast(data.message || 'No se encontró foto automática para este producto', 'info');
+            }
+        } catch (error) {
+            console.error('[AutoSearchImage] Error:', error);
+            showToast('Error al buscar foto automática del producto', 'error');
+        } finally {
+            setIsSearchingImage(false);
+        }
+    };
+
     // Resetear paso y modo al abrir/cerrar
     useEffect(() => {
         if (isOpen) {
@@ -158,7 +182,8 @@ export default function ProductFormModal({
         handleImageUpload,
         categories,
         isSearchingImage,
-        handleLoadImageFromUrl
+        handleLoadImageFromUrl,
+        handleAutoSearchImage
     };
 
     return (
