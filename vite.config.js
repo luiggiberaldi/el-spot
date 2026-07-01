@@ -174,105 +174,338 @@ export default defineConfig(({ mode }) => {
         });
       },
     },
-  ],
+    // ── Plugin: /api dev endpoints (rates, search-image, image-proxy, analyze, chat) ──
+    {
+      name: 'api-endpoints-dev',
+      configureServer(server) {
+        const apiMiddleware = (req, res, next) => {
+          console.log('[Dev Middleware] Request received:', req.url);
+          // Lista blanca de orígenes para el dev server.
+          const allowedDevOrigins = ['http://localhost:5173', 'http://localhost:4173', 'http://127.0.0.1:5173', 'http://localhost:5174', 'http://localhost:4174', 'http://127.0.0.1:5174'];
+          const origin = req.headers.origin;
+          const corsOrigin = origin && allowedDevOrigins.includes(origin) ? origin : allowedDevOrigins[0];
 
-  // ── Dev server: proxy con CORS restringido (SEC-011 / INFRA-012) ──
-  server: {
-    configureServer(server) {
-      server.middlewares.use(async (req, res, next) => {
-        // Lista blanca de orígenes para el dev server.
-        const allowedDevOrigins = ['http://localhost:5173', 'http://localhost:4173', 'http://127.0.0.1:5173'];
-        const origin = req.headers.origin;
-        const corsOrigin = origin && allowedDevOrigins.includes(origin) ? origin : allowedDevOrigins[0];
-
-        // ── /api/rates ──
-        if (req.url.startsWith('/api/rates')) {
-          res.setHeader('Content-Type', 'application/json');
-          res.setHeader('Access-Control-Allow-Origin', corsOrigin);
-          res.setHeader('Vary', 'Origin');
-          try {
-            const googleScriptUrl = process.env.VITE_GOOGLE_SCRIPT_URL;
-            if (!googleScriptUrl) {
-              throw new Error('VITE_GOOGLE_SCRIPT_URL no configurada');
-            }
-            const response = await fetch(googleScriptUrl);
-            const data = await response.json();
-            if (data && data.bcv) {
-              const rates = {
-                bcv: { price: data.bcv.price, source: 'BCV Oficial (Local Dev)', change: data.bcv.change || 0 },
-                euro: { price: data.euro?.price || data.bcv.price * 1.09, source: 'Euro BCV (Local Dev)', change: data.euro?.change || 0 },
-                lastUpdate: new Date().toISOString(),
-              };
-              res.end(JSON.stringify(rates));
-            } else {
-              throw new Error('Invalid data format');
-            }
-          } catch (err) {
-            // Fallback a ve.dolarapi.com
-            try {
-              const response = await fetch('https://ve.dolarapi.com/v1/dolares');
-              const data = await response.json();
-              const oficial = Array.isArray(data) ? data.find((d) => d.fuente === 'oficial' || d.nombre === 'Oficial') : null;
-              const paralelo = Array.isArray(data) ? data.find((d) => d.fuente === 'paralelo' || d.nombre === 'Paralelo') : null;
-              const bcvPrice = parseFloat(oficial?.promedio || 580);
-              const euroPrice = parseFloat(paralelo?.promedio || bcvPrice * 1.09);
-              res.end(JSON.stringify({
-                bcv: { price: bcvPrice, source: 'BCV Oficial (Fallback)', change: 0 },
-                euro: { price: euroPrice, source: 'Euro BCV (Fallback)', change: 0 },
-                lastUpdate: new Date().toISOString(),
-              }));
-            } catch (fallbackErr) {
-              res.statusCode = 500;
-              res.end(JSON.stringify({ error: 'Failed to fetch rates: ' + err.message }));
-            }
-          }
-          return;
-        }
-
-        // ── /api/analyze (SEC-011: CORS restringido + token efímero) ──
-        if (req.url.startsWith('/api/analyze')) {
-          if (req.method === 'POST') {
-            // Validar origen.
-            if (origin && !allowedDevOrigins.includes(origin)) {
-              res.statusCode = 403;
-              res.end(JSON.stringify({ error: 'Origin not allowed' }));
-              return;
-            }
-            // Token efímero simple para dev (no es seguridad real, solo disuasivo).
-            const expectedToken = process.env.DEV_ANALYZE_TOKEN;
-            if (expectedToken && req.headers['x-dev-token'] !== expectedToken) {
-              res.statusCode = 401;
-              res.end(JSON.stringify({ error: 'Dev token required' }));
-              return;
-            }
-            let body = '';
-            req.on('data', (chunk) => { body += chunk; });
-            req.on('end', async () => {
+          // ── /api/rates ──
+          if (req.url.startsWith('/api/rates')) {
+            (async () => {
               res.setHeader('Content-Type', 'application/json');
               res.setHeader('Access-Control-Allow-Origin', corsOrigin);
               res.setHeader('Vary', 'Origin');
               try {
-                const { prompt } = JSON.parse(body);
-                if (typeof prompt !== 'string' || prompt.length > 4000) {
-                  res.statusCode = 400;
-                  res.end(JSON.stringify({ error: 'prompt inválido o demasiado largo (máx 4000 chars)' }));
-                  return;
+                const googleScriptUrl = process.env.VITE_GOOGLE_SCRIPT_URL;
+                if (!googleScriptUrl) {
+                  throw new Error('VITE_GOOGLE_SCRIPT_URL no configurada');
                 }
-                const apiKey = process.env.GROQ_API_KEY || process.env.GROQ_API_KEY_SECONDARY;
-                if (!apiKey) {
+                const response = await fetch(googleScriptUrl);
+                const data = await response.json();
+                if (data && data.bcv) {
+                  const rates = {
+                    bcv: { price: data.bcv.price, source: 'BCV Oficial (Local Dev)', change: data.bcv.change || 0 },
+                    euro: { price: data.euro?.price || data.bcv.price * 1.09, source: 'Euro BCV (Local Dev)', change: data.euro?.change || 0 },
+                    lastUpdate: new Date().toISOString(),
+                  };
+                  res.end(JSON.stringify(rates));
+                } else {
+                  throw new Error('Invalid data format');
+                }
+              } catch (err) {
+                // Fallback a ve.dolarapi.com
+                try {
+                  const response = await fetch('https://ve.dolarapi.com/v1/dolares');
+                  const data = await response.json();
+                  const oficial = Array.isArray(data) ? data.find((d) => d.fuente === 'oficial' || d.nombre === 'Oficial') : null;
+                  const paralelo = Array.isArray(data) ? data.find((d) => d.fuente === 'paralelo' || d.nombre === 'Paralelo') : null;
+                  const bcvPrice = parseFloat(oficial?.promedio || 580);
+                  const euroPrice = parseFloat(paralelo?.promedio || bcvPrice * 1.09);
+                  res.end(JSON.stringify({
+                    bcv: { price: bcvPrice, source: 'BCV Oficial (Fallback)', change: 0 },
+                    euro: { price: euroPrice, source: 'Euro BCV (Fallback)', change: 0 },
+                    lastUpdate: new Date().toISOString(),
+                  }));
+                } catch (fallbackErr) {
                   res.statusCode = 500;
-                  res.end(JSON.stringify({ error: 'Groq API Key not configured' }));
+                  res.end(JSON.stringify({ error: 'Failed to fetch rates: ' + err.message }));
+                }
+              }
+            })();
+            return;
+          }
+
+          // ── /api/search-image ──
+          if (req.url.startsWith('/api/search-image')) {
+            (async () => {
+              res.setHeader('Content-Type', 'application/json');
+              res.setHeader('Access-Control-Allow-Origin', corsOrigin);
+              res.setHeader('Vary', 'Origin');
+
+              const urlObj = new URL(req.url, `http://${req.headers.host}`);
+              const query = urlObj.searchParams.get('q');
+
+              if (!query || query.trim().length < 3) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: "Falta el parámetro 'q' de búsqueda (mínimo 3 caracteres)." }));
+                return;
+              }
+
+              try {
+                const supabaseUrl = env.VITE_SUPABASE_CLOUD_URL || env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_CLOUD_URL || process.env.VITE_SUPABASE_URL;
+                const supabaseKey = env.VITE_SUPABASE_CLOUD_KEY || env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_CLOUD_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+                
+                if (!supabaseUrl || !supabaseKey) {
+                  throw new Error('Supabase URL/Key no configurada en dev .env');
+                }
+
+                const { createClient } = await import('@supabase/supabase-js');
+                const supabase = createClient(supabaseUrl, supabaseKey);
+
+                const trimmedQuery = query.trim();
+                const slug = trimmedQuery
+                  .toLowerCase()
+                  .normalize("NFD")
+                  .replace(/[\u0300-\u036f]/g, "")
+                  .replace(/[^a-z0-9]+/g, "-")
+                  .replace(/(^-|-$)+/g, "");
+
+                // 1. Intentar coincidencia exacta de slug
+                const { data: exactMatch } = await supabase
+                  .from("product_images_catalog")
+                  .select("name, image_url")
+                  .eq("id", slug)
+                  .maybeSingle();
+
+                if (exactMatch) {
+                  res.end(JSON.stringify({
+                    success: true,
+                    matches: [{ title: exactMatch.name, dataUri: exactMatch.image_url }]
+                  }));
                   return;
                 }
-                const { default: Groq } = await import('groq-sdk');
-                const groq = new Groq({ apiKey });
-                const completion = await groq.chat.completions.create({
+
+                // 2. Intentar coincidencia parcial
+                const words = trimmedQuery.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+                if (words.length > 0) {
+                  const { data: matches } = await supabase
+                    .from("product_images_catalog")
+                    .select("id, name, image_url")
+                    .overlaps("tags", words);
+
+                  if (matches && matches.length > 0) {
+                    const ranked = matches.map(item => {
+                      let score = 0;
+                      const nameLower = item.name.toLowerCase();
+                      words.forEach(w => {
+                        if (nameLower.includes(w)) score += 10;
+                      });
+                      return { ...item, score };
+                    })
+                    .filter(item => item.score > 0)
+                    .sort((a, b) => b.score - a.score);
+
+                    if (ranked.length > 0) {
+                      const topMatches = ranked.slice(0, 5).map(item => ({
+                        title: item.name,
+                        dataUri: item.image_url
+                      }));
+                      
+                      res.end(JSON.stringify({ success: true, matches: topMatches }));
+                      return;
+                    }
+                  }
+                }
+
+                res.statusCode = 404;
+                res.end(JSON.stringify({ error: "No se encontraron imágenes en el catálogo para el producto especificado." }));
+
+              } catch (err) {
+                res.statusCode = 500;
+                res.end(JSON.stringify({ error: err.message }));
+              }
+            })();
+            return;
+          }
+
+          // ── /api/image-proxy ──
+          if (req.url.startsWith('/api/image-proxy')) {
+            (async () => {
+              res.setHeader('Access-Control-Allow-Origin', corsOrigin);
+              res.setHeader('Vary', 'Origin');
+
+              const urlObj = new URL(req.url, `http://${req.headers.host}`);
+              const targetUrl = urlObj.searchParams.get('url');
+
+              if (!targetUrl) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: 'Falta el parámetro url.' }));
+                return;
+              }
+
+              try {
+                const response = await fetch(targetUrl);
+                if (!response.ok) {
+                  res.statusCode = response.status;
+                  res.end(JSON.stringify({ error: `Error fetching target image: ${response.statusText}` }));
+                  return;
+                }
+
+                const contentType = response.headers.get('Content-Type') || 'image/png';
+                const arrayBuffer = await response.arrayBuffer();
+                const buffer = Buffer.from(arrayBuffer);
+
+                res.setHeader('Content-Type', contentType);
+                res.setHeader('Cache-Control', 'public, max-age=86400');
+                res.end(buffer);
+              } catch (err) {
+                res.statusCode = 500;
+                res.end(JSON.stringify({ error: err.message }));
+              }
+            })();
+            return;
+          }
+
+          // ── /api/analyze (SEC-011: CORS restringido + token efímero) ──
+          if (req.url.startsWith('/api/analyze')) {
+            if (req.method === 'POST') {
+              // Validar origen.
+              if (origin && !allowedDevOrigins.includes(origin)) {
+                res.statusCode = 403;
+                res.end(JSON.stringify({ error: 'Origin not allowed' }));
+                return;
+              }
+              // Token efímero simple para dev (no es seguridad real, solo disuasivo).
+              const expectedToken = process.env.DEV_ANALYZE_TOKEN;
+              if (expectedToken && req.headers['x-dev-token'] !== expectedToken) {
+                res.statusCode = 401;
+                res.end(JSON.stringify({ error: 'Dev token required' }));
+                return;
+              }
+              let body = '';
+              req.on('data', (chunk) => { body += chunk; });
+              req.on('end', async () => {
+                res.setHeader('Content-Type', 'application/json');
+                res.setHeader('Access-Control-Allow-Origin', corsOrigin);
+                res.setHeader('Vary', 'Origin');
+                try {
+                  const { prompt } = JSON.parse(body);
+                  if (typeof prompt !== 'string' || prompt.length > 4000) {
+                    res.statusCode = 400;
+                    res.end(JSON.stringify({ error: 'prompt inválido o demasiado largo (máx 4000 chars)' }));
+                    return;
+                  }
+                  const apiKey = process.env.GROQ_API_KEY || process.env.GROQ_API_KEY_SECONDARY;
+                  if (!apiKey) {
+                    res.statusCode = 500;
+                    res.end(JSON.stringify({ error: 'Groq API Key not configured' }));
+                    return;
+                  }
+                  const { default: Groq } = await import('groq-sdk');
+                  const groq = new Groq({ apiKey });
+                  const completion = await groq.chat.completions.create({
+                    model: 'llama-3.3-70b-versatile',
+                    messages: [{ role: 'user', content: prompt }],
+                    max_tokens: 300,
+                    temperature: 0.3,
+                  });
+                  res.end(JSON.stringify({ analysis: completion.choices[0]?.message?.content || null }));
+                } catch (err) {
+                  res.statusCode = 500;
+                  res.end(JSON.stringify({ error: err.message }));
+                }
+              });
+              return;
+            }
+          }
+
+          // ── /api/chat (Groq LLM — mismo handler que api/chat.js de Vercel) ──
+          if (req.url.startsWith('/api/chat')) {
+            if (req.method === 'OPTIONS') {
+              res.setHeader('Access-Control-Allow-Origin', corsOrigin);
+              res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+              res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+              res.statusCode = 200;
+              res.end();
+              return;
+            }
+            if (req.method !== 'POST') {
+              res.statusCode = 405;
+              res.end(JSON.stringify({ error: 'Method not allowed' }));
+              return;
+            }
+
+            let body = '';
+            req.on('data', (chunk) => { body += chunk; });
+            req.on('end', async () => {
+              res.setHeader('Access-Control-Allow-Origin', corsOrigin);
+              res.setHeader('Vary', 'Origin');
+              try {
+                const { messages } = JSON.parse(body);
+                if (!messages || !Array.isArray(messages)) {
+                  res.statusCode = 400;
+                  res.end(JSON.stringify({ error: "El cuerpo debe contener un arreglo 'messages'." }));
+                  return;
+                }
+
+                const groqKeysStr = process.env.GROQ_KEYS || '';
+                const allKeys = groqKeysStr.split(',').map(k => k.trim()).filter(Boolean);
+                if (allKeys.length === 0) {
+                  res.statusCode = 500;
+                  res.end(JSON.stringify({ error: 'GROQ_KEYS no configuradas en .env' }));
+                  return;
+                }
+
+                const requestBody = JSON.stringify({
                   model: 'llama-3.3-70b-versatile',
-                  messages: [{ role: 'user', content: prompt }],
-                  max_tokens: 300,
-                  temperature: 0.3,
+                  messages,
+                  temperature: 0.7,
+                  max_tokens: 2048,
+                  stream: true,
                 });
-                res.end(JSON.stringify({ analysis: completion.choices[0]?.message?.content || null }));
+
+                const startIndex = Math.floor(Math.random() * allKeys.length);
+                let lastError = null;
+
+                for (let attempt = 0; attempt < allKeys.length; attempt++) {
+                  const apiKey = allKeys[(startIndex + attempt) % allKeys.length];
+                  let groqRes;
+                  try {
+                    groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                      method: 'POST',
+                      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+                      body: requestBody,
+                    });
+                  } catch (fetchErr) {
+                    lastError = fetchErr.message;
+                    continue;
+                  }
+
+                  if (groqRes.status === 429 || groqRes.status === 401 || groqRes.status === 403 || groqRes.status >= 500) {
+                    lastError = `Key HTTP ${groqRes.status}`;
+                    continue;
+                  }
+
+                  if (!groqRes.ok) {
+                    const errText = await groqRes.text();
+                    res.statusCode = groqRes.status;
+                    res.end(JSON.stringify({ error: errText }));
+                    return;
+                  }
+
+                  // ✅ Clave ok — stream SSE de vuelta al cliente
+                  res.setHeader('Content-Type', 'text/event-stream');
+                  res.setHeader('Cache-Control', 'no-cache');
+                  res.setHeader('Connection', 'keep-alive');
+                  const reader = groqRes.body.getReader();
+                  while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    res.write(value);
+                  }
+                  res.end();
+                  return;
+                }
+
+                // Todas las keys fallaron
+                res.statusCode = 503;
+                res.end(JSON.stringify({ error: 'Servicio de IA saturado. Intenta en unos segundos.', detail: lastError }));
               } catch (err) {
                 res.statusCode = 500;
                 res.end(JSON.stringify({ error: err.message }));
@@ -280,111 +513,24 @@ export default defineConfig(({ mode }) => {
             });
             return;
           }
-        }
 
-        // ── /api/chat (Groq LLM — mismo handler que api/chat.js de Vercel) ──
-        if (req.url.startsWith('/api/chat')) {
-          if (req.method === 'OPTIONS') {
-            res.setHeader('Access-Control-Allow-Origin', corsOrigin);
-            res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-            res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-            res.statusCode = 200;
-            res.end();
-            return;
+          next();
+        };
+
+        server.middlewares.use(apiMiddleware);
+
+        // Forzar a nuestro middleware a estar en el primer lugar de la pila
+        setTimeout(() => {
+          const stack = server.middlewares.stack;
+          const apiIndex = stack.findIndex(m => m.handle === apiMiddleware);
+          if (apiIndex > -1) {
+            const [apiMiddlewareObj] = stack.splice(apiIndex, 1);
+            stack.unshift(apiMiddlewareObj);
           }
-          if (req.method !== 'POST') {
-            res.statusCode = 405;
-            res.end(JSON.stringify({ error: 'Method not allowed' }));
-            return;
-          }
-
-          let body = '';
-          req.on('data', (chunk) => { body += chunk; });
-          req.on('end', async () => {
-            res.setHeader('Access-Control-Allow-Origin', corsOrigin);
-            res.setHeader('Vary', 'Origin');
-            try {
-              const { messages } = JSON.parse(body);
-              if (!messages || !Array.isArray(messages)) {
-                res.statusCode = 400;
-                res.end(JSON.stringify({ error: "El cuerpo debe contener un arreglo 'messages'." }));
-                return;
-              }
-
-              const groqKeysStr = process.env.GROQ_KEYS || '';
-              const allKeys = groqKeysStr.split(',').map(k => k.trim()).filter(Boolean);
-              if (allKeys.length === 0) {
-                res.statusCode = 500;
-                res.end(JSON.stringify({ error: 'GROQ_KEYS no configuradas en .env' }));
-                return;
-              }
-
-              const requestBody = JSON.stringify({
-                model: 'llama-3.3-70b-versatile',
-                messages,
-                temperature: 0.7,
-                max_tokens: 2048,
-                stream: true,
-              });
-
-              const startIndex = Math.floor(Math.random() * allKeys.length);
-              let lastError = null;
-
-              for (let attempt = 0; attempt < allKeys.length; attempt++) {
-                const apiKey = allKeys[(startIndex + attempt) % allKeys.length];
-                let groqRes;
-                try {
-                  groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-                    body: requestBody,
-                  });
-                } catch (fetchErr) {
-                  lastError = fetchErr.message;
-                  continue;
-                }
-
-                if (groqRes.status === 429 || groqRes.status === 401 || groqRes.status === 403 || groqRes.status >= 500) {
-                  lastError = `Key HTTP ${groqRes.status}`;
-                  continue;
-                }
-
-                if (!groqRes.ok) {
-                  const errText = await groqRes.text();
-                  res.statusCode = groqRes.status;
-                  res.end(JSON.stringify({ error: errText }));
-                  return;
-                }
-
-                // ✅ Clave ok — stream SSE de vuelta al cliente
-                res.setHeader('Content-Type', 'text/event-stream');
-                res.setHeader('Cache-Control', 'no-cache');
-                res.setHeader('Connection', 'keep-alive');
-                const reader = groqRes.body.getReader();
-                while (true) {
-                  const { done, value } = await reader.read();
-                  if (done) break;
-                  res.write(value);
-                }
-                res.end();
-                return;
-              }
-
-              // Todas las keys fallaron
-              res.statusCode = 503;
-              res.end(JSON.stringify({ error: 'Servicio de IA saturado. Intenta en unos segundos.', detail: lastError }));
-            } catch (err) {
-              res.statusCode = 500;
-              res.end(JSON.stringify({ error: err.message }));
-            }
-          });
-          return;
-        }
-
-        next();
-      });
+        }, 100);
+      },
     },
-  },
+  ],
 
   // ── Test setup (Vitest) ──
   test: {

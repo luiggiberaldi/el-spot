@@ -87,7 +87,7 @@ export default function ProductFormModal({
         }
         setIsSearchingImage(true);
         try {
-            const response = await fetch(`https://preciosaldiaweb.vercel.app/api/image-proxy?url=${encodeURIComponent(url.trim())}`);
+            const response = await fetch(`/api/image-proxy?url=${encodeURIComponent(url.trim())}`);
             const data = await response.json();
             if (data.success && data.dataUri) {
                 const compressed = await compressBase64Image(data.dataUri);
@@ -110,36 +110,11 @@ export default function ProductFormModal({
             return;
         }
         setIsSearchingImage(true);
-        const isLocal = window.location.hostname === 'localhost';
-        const urls = isLocal 
-            ? [
-                'http://localhost:3000/api/search-image',
-                'https://preciosaldiaweb.vercel.app/api/search-image',
-                'https://preciosaldia.vercel.app/api/search-image'
-              ] 
-            : [
-                'https://preciosaldiaweb.vercel.app/api/search-image',
-                'https://preciosaldia.vercel.app/api/search-image'
-              ];
 
         try {
-            let response = null;
-            let lastErr = null;
-            
-            for (const url of urls) {
-                try {
-                    const res = await fetch(`${url}?q=${encodeURIComponent(productName.trim())}`);
-                    if (res.ok) {
-                        response = res;
-                        break;
-                    }
-                } catch (e) {
-                    lastErr = e;
-                }
-            }
-
-            if (!response) {
-                throw lastErr || new Error('No se pudo conectar con los servidores de búsqueda.');
+            const response = await fetch(`/api/search-image?q=${encodeURIComponent(productName.trim())}`);
+            if (!response.ok) {
+                throw new Error(`Servidor respondió con código ${response.status}`);
             }
 
             const data = await response.json();
