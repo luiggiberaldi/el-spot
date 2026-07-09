@@ -210,21 +210,60 @@ const SearchBar = forwardRef(function SearchBar({
                             ))}
                         </div>
                         {/* Input manual */}
-                        <div className="flex gap-2">
-                            <input type="number" step="0.01" min="0.01" placeholder="Cantidad exacta..."
-                                id="weight-input"
-                                className="flex-1 bg-amber-50 dark:bg-slate-800 border border-amber-200 dark:border-amber-700 p-3 rounded-xl font-bold text-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-amber-500/50 text-sm"
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        const val = parseFloat(e.target.value);
-                                        if (val > 0) { addToCart(weightPending, val); setWeightPending(null); }
-                                    }
-                                }} />
-                            <button onClick={() => {
-                                const input = document.getElementById('weight-input');
-                                const val = parseFloat(input?.value);
-                                if (val > 0) { addToCart(weightPending, val); setWeightPending(null); }
-                            }} className="px-4 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-black text-sm active:scale-95 transition-all">
+                        <div className="flex gap-2 items-center">
+                            <div className="flex-1 flex items-center bg-amber-50 dark:bg-slate-800 border border-amber-200 dark:border-amber-700 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-amber-500/50 transition-all">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const input = document.getElementById('weight-input');
+                                        if (input) {
+                                            const currentVal = parseFloat(input.value) || 0;
+                                            const step = 0.1;
+                                            input.value = Math.max(0.01, parseFloat((currentVal - step).toFixed(3))).toString();
+                                        }
+                                    }}
+                                    className="px-4 py-3 text-amber-600 hover:bg-amber-100/30 active:bg-amber-200/30 transition-colors font-black text-base select-none"
+                                >
+                                    -
+                                </button>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0.01"
+                                    placeholder="0.00"
+                                    id="weight-input"
+                                    defaultValue="1.00"
+                                    className="flex-1 bg-transparent text-center py-3 font-bold text-slate-700 dark:text-white outline-none text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            const val = parseFloat(e.target.value);
+                                            if (val > 0) { addToCart(weightPending, val); setWeightPending(null); }
+                                        }
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const input = document.getElementById('weight-input');
+                                        if (input) {
+                                            const currentVal = parseFloat(input.value) || 0;
+                                            const step = 0.1;
+                                            input.value = parseFloat((currentVal + step).toFixed(3)).toString();
+                                        }
+                                    }}
+                                    className="px-4 py-3 text-amber-600 hover:bg-amber-100/30 active:bg-amber-200/30 transition-colors font-black text-base select-none"
+                                >
+                                    +
+                                </button>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    const input = document.getElementById('weight-input');
+                                    const val = parseFloat(input?.value);
+                                    if (val > 0) { addToCart(weightPending, val); setWeightPending(null); }
+                                }}
+                                className="px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-black text-sm active:scale-95 transition-all shrink-0"
+                            >
                                 Agregar
                             </button>
                         </div>
