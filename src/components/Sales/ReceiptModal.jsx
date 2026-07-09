@@ -37,24 +37,37 @@ export default function ReceiptModal({ receipt, onClose, onShareWhatsApp, curren
                                 C.I/RIF: {receipt.customerDocument}
                             </p>
                         )}
-                        {receipt.copEnabled && receipt.tasaCop > 0 ? (
-                            copPrimary ? (
-                                <>
-                                    <p className="text-4xl font-black text-amber-600 dark:text-amber-400 mb-1 tracking-tighter">{formatCop(receipt.totalCop || (receipt.totalUsd * receipt.tasaCop))} COP</p>
-                                    <p className="text-lg font-bold text-slate-500 mb-2">${receipt.totalUsd.toFixed(2)} USD · {formatBs(receipt.totalBs)} Bs</p>
-                                </>
+                        {(() => {
+                            const receiptCurrencyMode = localStorage.getItem('receipt_currency_mode') || 'bs';
+                            const isCop = receipt.copEnabled && receipt.tasaCop > 0;
+                            
+                            if (receiptCurrencyMode === 'usd') {
+                                return <p className="text-4xl font-black text-slate-900 mb-2 tracking-tighter">${receipt.totalUsd.toFixed(2)} USD</p>;
+                            }
+                            if (receiptCurrencyMode === 'bs') {
+                                return <p className="text-4xl font-black text-brand mb-2 tracking-tighter">Bs {formatBs(receipt.totalBs)}</p>;
+                            }
+                            
+                            // mixto
+                            return isCop ? (
+                                copPrimary ? (
+                                    <>
+                                        <p className="text-4xl font-black text-amber-600 dark:text-amber-400 mb-1 tracking-tighter">{formatCop(receipt.totalCop || (receipt.totalUsd * receipt.tasaCop))} COP</p>
+                                        <p className="text-lg font-bold text-slate-500 mb-2">${receipt.totalUsd.toFixed(2)} USD · {formatBs(receipt.totalBs)} Bs</p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <p className="text-4xl font-black text-slate-900 mb-1 tracking-tighter">${receipt.totalUsd.toFixed(2)}</p>
+                                        <p className="text-lg font-bold text-slate-500 mb-2">{formatCop(receipt.totalCop || (receipt.totalUsd * receipt.tasaCop))} COP · {formatBs(receipt.totalBs)} Bs</p>
+                                    </>
+                                )
                             ) : (
                                 <>
                                     <p className="text-4xl font-black text-slate-900 mb-1 tracking-tighter">${receipt.totalUsd.toFixed(2)}</p>
-                                    <p className="text-lg font-bold text-slate-500 mb-2">{formatCop(receipt.totalCop || (receipt.totalUsd * receipt.tasaCop))} COP · {formatBs(receipt.totalBs)} Bs</p>
+                                    <p className="text-lg font-bold text-slate-500 mb-2">{formatBs(receipt.totalBs)} Bs</p>
                                 </>
-                            )
-                        ) : (
-                            <>
-                                <p className="text-4xl font-black text-slate-900 mb-1 tracking-tighter">${receipt.totalUsd.toFixed(2)}</p>
-                                <p className="text-lg font-bold text-slate-500 mb-2">{formatBs(receipt.totalBs)} Bs</p>
-                            </>
-                        )}
+                            );
+                        })()}
 
                         <div className="inline-flex items-center flex-wrap justify-center gap-1.5 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full text-xs font-bold text-slate-600 dark:text-slate-350 mt-2">
                             {receipt.payments && receipt.payments.filter(p => p.methodId !== 'cashea' && !p.isCashea).map((p, i, arr) => (
@@ -73,51 +86,90 @@ export default function ReceiptModal({ receipt, onClose, onShareWhatsApp, curren
                     <div className="bg-slate-50 px-6 sm:px-8 py-6">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Detalle de Consumo</p>
                         <div className="space-y-3">
-                            {receipt.items.map((item, i) => (
-                                <div key={i} className="flex justify-between items-start text-sm border-b border-slate-200/50 pb-2 last:border-0 last:pb-0">
-                                    <div className="flex-1 pr-4">
-                                        <span className="font-bold text-slate-700 block leading-tight">{item.name}</span>
-                                        {receipt.copEnabled && receipt.tasaCop > 0 ? (
-                                            copPrimary ? (
-                                                <>
-                                                    <span className="text-xs text-slate-400">{item.isWeight ? `${item.qty.toFixed(3)} Kg` : `${item.qty} u`} × {formatCop(item.priceCop || Math.round(item.priceUsd * receipt.tasaCop))} COP</span>
-                                                    <span className="text-xs text-slate-400 block">
-                                                        <span className="text-emerald-600">${item.priceUsd.toFixed(2)} USD</span> · <span className="text-brand">{formatBs(item.priceUsd * (receipt.rate || 0))} Bs</span> c/u
-                                                    </span>
-                                                </>
+                            {receipt.items.map((item, i) => {
+                                const receiptCurrencyMode = localStorage.getItem('receipt_currency_mode') || 'bs';
+                                const isCop = receipt.copEnabled && receipt.tasaCop > 0;
+                                const priceBs = item.priceUsd * (receipt.rate || 0);
+                                const totalBs = item.priceUsd * item.qty * (receipt.rate || 0);
+
+                                if (receiptCurrencyMode === 'usd') {
+                                    return (
+                                        <div key={i} className="flex justify-between items-start text-sm border-b border-slate-200/50 pb-2 last:border-0 last:pb-0">
+                                            <div className="flex-1 pr-4">
+                                                <span className="font-bold text-slate-700 block leading-tight">{item.name}</span>
+                                                <span className="text-xs text-slate-400">{item.isWeight ? `${item.qty.toFixed(3)} Kg` : `${item.qty} u`} × ${item.priceUsd.toFixed(2)}</span>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="font-black text-slate-900">${(item.priceUsd * item.qty).toFixed(2)}</span>
+                                            </div>
+                                        </div>
+                                    );
+                                }
+
+                                if (receiptCurrencyMode === 'bs') {
+                                    return (
+                                        <div key={i} className="flex justify-between items-start text-sm border-b border-slate-200/50 pb-2 last:border-0 last:pb-0">
+                                            <div className="flex-1 pr-4">
+                                                <span className="font-bold text-slate-700 block leading-tight">{item.name}</span>
+                                                <span className="text-xs text-slate-400">{item.isWeight ? `${item.qty.toFixed(3)} Kg` : `${item.qty} u`} × Bs {formatBs(priceBs)}</span>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="font-black text-brand">Bs {formatBs(totalBs)}</span>
+                                            </div>
+                                        </div>
+                                    );
+                                }
+
+                                // mixto
+                                return (
+                                    <div key={i} className="flex justify-between items-start text-sm border-b border-slate-200/50 pb-2 last:border-0 last:pb-0">
+                                        <div className="flex-1 pr-4">
+                                            <span className="font-bold text-slate-700 block leading-tight">{item.name}</span>
+                                            {isCop ? (
+                                                copPrimary ? (
+                                                    <>
+                                                        <span className="text-xs text-slate-400">{item.isWeight ? `${item.qty.toFixed(3)} Kg` : `${item.qty} u`} × {formatCop(item.priceCop || Math.round(item.priceUsd * receipt.tasaCop))} COP</span>
+                                                        <span className="text-xs text-slate-400 block">
+                                                            <span className="text-emerald-600">${item.priceUsd.toFixed(2)} USD</span> · <span className="text-brand">{formatBs(priceBs)} Bs</span> c/u
+                                                        </span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <span className="text-xs text-slate-400">{item.isWeight ? `${item.qty.toFixed(3)} Kg` : `${item.qty} u`} × ${item.priceUsd.toFixed(2)}</span>
+                                                        <span className="text-xs text-slate-400 block">
+                                                            <span className="text-amber-600">{formatCop(item.priceCop || Math.round(item.priceUsd * receipt.tasaCop))} COP</span> · <span className="text-brand">{formatBs(priceBs)} Bs</span> c/u
+                                                        </span>
+                                                    </>
+                                                )
                                             ) : (
-                                                <>
-                                                    <span className="text-xs text-slate-400">{item.isWeight ? `${item.qty.toFixed(3)} Kg` : `${item.qty} u`} × ${item.priceUsd.toFixed(2)}</span>
-                                                    <span className="text-xs text-slate-400 block">
-                                                        <span className="text-amber-600">{formatCop(item.priceCop || Math.round(item.priceUsd * receipt.tasaCop))} COP</span> · <span className="text-brand">{formatBs(item.priceUsd * (receipt.rate || 0))} Bs</span> c/u
-                                                    </span>
-                                                </>
-                                            )
-                                        ) : (
-                                            <span className="text-xs text-slate-400">{item.isWeight ? `${item.qty.toFixed(3)} Kg` : `${item.qty} u`} × ${item.priceUsd.toFixed(2)}</span>
-                                        )}
-                                    </div>
-                                    <div className="text-right">
-                                        {receipt.copEnabled && receipt.tasaCop > 0 ? (
-                                            copPrimary ? (
-                                                <>
-                                                    <span className="font-black text-amber-600 dark:text-amber-400 block">{formatCop((item.priceCop || Math.round(item.priceUsd * receipt.tasaCop)) * item.qty)} COP</span>
-                                                    <span className="text-xs text-emerald-600">${(item.priceUsd * item.qty).toFixed(2)}</span>
-                                                    <span className="text-xs text-brand block">{formatBs(item.priceUsd * item.qty * (receipt.rate || 0))} Bs</span>
-                                                </>
+                                                <span className="text-xs text-slate-400">{item.isWeight ? `${item.qty.toFixed(3)} Kg` : `${item.qty} u`} × ${item.priceUsd.toFixed(2)}</span>
+                                            )}
+                                        </div>
+                                        <div className="text-right">
+                                            {isCop ? (
+                                                copPrimary ? (
+                                                    <>
+                                                        <span className="font-black text-amber-600 dark:text-amber-400 block">{formatCop((item.priceCop || Math.round(item.priceUsd * receipt.tasaCop)) * item.qty)} COP</span>
+                                                        <span className="text-xs text-emerald-600">${(item.priceUsd * item.qty).toFixed(2)}</span>
+                                                        <span className="text-xs text-brand block">{formatBs(totalBs)} Bs</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <span className="font-black text-slate-900 block">${(item.priceUsd * item.qty).toFixed(2)}</span>
+                                                        <span className="text-xs text-amber-600">{formatCop((item.priceCop || Math.round(item.priceUsd * receipt.tasaCop)) * item.qty)} COP</span>
+                                                        <span className="text-xs text-brand block">{formatBs(totalBs)} Bs</span>
+                                                    </>
+                                                )
                                             ) : (
                                                 <>
                                                     <span className="font-black text-slate-900 block">${(item.priceUsd * item.qty).toFixed(2)}</span>
-                                                    <span className="text-xs text-amber-600">{formatCop((item.priceCop || Math.round(item.priceUsd * receipt.tasaCop)) * item.qty)} COP</span>
-                                                    <span className="text-xs text-brand block">{formatBs(item.priceUsd * item.qty * (receipt.rate || 0))} Bs</span>
+                                                    <span className="text-xs text-brand block">{formatBs(totalBs)} Bs</span>
                                                 </>
-                                            )
-                                        ) : (
-                                            <span className="font-black text-slate-900">${(item.priceUsd * item.qty).toFixed(2)}</span>
-                                        )}
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
 
                         {receipt.payments && receipt.payments.length > 0 && (

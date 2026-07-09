@@ -15,15 +15,33 @@ export function buildReceiptWhatsAppUrl(receipt, currentRate) {
     const sep = '================================';
     const sep2 = '--------------------------------';
 
+    const receiptCurrencyMode = localStorage.getItem('receipt_currency_mode') || 'bs';
+
     // Items
     const itemsLines = (r.items ?? []).map(item => {
         const qty = item.isWeight
             ? `${parseFloat(item.qty).toFixed(3)} kg`
             : `${item.qty} und`;
-        const sub = (item.priceUsd * item.qty).toFixed(2);
-        const unitPrice = parseFloat(item.priceUsd).toFixed(2);
-        const subStr = isCop ? `USD ${sub}` : `$${sub}`;
-        const unitStr = isCop ? `USD ${unitPrice}` : `$${unitPrice}`;
+        const subUsd = (item.priceUsd * item.qty).toFixed(2);
+        const unitPriceUsd = parseFloat(item.priceUsd).toFixed(2);
+        const priceBs = item.priceUsd * (r.rate || 1);
+        const subBs = item.priceUsd * item.qty * (r.rate || 1);
+
+        if (receiptCurrencyMode === 'usd') {
+            const subStr = isCop ? `USD ${subUsd}` : `$${subUsd}`;
+            const unitStr = isCop ? `USD ${unitPriceUsd}` : `$${unitPriceUsd}`;
+            return `- ${item.name}\n  ${qty} x ${unitStr} = ${subStr}`;
+        }
+        
+        if (receiptCurrencyMode === 'bs') {
+            const subStr = `Bs ${formatBs(subBs)}`;
+            const unitStr = `Bs ${formatBs(priceBs)}`;
+            return `- ${item.name}\n  ${qty} x ${unitStr} = ${subStr}`;
+        }
+
+        // mixto
+        const subStr = isCop ? `USD ${subUsd}` : `$${subUsd}`;
+        const unitStr = isCop ? `USD ${unitPriceUsd}` : `$${unitPriceUsd}`;
         let line = `- ${item.name}\n  ${qty} x ${unitStr} = ${subStr}`;
         if (isCop) {
             const copSub = (item.priceUsd * item.qty * r.tasaCop).toLocaleString('es-CO', { maximumFractionDigits: 0 });
@@ -39,7 +57,7 @@ export function buildReceiptWhatsAppUrl(receipt, currentRate) {
         const val = pIsCop
             ? `COP ${(p.amountInput ?? p.amountUsd * (r.tasaCop || 1)).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
             : isBs
-            ? `Bs ${Math.ceil(p.amountBs ?? p.amountUsd * r.rate)}`
+            ? `Bs ${formatBs(p.amountBs ?? p.amountUsd * r.rate)}`
             : `USD ${parseFloat(p.amountUsd).toFixed(2)}`;
         return `  ${p.methodLabel}: ${val}`;
     }).join('\n');
@@ -47,8 +65,17 @@ export function buildReceiptWhatsAppUrl(receipt, currentRate) {
     // Totales
     const totalBs = r.totalBs ?? (r.totalUsd * r.rate);
     const totalUsdStr = fmtUsd(r.totalUsd || 0);
-    const totalBsStr = `Bs ${Math.ceil(totalBs)}`;
+    const totalBsStr = `Bs ${formatBs(totalBs)}`;
     const totalCopStr = isCop ? `  /  COP ${(r.totalCop || (r.totalUsd * r.tasaCop)).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '';
+
+    let totalLine = '';
+    if (receiptCurrencyMode === 'usd') {
+        totalLine = `TOTAL: ${totalUsdStr}`;
+    } else if (receiptCurrencyMode === 'bs') {
+        totalLine = `TOTAL: ${totalBsStr}`;
+    } else {
+        totalLine = `TOTAL: ${totalUsdStr}  /  ${totalBsStr}${totalCopStr}`;
+    }
 
     // Vuelto
     const changeLines = r.changeUsd > 0.005
@@ -58,7 +85,7 @@ export function buildReceiptWhatsAppUrl(receipt, currentRate) {
     // Fiado
     const fiadoRate = currentRate || r.rate || 1;
     const fiadoLine = r.fiadoUsd > 0.005
-        ? `\nPENDIENTE (fiado): ${fmtUsd(r.fiadoUsd)} / Bs ${Math.ceil(r.fiadoUsd * fiadoRate)}`
+        ? `\nPENDIENTE (fiado): ${fmtUsd(r.fiadoUsd)} / Bs ${formatBs(r.fiadoUsd * fiadoRate)}`
         : '';
 
     // Cliente
@@ -95,7 +122,7 @@ export function buildReceiptWhatsAppUrl(receipt, currentRate) {
         itemsLines,
         ``,
         sep,
-        `TOTAL: ${totalUsdStr}  /  ${totalBsStr}${totalCopStr}`,
+        totalLine,
         paymentsLines ? `\nPAGOS:\n${paymentsLines}` : '',
         changeLines,
         fiadoLine,

@@ -195,42 +195,55 @@ export async function generateTicketPDF(sale, bcvRate) {
     doc.text('TOTAL A PAGAR', CX, y, { align: 'center' });
     y += 8;
 
-    // Monto USD — GRANDE (siempre primario)
-    doc.setFontSize(20);
-    doc.setTextColor(...GREEN);
-    // FIN-024: formatUsd en vez de parseFloat(v).toFixed(2).
-    const totalUsdStr = isCop
-        ? 'USD ' + formatUsd(sale.totalUsd || 0)
-        : '$' + formatUsd(sale.totalUsd || 0);
-    doc.text(totalUsdStr, CX, y, { align: 'center' });
-    y += 8;
+    const receiptCurrencyMode = localStorage.getItem('receipt_currency_mode') || 'bs';
 
-    // COP secondary (when isCop)
-    if (isCop) {
-        doc.setFontSize(10);
-        doc.setTextColor(...BODY);
-        // FIN-024: mulR para fallback `sale.totalUsd * sale.tasaCop`.
-        const totalCopStr = 'COP ' + formatCop(sale.totalCop || mulR(sale.totalUsd, sale.tasaCop));
-        doc.text(totalCopStr, CX, y, { align: 'center' });
-        y += 6;
-    }
-
-    // Monto Bs — tertiary
-    doc.setFontSize(10);
-    doc.setTextColor(...BODY);
-    const totalBsStr = 'Bs ' + formatBs(sale.totalBs || 0);
-    doc.text(totalBsStr, CX, y, { align: 'center' });
-    y += 6;
-
-    if (!isCop && sale.copEnabled && sale.tasaCop > 0) {
-        doc.setFontSize(10);
-        doc.setTextColor(...BODY);
-        // FIN-024: mulR en vez de multiplicación raw.
-        const totalCopStr2 = 'COP ' + (sale.totalCop || mulR(sale.totalUsd, sale.tasaCop)).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        doc.text(totalCopStr2, CX, y, { align: 'center' });
+    if (receiptCurrencyMode === 'usd') {
+        doc.setFontSize(20);
+        doc.setTextColor(...GREEN);
+        const totalUsdStr = isCop
+            ? 'USD ' + formatUsd(sale.totalUsd || 0)
+            : '$' + formatUsd(sale.totalUsd || 0);
+        doc.text(totalUsdStr, CX, y, { align: 'center' });
+        y += 8;
+    } else if (receiptCurrencyMode === 'bs') {
+        doc.setFontSize(20);
+        doc.setTextColor(...GREEN);
+        const totalBsStr = 'Bs ' + formatBs(sale.totalBs || 0);
+        doc.text(totalBsStr, CX, y, { align: 'center' });
         y += 8;
     } else {
-        y += 2;
+        // mixto (original)
+        doc.setFontSize(20);
+        doc.setTextColor(...GREEN);
+        const totalUsdStr = isCop
+            ? 'USD ' + formatUsd(sale.totalUsd || 0)
+            : '$' + formatUsd(sale.totalUsd || 0);
+        doc.text(totalUsdStr, CX, y, { align: 'center' });
+        y += 8;
+
+        if (isCop) {
+            doc.setFontSize(10);
+            doc.setTextColor(...BODY);
+            const totalCopStr = 'COP ' + formatCop(sale.totalCop || mulR(sale.totalUsd, sale.tasaCop));
+            doc.text(totalCopStr, CX, y, { align: 'center' });
+            y += 6;
+        }
+
+        doc.setFontSize(10);
+        doc.setTextColor(...BODY);
+        const totalBsStr = 'Bs ' + formatBs(sale.totalBs || 0);
+        doc.text(totalBsStr, CX, y, { align: 'center' });
+        y += 6;
+
+        if (!isCop && sale.copEnabled && sale.tasaCop > 0) {
+            doc.setFontSize(10);
+            doc.setTextColor(...BODY);
+            const totalCopStr2 = 'COP ' + (sale.totalCop || mulR(sale.totalUsd, sale.tasaCop)).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            doc.text(totalCopStr2, CX, y, { align: 'center' });
+            y += 8;
+        } else {
+            y += 2;
+        }
     }
 
     dash(y); y += 7;
