@@ -21,14 +21,14 @@ describe('validatePin', () => {
     expect(validatePin('192837')).toBeNull();
   });
 
-  it('rechaza PINs en blacklist', () => {
-    expect(validatePin('123456')).toMatch(/predecible|demasiado/);
-    expect(validatePin('000000')).toMatch(/predecible|demasiado/);
-    expect(validatePin('111111')).toMatch(/predecible|demasiado/);
+  it('permite PINs de 6 dígitos incluso si están en blacklist (pedido por negocio)', () => {
+    expect(validatePin('123456')).toBeNull();
+    expect(validatePin('000000')).toBeNull();
+    expect(validatePin('111111')).toBeNull();
   });
 
-  it('rechaza secuencias de mismo dígito', () => {
-    expect(validatePin('999999')).toMatch(/mismos|predecible/);
+  it('permite secuencias de mismo dígito si cumplen longitud (pedido por negocio)', () => {
+    expect(validatePin('999999')).toBeNull();
   });
 
   it('rechaza caracteres no numéricos cuando DIGITS_ONLY', () => {

@@ -49,8 +49,17 @@ export default defineConfig([
       // para código legacy; los errores "Cannot call impure function during render"
       // etc. son advertencias de compatibilidad futura, no bugs de runtime).
       'react-hooks/rules-of-hooks': 'warn',
-      // React Compiler rules (eslint-plugin-react-compiler) — si se requiere desactivarlas,
-      // se gestionan a través del plugin oficial respectivo. Desactivamos las no estándar.
+      // React Compiler rules (eslint-plugin-react-hooks v7) — nombres reales confirmados
+      // con `require('eslint-plugin-react-hooks').configs.flat.recommended.rules` (NO son
+      // 'impure-scope'/'component-declaration'/'variable-scope', esos no existen en el
+      // plugin y desactivarlos no tiene efecto). Vienen en 'error' por defecto en el
+      // preset recommended; las bajamos a 'off' porque son advertencias de compatibilidad
+      // FUTURA con el React Compiler sobre código legacy, no bugs de runtime actuales.
+      'react-hooks/purity': 'off',
+      'react-hooks/static-components': 'off',
+      'react-hooks/immutability': 'off',
+      'react-hooks/refs': 'off',
+      'react-hooks/set-state-in-effect': 'off',
       // no-constant-condition: warn (while(true) es común en loops de retry).
       'no-constant-condition': 'warn',
       // No console.log en producción (FIN-032).

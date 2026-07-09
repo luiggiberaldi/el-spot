@@ -111,16 +111,15 @@ export function validatePin(pin) {
   if (pin.length > PIN_POLICY.MAX_LENGTH) {
     return `El PIN no puede exceder ${PIN_POLICY.MAX_LENGTH} caracteres`;
   }
-  // Validación de lista negra desactivada a petición del usuario
-  /*
-  if (PIN_POLICY.BLACKLIST.includes(pin)) {
-    return 'PIN demasiado predecible (elige otro)';
-  }
-  // Detectar secuencias triviales (000000, 111111 ya en blacklist, pero también 123456...).
-  if (/^(\d)\1{5,}$/.test(pin)) {
-    return 'PIN no puede ser todos los mismos dígitos';
-  }
-  */
+  // DECISIÓN DE PRODUCTO (consciente, no un bug): se permite cualquier PIN numérico de
+  // PIN_POLICY.MIN_LENGTH dígitos, incluidos los predecibles (000000, 123456, etc.). El
+  // rechazo por BLACKLIST/secuencias triviales se desactivó a pedido explícito del
+  // negocio. La mitigación compensatoria sigue activa: rate-limiting persistido con
+  // backoff exponencial (LOGIN_RATE_LIMIT, ver useAuthStore.js) — un PIN débil ya no se
+  // puede probar por fuerza bruta sin activar el lockout, aunque sea adivinable a la
+  // primera. Los PINs de fábrica del primer arranque SÍ siguen siendo aleatorios
+  // (ver _generateRandomPin en useAuthStore.js); esta relajación solo afecta a cambios
+  // manuales de PIN hechos por el propio usuario/admin.
   return null;
 }
 

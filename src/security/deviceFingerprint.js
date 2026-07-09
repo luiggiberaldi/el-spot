@@ -136,7 +136,8 @@ export async function verifyStoredFingerprint(storedId, currentFp) {
         return false;
     }
     // SEC-008: Verificar que el ID almacenado coincida exactamente con el fingerprint calculado
-    return storedId === currentFp;
+    const fp = currentFp || await generateFingerprint();
+    return storedId === fp;
 }
 
 export default { generateFingerprint, verifyStoredFingerprint };

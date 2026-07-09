@@ -28,12 +28,28 @@ export function useLicenseMonitoring({
 
         const verifyStatus = async () => {
             try {
-                const { data: license, error } = await supabase
-                    .from('licenses')
-                    .select('type, is_active, expires_at, created_at')
-                    .eq('device_id', deviceId)
-                    .eq('product_id', PRODUCT_ID)
-                    .maybeSingle();
+                let license = null;
+                try {
+                    const { data, error: rpcErr } = await supabase.rpc('get_license_status', { p_device_id: deviceId });
+                    if (!rpcErr && data) {
+                        const record = Array.isArray(data) ? data[0] : data;
+                        if (record) {
+                            license = record;
+                        }
+                    }
+                } catch (rpcEx) {
+                    // Silencioso
+                }
+
+                if (!license) {
+                    const { data, error } = await supabase
+                        .from('licenses')
+                        .select('type, is_active, expires_at, created_at')
+                        .eq('device_id', deviceId)
+                        .eq('product_id', PRODUCT_ID)
+                        .maybeSingle();
+                    license = data;
+                }
 
                 if (license && (license.is_active === false || license.type === 'revoked') && isPremium) {
                     localStorage.removeItem('pda_premium_token');

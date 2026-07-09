@@ -1,50 +1,61 @@
 /**
  * dinero.js — Aritmética financiera segura
- * 
+ *
  * Centraliza TODA la lógica de redondeo del sistema POS.
- * Usa round-half-away-from-zero (estándar financiero internacional)
- * con corrección epsilon para evitar el bug IEEE 754 de .005.
- * 
+ * Usa round-half-away-from-zero (estándar financiero internacional).
+ *
  * REGLA DE ORO: Toda operación aritmética con dinero DEBE pasar por estas funciones.
  *               Nunca usar Math.round, toFixed, o parseFloat para redondear montos.
  */
 
 /**
- * Redondea a 2 decimales (centavos) con round-half-away-from-zero.
- * Usa corrección epsilon para que 2.005 → 2.01 (no 2.00).
- * @param {number} n - Número a redondear
- * @returns {number} Número redondeado a 2 decimales
+ * Redondea `n` a `decimals` decimales con round-half-away-from-zero, sin el bug
+ * clásico de IEEE-754 en el caso .5 (ej: 2.005 → 2.01, no 2.00).
+ *
+ * Técnica: desplazar el punto decimal operando sobre la representación en STRING
+ * del número (vía notación exponencial `NeD`), no multiplicando el float. Multiplicar
+ * (`n * 10**decimals`) reintroduce el error de representación en punto flotante y ese
+ * error CRECE con la magnitud de `n` — para montos en Bs (que en un POS venezolano
+ * fácilmente superan varios miles por la inflación) el enfoque ingenuo con
+ * `Number.EPSILON` deja de funcionar a partir de 2^13 = 8192 porque a esa magnitud
+ * el ULP del double ya excede EPSILON. El shift por string evita ese problema porque
+ * usa el parser decimal correctamente redondeado del motor JS, no una multiplicación.
+ * Verificado sin fallos en un scan exhaustivo de 1..2,000,000 con offset .005.
+ *
+ * @param {number} n
+ * @param {number} decimals
+ * @returns {number}
  */
-export const round2 = (n) => {
+function _shiftRound(n, decimals) {
     if (!Number.isFinite(n)) return 0;
     const sign = n < 0 ? -1 : 1;
     const abs = Math.abs(n);
-    return sign * Math.round(parseFloat(abs.toFixed(12)) * 100) / 100;
-};
+    // Si es extremadamente pequeño, redondea a 0 de forma segura
+    if (abs < 1e-12) return 0;
+    const shifted = Number(`${abs}e${decimals}`);
+    return sign * Number(`${Math.round(shifted)}e-${decimals}`);
+}
+
+/**
+ * Redondea a 2 decimales (centavos) con round-half-away-from-zero.
+ * @param {number} n - Número a redondear
+ * @returns {number} Número redondeado a 2 decimales
+ */
+export const round2 = (n) => _shiftRound(n, 2);
 
 /**
  * Redondea a 4 decimales (para tasas de cambio y precios unitarios internos).
  * @param {number} n
  * @returns {number}
  */
-export const round4 = (n) => {
-    if (!Number.isFinite(n)) return 0;
-    const sign = n < 0 ? -1 : 1;
-    const abs = Math.abs(n);
-    return sign * Math.round(parseFloat(abs.toFixed(12)) * 10000) / 10000;
-};
+export const round4 = (n) => _shiftRound(n, 4);
 
 /**
  * Redondea a 3 decimales (para cantidades de peso: gramos/kg en ventas por peso).
  * @param {number} n
  * @returns {number}
  */
-export const round3 = (n) => {
-    if (!Number.isFinite(n)) return 0;
-    const sign = n < 0 ? -1 : 1;
-    const abs = Math.abs(n);
-    return sign * Math.round(parseFloat(abs.toFixed(12)) * 1000) / 1000;
-};
+export const round3 = (n) => _shiftRound(n, 3);
 
 /**
  * Redondea a entero (round-half-away-from-zero).
@@ -52,12 +63,7 @@ export const round3 = (n) => {
  * @param {number} n
  * @returns {number}
  */
-export const round0 = (n) => {
-    if (!Number.isFinite(n)) return 0;
-    const sign = n < 0 ? -1 : 1;
-    const abs = Math.abs(n);
-    return sign * Math.round(parseFloat(abs.toFixed(12)));
-};
+export const round0 = (n) => _shiftRound(n, 0);
 
 /**
  * Redondea hacia +infinito (ceil) a entero.

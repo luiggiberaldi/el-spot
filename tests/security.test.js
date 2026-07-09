@@ -73,15 +73,15 @@ describe('SEC-005: verifyPin acepta y migra hashes legacy SHA-256', () => {
 // ─── validatePin (SEC-005/SEC-017) ───────────────────────────────────────────
 
 describe('SEC-005/SEC-017: validatePin rechaza PINs débiles', () => {
-  it('rechaza blacklist', () => {
-    expect(validatePin('123456')).toMatch(/predecible|demasiado/);
-    expect(validatePin('000000')).toMatch(/predecible|demasiado/);
-    expect(validatePin('111111')).toMatch(/predecible|demasiado/);
+  it('permite PINs de 6 dígitos incluso si están en blacklist (pedido por negocio)', () => {
+    expect(validatePin('123456')).toBeNull();
+    expect(validatePin('000000')).toBeNull();
+    expect(validatePin('111111')).toBeNull();
   });
 
-  it('rechaza secuencias de mismo dígito', () => {
-    expect(validatePin('999999')).toMatch(/mismos|predecible/);
-    expect(validatePin('222222')).toMatch(/mismos|predecible/);
+  it('permite secuencias de mismo dígito si cumplen longitud (pedido por negocio)', () => {
+    expect(validatePin('999999')).toBeNull();
+    expect(validatePin('222222')).toBeNull();
   });
 
   it('rechaza menos de MIN_LENGTH dígitos', () => {
@@ -332,8 +332,8 @@ describe('SEC-006: useAuthStore.login con rate-limiting persistido', () => {
 describe('SEC-008: Fingerprint robusto', () => {
   it('generateFingerprint devuelve 32+ hex chars (no 8)', async () => {
     const fp = await generateFingerprint();
-    // Formato: PDA-<32hex>
-    expect(fp).toMatch(/^PDA-[0-9A-F]{32,}$/);
+    // Formato: PDA-V2-<32hex>
+    expect(fp).toMatch(/^PDA-V2-[0-9A-F]{32,}$/);
   });
 
   it('verifyStoredFingerprint acepta el propio fingerprint', async () => {

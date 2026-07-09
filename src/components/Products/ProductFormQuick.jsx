@@ -203,7 +203,7 @@ export default function ProductFormQuick({
                 <div>
                     <label className="text-xs font-bold text-slate-400 ml-1 mb-1 block uppercase">Cód. de Barras (Opcional)</label>
                     <div className="relative">
-                        <input value={barcode} onChange={e => setBarcode(e.target.value)} placeholder="Ej: 7591111222233"
+                        <input value={barcode} onChange={e => setBarcode(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') e.preventDefault(); }} placeholder="Ej: 7591111222233"
                             className="w-full bg-slate-50 dark:bg-slate-800 p-3.5 pl-10 rounded-xl font-bold text-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/50 text-sm sm:text-base" />
                         <Barcode size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     </div>

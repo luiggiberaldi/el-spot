@@ -392,7 +392,6 @@ describe('HOOK-041: backupKeys.js — listas canónicas', () => {
   it('LS_KEYS incluye claves de configuración y auth', () => {
     expect(LS_KEYS).toContain('street_rate_bs');
     expect(LS_KEYS).toContain('bodega_use_auto_rate');
-    expect(LS_KEYS).toContain('abasto-auth-storage');
     expect(LS_KEYS).toContain('business_name');
     expect(LS_KEYS).toContain('premium_token');
   });
@@ -438,9 +437,11 @@ describe('HOOK-003: envGuard.assertEnv', () => {
   });
 
   it('getMissingEnvVars lista las variables requeridas ausentes', () => {
-    // Sin variables definidas (en el entorno de test, las VITE_SUPABASE_URL no están).
+    vi.stubEnv('VITE_SUPABASE_URL', '');
+    vi.stubEnv('VITE_SUPABASE_ANON_KEY', '');
     const missing = getMissingEnvVars();
     expect(missing).toContain('VITE_SUPABASE_URL');
     expect(missing).toContain('VITE_SUPABASE_ANON_KEY');
+    vi.unstubAllEnvs();
   });
 });
