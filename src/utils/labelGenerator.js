@@ -28,7 +28,7 @@ export const generarEtiquetas = async (productos, effectiveRate, copEnabled, tas
     const width = doc.internal.pageSize.getWidth();   // 58 mm
     const height = doc.internal.pageSize.getHeight(); // totalHeight mm
     const centerX = (width / 2) - 4;                  // 25 mm (Centro exacto ajustado para hardware de impresión)
-    
+
     // Ancho imprimible dinámico para evitar desbordes al estar desplazado el eje central
     const maxHalfWidth = Math.min(centerX, width - centerX);
     const printableWidth = (maxHalfWidth - marginX) * 2;
@@ -47,7 +47,7 @@ export const generarEtiquetas = async (productos, effectiveRate, copEnabled, tas
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(fontSize);
         doc.setTextColor(0, 0, 0);
-        
+
         lineas.forEach((line, i) => {
             const textWidth = doc.getTextWidth(line);
             doc.text(line, centerX - textWidth / 2, y + i * (fontSize * 0.3527 * lineHeight));
@@ -59,6 +59,7 @@ export const generarEtiquetas = async (productos, effectiveRate, copEnabled, tas
         const offsetY = index * LABEL_H;
 
         // Dibujar línea divisoria punteada entre etiquetas consecutivas para facilitar el corte manual
+
         if (index > 0) {
             doc.setDrawColor(200, 200, 200);
             doc.setLineWidth(0.35);
@@ -74,9 +75,9 @@ export const generarEtiquetas = async (productos, effectiveRate, copEnabled, tas
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(10);
         const titleLines = doc.splitTextToSize(p.name.toUpperCase(), printableWidth);
-        
+
         centrarLineas(titleLines, safeY, 10);
-        
+
         const titleHeight = titleLines.length * (10 * 0.3527 * 1.3);
         safeY += titleHeight + 3;
 
@@ -92,7 +93,7 @@ export const generarEtiquetas = async (productos, effectiveRate, copEnabled, tas
         else if (textUsd.length > 7) priceFontSize = 20;
 
         centrarTexto(textUsd, safeY, priceFontSize, 'bold');
-        
+
         const priceHeight = priceFontSize * 0.3527 * 0.8;
         safeY += priceHeight + 3;
 
@@ -101,7 +102,7 @@ export const generarEtiquetas = async (productos, effectiveRate, copEnabled, tas
         const textBs = `Bs ${ceilR(priceBsRaw).toLocaleString('es-VE')}`;
 
         centrarTexto(textBs, safeY, 10.5, 'normal');
-        
+
         const bsHeight = 10.5 * 0.3527 * 0.8;
         safeY += bsHeight + 2;
 
@@ -112,11 +113,11 @@ export const generarEtiquetas = async (productos, effectiveRate, copEnabled, tas
 
         // --- 4. FOOTER (Fecha y Unidad/Código) ---
         const footerY = offsetY + LABEL_H - marginY - 2;
-        
+
         const d = new Date();
         const fechaStr = `${d.getDate()}/${d.getMonth() + 1}/${String(d.getFullYear()).slice(-2)}`;
         const infoExtra = p.barcode || (p.unit ? p.unit.toUpperCase() : 'UND');
-        
+
         centrarTexto(`${infoExtra}  |  ${fechaStr}`, footerY, 6.5, 'normal', [80, 80, 80]);
     });
 

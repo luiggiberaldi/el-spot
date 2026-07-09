@@ -36,7 +36,7 @@ export default function SettingsTabSistema({
     };
 
     return (
-        <>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             {/* Datos y Respaldo */}
             <SectionCard icon={Database} title="Datos y Respaldo" subtitle="Exportar, importar y compartir" iconColor="text-cyan-500">
                 <div className="p-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/30 rounded-xl flex gap-2.5">
@@ -51,7 +51,7 @@ export default function SettingsTabSistema({
                         <div className="p-2 bg-brand-light dark:bg-surface-800/30 rounded-lg"><Download size={18} className="text-brand" /></div>
                         <div className="text-left flex-1">
                             <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Exportar Backup</p>
-                            <p className="text-[10px] text-slate-400">Descargar archivo .json</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">Descargar archivo .json</p>
                         </div>
                         <ChevronRight size={16} className="text-slate-300" />
                     </button>
@@ -60,7 +60,7 @@ export default function SettingsTabSistema({
                         <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg"><Upload size={18} className="text-emerald-500" /></div>
                         <div className="text-left flex-1">
                             <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Importar Backup</p>
-                            <p className="text-[10px] text-slate-400">Restaurar desde archivo</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">Restaurar desde archivo</p>
                         </div>
                         <ChevronRight size={16} className="text-slate-300" />
                     </button>
@@ -69,7 +69,7 @@ export default function SettingsTabSistema({
                         <div className="p-2 bg-brand-light dark:bg-surface-800/30 rounded-lg"><Share2 size={18} className="text-brand" /></div>
                         <div className="text-left flex-1">
                             <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Compartir Inventario</p>
-                            <p className="text-[10px] text-slate-400">Codigo de 6 digitos, 24h</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">Codigo de 6 digitos, 24h</p>
                         </div>
                         <ChevronRight size={16} className="text-slate-300" />
                     </button>
@@ -91,7 +91,7 @@ export default function SettingsTabSistema({
                         <ZoomIn size={18} className="text-brand" />
                         <div>
                             <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Tamaño de Pantalla</p>
-                            <p className="text-[10px] text-slate-400 mt-0.5">Ajusta si la interfaz se ve muy grande o muy pequeña</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Ajusta si la interfaz se ve muy grande o muy pequeña</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -113,9 +113,9 @@ export default function SettingsTabSistema({
                                 className="w-full h-2 rounded-full appearance-none cursor-pointer bg-slate-200 dark:bg-slate-700 accent-brand"
                             />
                             <div className="flex justify-between mt-1 px-0.5">
-                                <span className="text-[8px] text-slate-400">60%</span>
-                                <span className="text-[8px] text-slate-400">100%</span>
-                                <span className="text-[8px] text-slate-400">140%</span>
+                                <span className="text-[9px] text-slate-500 dark:text-slate-400 font-medium">60%</span>
+                                <span className="text-[9px] text-slate-500 dark:text-slate-400 font-medium">100%</span>
+                                <span className="text-[9px] text-slate-500 dark:text-slate-400 font-medium">140%</span>
                             </div>
                         </div>
                         <button
@@ -131,7 +131,7 @@ export default function SettingsTabSistema({
                         {uiScale !== 100 && (
                             <button
                                 onClick={() => { setUiScale(100); triggerHaptic?.(); }}
-                                className="text-[10px] font-bold text-slate-400 hover:text-brand flex items-center gap-1 transition-colors"
+                                className="text-xs font-bold text-slate-550 hover:text-brand flex items-center gap-1 transition-colors"
                             >
                                 <RotateCcw size={12} /> Restablecer
                             </button>
@@ -144,7 +144,7 @@ export default function SettingsTabSistema({
             <SectionCard icon={Fingerprint} title="Dispositivo" subtitle="Informacion tecnica" iconColor="text-slate-500">
                 <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
-                        <p className="text-[9px] uppercase tracking-wider font-bold text-slate-400 mb-1">ID de Instalacion</p>
+                        <p className="text-[11px] uppercase tracking-wider font-extrabold text-slate-500 dark:text-slate-400 mb-1">ID de Instalacion</p>
                         <p className="font-mono text-xs font-black text-slate-600 dark:text-slate-300 select-all truncate">{deviceId || '...'}</p>
                     </div>
                     <button
@@ -159,44 +159,40 @@ export default function SettingsTabSistema({
                         {idCopied ? <Check size={14} className="text-emerald-500" /> : <Fingerprint size={14} />}
                     </button>
                 </div>
-                <p className="text-[9px] text-slate-400">Comparte este ID si necesitas soporte tecnico.</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Comparte este ID si necesitas soporte tecnico.</p>
             </SectionCard>
 
             {/* Celular del Supervisor (QR Monitoreo) */}
             {isAdmin && (
-                <SectionCard icon={QrCode} title="Celular del Supervisor" subtitle="Monitoreo remoto en tiempo real" iconColor="text-emerald-500">
-                    <PairingManager deviceId={deviceId} triggerHaptic={triggerHaptic} />
-                </SectionCard>
-            )}
-
-            {/* Audit Log — Ocultado por solicitud del usuario */}
-            {false && isAdmin && (
-                <SectionCard icon={FileText} title="Bitacora de Actividad" subtitle="Registro de todas las acciones" iconColor="text-slate-500">
-                    <AuditLogViewer triggerHaptic={triggerHaptic} />
-                </SectionCard>
+                <div className="md:col-span-2">
+                    <SectionCard icon={QrCode} title="Celular del Supervisor" subtitle="Monitoreo remoto en tiempo real" iconColor="text-emerald-500">
+                        <PairingManager deviceId={deviceId} triggerHaptic={triggerHaptic} />
+                    </SectionCard>
+                </div>
             )}
 
             {/* Zona de Peligro — Habilitado para Administradores */}
             {isAdmin && (
-                <SectionCard icon={AlertTriangle} title="Zona de Peligro" subtitle="Acciones irreversibles" iconColor="text-red-500">
-                    <div className="p-2.5 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/30 rounded-xl mb-3">
-                        <p className="text-[10px] text-red-700 dark:text-red-400 leading-relaxed font-bold">
-                            Esta accion eliminara todo el historial de ventas y reportes estadisticos. El inventario NO sera afectado.
-                        </p>
-                    </div>
-                    <button
-                        onClick={() => setShowDeleteConfirm(true)}
-                        className="w-full flex items-center gap-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded-xl hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors group active:scale-[0.98]"
-                    >
-                        <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-lg"><Trash2 size={18} className="text-red-600 dark:text-red-400" /></div>
-                        <div className="text-left flex-1">
-                            <p className="text-sm font-bold text-red-700 dark:text-red-400">Borrar Historial de Ventas</p>
-                            <p className="text-[10px] text-red-500/80 dark:text-red-400/80">El inventario no se borrara</p>
+                <div className="md:col-span-2">
+                    <SectionCard icon={AlertTriangle} title="Zona de Peligro" subtitle="Acciones irreversibles" iconColor="text-red-500">
+                        <div className="p-2.5 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/30 rounded-xl mb-3">
+                            <p className="text-xs text-red-750 dark:text-red-400 leading-relaxed font-bold">
+                                Esta accion eliminara todo el historial de ventas y reportes estadisticos. El inventario NO sera afectado.
+                            </p>
                         </div>
-                    </button>
-                </SectionCard>
+                        <button
+                            onClick={() => setShowDeleteConfirm(true)}
+                            className="w-full flex items-center gap-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded-xl hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors group active:scale-[0.98]"
+                        >
+                            <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-lg"><Trash2 size={18} className="text-red-600 dark:text-red-400" /></div>
+                            <div className="text-left flex-1">
+                                <p className="text-sm font-bold text-red-700 dark:text-red-400">Borrar Historial de Ventas</p>
+                                <p className="text-xs text-red-500/80 dark:text-red-400/80">El inventario no se borrara</p>
+                            </div>
+                        </button>
+                    </SectionCard>
+                </div>
             )}
-        </>
+        </div>
     );
 }
-

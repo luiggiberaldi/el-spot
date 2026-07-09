@@ -118,7 +118,7 @@ export default function SettingsView({ onClose, theme, toggleTheme, triggerHapti
             onClick={e => e.stopPropagation()}
             className={isTab
                 ? "flex-1 flex flex-col w-full h-full bg-surface-50 dark:bg-surface-950 overflow-hidden"
-                : "fixed inset-0 z-[150] bg-surface-50 dark:bg-surface-950 flex flex-col h-[100dvh] max-h-[100dvh] w-full overflow-hidden animate-in slide-in-from-right duration-300 md:relative md:inset-auto md:w-[85vw] md:max-w-4xl md:h-[80vh] md:max-h-[640px] md:rounded-3xl md:shadow-tone-lg md:border md:border-slate-100 md:dark:border-slate-800/80 md:animate-in md:zoom-in-95"
+                : "fixed inset-0 z-[150] bg-surface-50 dark:bg-surface-950 flex flex-col h-[100dvh] max-h-[100dvh] w-full overflow-hidden animate-in slide-in-from-right duration-300 md:relative md:inset-auto md:w-[90vw] md:max-w-5xl md:h-[85vh] md:max-h-[760px] lg:max-w-6xl md:rounded-3xl md:shadow-tone-lg md:border md:border-slate-100 md:dark:border-slate-800/80 md:animate-in md:zoom-in-95"
             }
         >
             {/* Header */}
@@ -186,7 +186,7 @@ export default function SettingsView({ onClose, theme, toggleTheme, triggerHapti
 
                 {/* Scrollable Content Pane */}
                 <div className="flex-1 overflow-y-auto pb-[calc(3rem+env(safe-area-inset-bottom))] md:pb-6 md:p-6">
-                    <div className="max-w-md md:max-w-2xl mx-auto space-y-4 md:mt-2">
+                    <div className="max-w-md md:max-w-4xl lg:max-w-5xl mx-auto space-y-4 md:mt-2">
                         {/* ═══ TAB: NEGOCIO ═══ */}
                         {activeTab === 'negocio' && (
                             <SettingsTabNegocio

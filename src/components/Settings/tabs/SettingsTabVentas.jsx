@@ -12,12 +12,12 @@ export default function SettingsTabVentas({
     const [casheaMinAmount, setCasheaMinAmount] = useState(localStorage.getItem('cashea_min_amount') || '0');
 
     return (
-        <>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             <SectionCard icon={Package} title="Inventario" subtitle="Reglas de ventas" iconColor="text-emerald-500">
                 <div className="flex items-center justify-between">
                     <div>
                         <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Vender sin Stock</p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">Permitir ventas si el inventario es 0</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Permitir ventas si el inventario es 0</p>
                     </div>
                     <Toggle
                         enabled={allowNegativeStock}
@@ -33,16 +33,12 @@ export default function SettingsTabVentas({
                 </div>
             </SectionCard>
 
-            <SectionCard icon={CreditCard} title="Metodos de Pago" subtitle="Configura como te pagan" iconColor="text-brand">
-                <PaymentMethodsManager triggerHaptic={triggerHaptic} />
-            </SectionCard>
-
             <SectionCard icon={CasheaIcon} title="Financiamiento Cashea" subtitle="Configuración de Cashea" iconColor="text-purple-500">
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Activar Cashea</p>
-                            <p className="text-[10px] text-slate-400 mt-0.5">Habilitar cobros financiados por Cashea en caja</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Habilitar cobros financiados por Cashea en caja</p>
                         </div>
                         <Toggle
                             enabled={casheaEnabled}
@@ -61,7 +57,7 @@ export default function SettingsTabVentas({
                         <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 animate-in fade-in">
                             <div>
                                 <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Compra Mínima ($)</p>
-                                <p className="text-[10px] text-slate-400 mt-0.5">Monto mínimo en dólares para permitir Cashea</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Monto mínimo en dólares para permitir Cashea</p>
                             </div>
                             <input
                                 type="number"
@@ -79,7 +75,12 @@ export default function SettingsTabVentas({
                     )}
                 </div>
             </SectionCard>
-        </>
+
+            <div className="md:col-span-2">
+                <SectionCard icon={CreditCard} title="Metodos de Pago" subtitle="Configura como te pagan" iconColor="text-brand">
+                    <PaymentMethodsManager triggerHaptic={triggerHaptic} />
+                </SectionCard>
+            </div>
+        </div>
     );
 }
-
