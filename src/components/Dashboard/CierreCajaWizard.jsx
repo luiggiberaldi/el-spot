@@ -83,8 +83,11 @@ export default function CierreCajaWizard({
             expectedBs,
             expectedCop,
             cashUsd: declaredUsd,
+            declaredUsd,
             cashBs: declaredBs,
+            declaredBs,
             cashCop: declaredCop,
+            declaredCop,
             diffUsd,
             diffBs,
             diffCop
