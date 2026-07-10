@@ -18,10 +18,12 @@ export { generarEtiquetas } from './labelGenerator';
  * Cada dato ocupa su propia linea — nada se solapa.
  */
 export async function generateTicketPDF(sale, bcvRate) {
-    const WIDTH = PDF_WIDTH;
-    const M = PDF_MARGIN;
-    const CX = PDF_CENTER_X;
-    const RIGHT = PDF_RIGHT;
+    const paperWidth = localStorage.getItem('printer_paper_width') || '58';
+    const is80 = paperWidth === '80';
+    const WIDTH = is80 ? 80 : 58;
+    const M = is80 ? 6 : 4;
+    const CX = WIDTH / 2;
+    const RIGHT = WIDTH - M;
 
     const rate = sale.rate || bcvRate || 1;
     const isCop = sale.copEnabled && sale.tasaCop > 0;
@@ -141,7 +143,7 @@ export async function generateTicketPDF(sale, bcvRate) {
             y += textHeight;
 
             doc.setFont('helvetica', 'normal');
-            doc.setFontSize(6);
+            doc.setFontSize(is80 ? 6 : 5.2);
             doc.setTextColor(...MUTED);
             // FIN-024: mulR para conversiones (priceCop*qty, sub*tasaCop, etc.).
             let detailLine = isCop

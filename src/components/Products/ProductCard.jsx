@@ -33,23 +33,59 @@ export default function ProductCard({
 
     const copyTicketDebugLog = (e) => {
         e.stopPropagation();
+        const paperWidth = localStorage.getItem('printer_paper_width') || '58';
         const mode = localStorage.getItem('label_currency_mode') || 'mixto';
-        const suffix = mode === 'mixto' ? '_mixto' : '_unico';
-        
         const isMixto = mode === 'mixto';
-        const defNameX = isMixto ? '-1.5' : '1';
-        const defNameY = isMixto ? '2' : '0';
-        const defPriceX = isMixto ? '-1.5' : '1';
-        const defPriceY = isMixto ? '-7.5' : '-3';
-        const defSecPriceX = isMixto ? '-1.5' : '1';
-        const defSecPriceY = isMixto ? '-3' : '2';
-        const defFooterX = isMixto ? '-1.5' : '1';
-        const defFooterY = isMixto ? '-1' : '1';
 
-        const defFontName = isMixto ? '5' : '5';
-        const defFontPrice = isMixto ? '10' : '10';
-        const defFontSecPrice = isMixto ? '12.5' : '0';
-        const defFontFooter = isMixto ? '4' : '4';
+        let suffix, LABEL_W, labelH, marginX, marginY, centerX;
+        let defNameX, defNameY, defPriceX, defPriceY, defSecPriceX, defSecPriceY, defFooterX, defFooterY;
+        let defFontName, defFontPrice, defFontSecPrice, defFontFooter;
+
+        const hasSecondaryPrice = copEnabled && tasaCop > 0;
+
+        if (paperWidth === '80') {
+            suffix = isMixto ? '_80_mixto' : '_80_unico';
+            LABEL_W = 80;
+            labelH = isMixto ? 80 : (hasSecondaryPrice ? 68 : 60);
+            marginX = 6;
+            marginY = 4.5;
+            centerX = 40.0;
+
+            defNameX = '0';
+            defNameY = '0';
+            defPriceX = '0';
+            defPriceY = isMixto ? '-6' : '-2';
+            defSecPriceX = '0';
+            defSecPriceY = isMixto ? '-3' : '2';
+            defFooterX = '0';
+            defFooterY = '0';
+
+            defFontName = '4';
+            defFontPrice = '14';
+            defFontSecPrice = isMixto ? '12' : '0';
+            defFontFooter = '3';
+        } else {
+            suffix = isMixto ? '_mixto' : '_unico';
+            LABEL_W = 58;
+            labelH = isMixto ? 60 : (hasSecondaryPrice ? 50 : 44);
+            marginX = 4.5;
+            marginY = 3.5;
+            centerX = isMixto ? (LABEL_W / 2 - 3) : (LABEL_W / 2 + 0.5);
+
+            defNameX = isMixto ? '-1.5' : '1';
+            defNameY = isMixto ? '2' : '0';
+            defPriceX = isMixto ? '-1.5' : '1';
+            defPriceY = isMixto ? '-7.5' : '-3';
+            defSecPriceX = isMixto ? '-1.5' : '1';
+            defSecPriceY = isMixto ? '-3' : '2';
+            defFooterX = isMixto ? '-1.5' : '1';
+            defFooterY = isMixto ? '-1' : '1';
+
+            defFontName = isMixto ? '5' : '5';
+            defFontPrice = isMixto ? '10' : '10';
+            defFontSecPrice = isMixto ? '12.5' : '0';
+            defFontFooter = isMixto ? '4' : '4';
+        }
 
         const nameX = parseFloat(localStorage.getItem(`label_offset_name_x${suffix}`) || defNameX);
         const nameY = parseFloat(localStorage.getItem(`label_offset_name_y${suffix}`) || defNameY);
@@ -65,24 +101,18 @@ export default function ProductCard({
         const fontSecPrice = parseFloat(localStorage.getItem(`label_offset_font_sec_price${suffix}`) || defFontSecPrice);
         const fontFooter = parseFloat(localStorage.getItem(`label_offset_font_footer${suffix}`) || defFontFooter);
 
-        // --- CÁLCULO FÍSICO DE COORDENADAS REALES (Misma lógica que labelGenerator.js) ---
-        const LABEL_W = 58;
-        const hasSecondaryPrice = copEnabled && tasaCop > 0;
-        let labelH = mode === 'mixto' ? 60 : (hasSecondaryPrice ? 50 : 44);
-        const marginX = 4.5;
-        const marginY = 3.5;
-
-        // Eje central compensado
-        let centerX = mode === 'mixto' ? (LABEL_W / 2 - 3) : (LABEL_W / 2 + 0.5);
+        // --- CÁLCULO FÍSICO DE COORDENADAS REALES ---
+        const maxHalfWidth = Math.min(centerX, LABEL_W - centerX);
+        const printableWidth = (maxHalfWidth - marginX) * 2;
 
         // 1. TÍTULO
-        const titleStartY = marginY + 2.5; // 6 mm
+        const titleStartY = marginY + 2.5;
         const finalTitleY = titleStartY + nameY;
-        let titleFontSize = (mode === 'bs' || mode === 'usd') ? 11.5 : 10;
-        let calcTitleFontSize = titleFontSize + fontName;
+        let baseTitleFontSize = paperWidth === '80' ? (isMixto ? 14 : 17) : ((mode === 'bs' || mode === 'usd') ? 11.5 : 10);
+        let calcTitleFontSize = baseTitleFontSize + fontName;
         if (calcTitleFontSize < 5) calcTitleFontSize = 5;
         // Altura del bloque de título
-        const isLongName = p.name.length > 18;
+        const isLongName = p.name.length > (paperWidth === '80' ? 24 : 18);
         const linesCount = isLongName ? 2 : 1;
         const titleHeight = linesCount * (calcTitleFontSize * 0.3527 * 1.25);
         const titleEndY = titleStartY + titleHeight;
@@ -94,14 +124,17 @@ export default function ProductCard({
 
         // 3. PRECIOS
         const freeSpace = footerStartY - titleEndY;
-        let finalPriceFontSize = (mode === 'mixto' ? 24 : 28) + fontPrice;
+        let basePriceFontSize = paperWidth === '80' ? (isMixto ? 32 : 42) : ((mode === 'bs' || mode === 'usd') ? 28 : 24);
+        let finalPriceFontSize = basePriceFontSize + fontPrice;
         if (finalPriceFontSize < 5) finalPriceFontSize = 5;
-        let finalSecondaryFontSize = 11 + fontSecPrice;
+
+        let baseSecPriceFontSize = paperWidth === '80' ? (isMixto ? 18 : 11) : 11;
+        let finalSecondaryFontSize = baseSecPriceFontSize + fontSecPrice;
         if (finalSecondaryFontSize < 5) finalSecondaryFontSize = 5;
 
         let priceHeight = finalPriceFontSize * 0.3527 * 0.75;
         let secondaryHeight = finalSecondaryFontSize * 0.3527 * 0.75;
-        const showSecondary = mode === 'mixto';
+        const showSecondary = isMixto;
         let priceBlockHeight = showSecondary ? (priceHeight + secondaryHeight + 3.5) : priceHeight;
 
         // Proporcional
@@ -120,6 +153,8 @@ export default function ProductCard({
 
         const calculatedSecPriceY = calculatedPriceY + secondaryHeight + 3.5;
         const finalSecPriceY = calculatedSecPriceY + secPriceYOffset;
+
+        const baseFooterFontSize = paperWidth === '80' ? 8.5 : 6.5;
 
         // Formatear texto del log con coordenadas reales en mm
         const logString = `=== COORDENADAS FÍSICAS DE ETIQUETA REAL (jsPDF) ===
@@ -148,7 +183,7 @@ ${showSecondary ? `[PRECIO SECUNDARIO]
 [PIE DE PÁGINA (BARCODE/FECHA)]
   * X Central (Base): ${centerX.toFixed(2)} mm  |  Con Desplazamiento X: ${(centerX + footerX).toFixed(2)} mm
   * Y Baseline (Base): ${footerY.toFixed(2)} mm  |  Con Calibración Y: ${finalFooterY.toFixed(2)} mm
-  * Tamaño Fuente: ${(6.5 + fontFooter).toFixed(1)} pt`;
+  * Tamaño Fuente: ${(baseFooterFontSize + fontFooter).toFixed(1)} pt`;
 
         navigator.clipboard.writeText(logString).then(() => {
             showToast('¡Coordenadas reales copiadas al portapapeles!', 'success');

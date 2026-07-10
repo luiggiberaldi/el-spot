@@ -5,9 +5,12 @@ import { SectionCard, Toggle } from '../../SettingsShared';
 import { generarPreviewLabel } from '../../../utils/labelGenerator';
 
 
-const CalibratorSlider = ({ label, value, setValue, baseKey, mode, min, max, step = 0.5, unit = 'mm', triggerHaptic }) => {
+const CalibratorSlider = ({ label, value, setValue, baseKey, mode, paperWidth, min, max, step = 0.5, unit = 'mm', triggerHaptic }) => {
     const valFloat = parseFloat(value || '0');
-    const suffix = mode === 'mixto' ? '_mixto' : '_unico';
+    const is80 = paperWidth === '80';
+    const suffix = is80
+        ? (mode === 'mixto' ? '_80_mixto' : '_80_unico')
+        : (mode === 'mixto' ? '_mixto' : '_unico');
     const storageKey = `${baseKey}${suffix}`;
     
     const handleIncrement = () => {
@@ -122,8 +125,12 @@ export default function SettingsTabNegocio({
 
         const isMixto = labelCurrencyMode === 'mixto';
         const PX_MM   = 3.78;
-        const W_PX    = 58  * PX_MM;   // ≈ 219px
-        const H_PX    = (isMixto ? 60 : 44) * PX_MM;
+        const is80 = paperWidth === '80';
+        const W_PX = (is80 ? 80 : 58) * PX_MM;
+        const H_PX = (is80
+            ? (isMixto ? 80 : (hasSecondaryPrice ? 68 : 60))
+            : (isMixto ? 60 : (hasSecondaryPrice ? 50 : 44))
+        ) * PX_MM;
 
         useEffect(() => {
             let cancelled = false;
@@ -141,6 +148,7 @@ export default function SettingsTabNegocio({
         // eslint-disable-next-line react-hooks/exhaustive-deps
         }, [
             labelCurrencyMode,
+            paperWidth,
             labelOffsetNameX, labelOffsetNameY,
             labelOffsetPriceX, labelOffsetPriceY,
             labelOffsetSecPriceX, labelOffsetSecPriceY,
