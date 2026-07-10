@@ -153,8 +153,11 @@ export function useAutoBackup(isPremium, isDemo, deviceId) {
     }, []);
 
     // ── Suscripción a solicitudes de backup en tiempo real ─────────────────
+    // Solo dispositivos con cuenta activa (permanent/monthly/demo) mantienen este
+    // socket abierto — evita gastar cupo de conexiones Realtime en instalaciones
+    // sin licencia (free/demo vencida) que nunca usarán el backup remoto forzado.
     useEffect(() => {
-        if (!deviceId || !supabaseCloud) return;
+        if (!deviceId || !supabaseCloud || !isPremium) return;
 
         let channel = null;
 
@@ -184,7 +187,7 @@ export function useAutoBackup(isPremium, isDemo, deviceId) {
                 supabaseCloud.removeChannel(channel).catch(() => {});
             }
         };
-    }, [deviceId]);
+    }, [deviceId, isPremium]);
 }
 
 // Restaurar desde backup local (para emergencias)

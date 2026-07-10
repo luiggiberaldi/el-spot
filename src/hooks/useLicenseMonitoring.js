@@ -133,42 +133,55 @@ export function useLicenseMonitoring({
         };
 
         sendHeartbeat();
-        const heartbeatInterval = setInterval(sendHeartbeat, 4 * 60 * 60 * 1000);
+        // Sin cuenta activa: no hay canal Realtime, así que el heartbeat es la única
+        // forma de notar una activación nueva — se acelera a 5 min. Con cuenta activa,
+        // el canal cubre la detección instantánea y el heartbeat vuelve a su cadencia normal.
+        const heartbeatIntervalMs = isPremium ? 4 * 60 * 60 * 1000 : 5 * 60 * 1000;
+        const heartbeatInterval = setInterval(sendHeartbeat, heartbeatIntervalMs);
 
         const handleVisibility = () => {
             if (document.visibilityState === 'visible') verifyStatus();
         };
         document.addEventListener('visibilitychange', handleVisibility);
 
-        let subObj = activeSubscriptions.get(deviceId);
-        if (subObj) {
-            subObj.count++;
-            subObj.callbacks.add(verifyStatus);
-        } else {
-            const callbacks = new Set([verifyStatus]);
-            let subscription = null;
-            try {
-                subscription = supabase
-                    .channel(`licenses_sync_${deviceId}`)
-                    .on('postgres_changes', {
-                        event: 'UPDATE',
-                        schema: 'public',
-                        table: 'licenses',
-                        filter: `device_id=eq.${deviceId}`,
-                    }, () => {
-                        const current = activeSubscriptions.get(deviceId);
-                        if (current) {
-                            current.callbacks.forEach(cb => {
-                                try { cb(); } catch (err) { }
-                            });
-                        }
-                    })
-                    .subscribe();
-                subObj = { channel: subscription, count: 1, callbacks };
-                activeSubscriptions.set(deviceId, subObj);
-            } catch (e) {
-                if (import.meta.env?.DEV) {
-                    console.warn('[LicenseMonitoring] suscripción Realtime falló:', e?.message ?? e);
+        // Solo dispositivos con cuenta activa (permanent/monthly/demo) mantienen el
+        // socket `licenses_sync_` abierto — evita gastar cupo de conexiones Realtime
+        // en instalaciones sin licencia. Esas detectan una activación vía el heartbeat
+        // de arriba en vez de Realtime.
+        let subscribedToChannel = false;
+        if (isPremium) {
+            let subObj = activeSubscriptions.get(deviceId);
+            if (subObj) {
+                subObj.count++;
+                subObj.callbacks.add(verifyStatus);
+                subscribedToChannel = true;
+            } else {
+                const callbacks = new Set([verifyStatus]);
+                let subscription = null;
+                try {
+                    subscription = supabase
+                        .channel(`licenses_sync_${deviceId}`)
+                        .on('postgres_changes', {
+                            event: 'UPDATE',
+                            schema: 'public',
+                            table: 'licenses',
+                            filter: `device_id=eq.${deviceId}`,
+                        }, () => {
+                            const current = activeSubscriptions.get(deviceId);
+                            if (current) {
+                                current.callbacks.forEach(cb => {
+                                    try { cb(); } catch (err) { }
+                                });
+                            }
+                        })
+                        .subscribe();
+                    subObj = { channel: subscription, count: 1, callbacks };
+                    activeSubscriptions.set(deviceId, subObj);
+                    subscribedToChannel = true;
+                } catch (e) {
+                    if (import.meta.env?.DEV) {
+                        console.warn('[LicenseMonitoring] suscripción Realtime falló:', e?.message ?? e);
+                    }
                 }
             }
         }
@@ -176,15 +189,17 @@ export function useLicenseMonitoring({
         return () => {
             clearInterval(heartbeatInterval);
             document.removeEventListener('visibilitychange', handleVisibility);
-            
-            const currentSub = activeSubscriptions.get(deviceId);
-            if (currentSub) {
-                currentSub.callbacks.delete(verifyStatus);
-                currentSub.count--;
-                if (currentSub.count <= 0) {
-                    activeSubscriptions.delete(deviceId);
-                    if (currentSub.channel) {
-                        supabase.removeChannel(currentSub.channel).catch(() => {});
+
+            if (subscribedToChannel) {
+                const currentSub = activeSubscriptions.get(deviceId);
+                if (currentSub) {
+                    currentSub.callbacks.delete(verifyStatus);
+                    currentSub.count--;
+                    if (currentSub.count <= 0) {
+                        activeSubscriptions.delete(deviceId);
+                        if (currentSub.channel) {
+                            supabase.removeChannel(currentSub.channel).catch(() => {});
+                        }
                     }
                 }
             }
