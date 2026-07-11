@@ -356,7 +356,11 @@ export const ProductsView = ({ rates, triggerHaptic }) => {
         let updatedProducts;
         if (editingId) {
             updatedProducts = products.map(p =>
-                p.id === editingId ? { ...p, ...productData, image: image || p.image } : p
+                // FIX-IMAGE-001: `image || p.image` ignoraba el borrado explícito porque
+                // "" (string vacío) es falsy en JS y caía al fallback con la foto vieja.
+                // Ahora solo usamos la imagen previa si image es estrictamente `undefined`
+                // (es decir, el campo nunca fue tocado en el formulario).
+                p.id === editingId ? { ...p, ...productData, image: image !== undefined ? image : p.image } : p
             );
             auditLog('INVENTARIO', 'PRODUCTO_EDITADO', `Producto "${name}" editado`);
         } else {
