@@ -398,12 +398,22 @@ export default defineConfig(({ mode }) => {
                       
                       // Scoring inteligente
                       words.forEach(w => {
-                        if (nameLower.includes(w)) {
-                          score += 10;
-                          // Bonus si el nombre empieza con la palabra buscada
-                          if (nameLower.startsWith(w)) score += 5;
+                        if (w.length < 4) {
+                          // Si es muy corta, exigir que aparezca como palabra completa delimitada (ej. "bon" en "bon bon", no "bicarbonato")
+                          const regex = new RegExp(`\\b${w}\\b`, 'i');
+                          if (regex.test(nameLower)) {
+                            score += 10;
+                            if (nameLower.startsWith(w)) score += 5;
+                          }
+                        } else {
+                          // Para palabras de 4 o más caracteres, permitimos coincidencia parcial de subcadena
+                          if (nameLower.includes(w)) {
+                            score += 10;
+                            if (nameLower.startsWith(w)) score += 5;
+                          }
                         }
                       });
+
 
                       // Bonus por coincidencia exacta de palabras en tags
                       const itemTags = Array.isArray(item.tags) ? item.tags : [];
