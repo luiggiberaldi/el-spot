@@ -1,83 +1,98 @@
 import React, { useState, useMemo, useRef, useCallback } from 'react';
-import { Search, TrendingUp, TrendingDown, Check, Package, X, AlertTriangle, Minus, Plus } from 'lucide-react';
+import { Search, TrendingUp, TrendingDown, Check, Package, X, AlertTriangle, Minus, Plus, Boxes } from 'lucide-react';
 import { showToast } from '../Toast';
-import CustomSelect from '../CustomSelect';
+import { CATEGORY_COLORS } from '../../config/categories';
 
-function ProductRow({ p, qty, direction, isSelected, maxStock, onTapAdd, onSetQty, copEnabled, tasaCop, copPrimary }) {
+// ─── FILA DEL CATÁLOGO (VISTA SIMPLIFICADA) ───
+function CatalogRow({ p, maxStock, onTapAdd }) {
     const stock = p.stock ?? 0;
     const lowAlert = p.lowStockAlert ?? 5;
     const isLow = stock <= lowAlert;
-    const stockPct = Math.min(100, Math.max(0, (stock / maxStock) * 100));
-    const newStock = direction === 'ingreso' ? stock + qty : Math.max(0, stock - qty);
+    const stockPct = Math.min(100, Math.max(0, (stock / maxStock) * 105));
 
     return (
         <div
-            className={`flex items-center gap-3 px-3.5 py-3 transition-all border-b border-slate-100 dark:border-slate-805/40 ${
-                isSelected
-                    ? direction === 'ingreso'
-                        ? 'bg-emerald-50/50 dark:bg-emerald-950/20'
-                        : 'bg-red-50/50 dark:bg-red-950/20'
-                    : 'hover:bg-slate-50 dark:hover:bg-slate-800/30 cursor-pointer active:bg-slate-100 dark:active:bg-slate-850'
-            }`}
-            onClick={!isSelected ? () => onTapAdd(p.id) : undefined}
+            className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 cursor-pointer active:bg-slate-100 dark:active:bg-slate-800/50 transition-all border-b border-slate-100 dark:border-slate-800/40 group"
+            onClick={() => onTapAdd(p.id)}
         >
             <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{p.name}</p>
+                <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate group-hover:text-brand transition-colors">
+                    {p.name}
+                </p>
                 <div className="flex items-center gap-2 mt-1">
-                    <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden max-w-[80px]">
-                        <div
-                            className={`h-full rounded-full transition-all ${isLow ? 'bg-amber-500' : 'bg-brand'}`}
-                            style={{ width: `${stockPct}%` }}
-                        />
-                    </div>
-                    <span className={`text-[11px] font-bold ${isLow ? 'text-amber-500 animate-pulse' : 'text-slate-450 dark:text-slate-400'}`}>
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border ${
+                        isLow
+                            ? 'bg-amber-50 dark:bg-amber-950/20 text-amber-500 border-amber-200/30 animate-pulse'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-550 dark:text-slate-400 border-slate-200/30'
+                    }`}>
                         Stock: {stock}
                     </span>
-                    {isSelected && (
-                        <span className={`text-[11px] font-black flex items-center gap-0.5 ${direction === 'ingreso' ? 'text-emerald-500' : 'text-red-500'}`}>
-                            → {newStock}
-                        </span>
-                    )}
                 </div>
             </div>
 
-            {isSelected ? (
-                <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+            <div className="shrink-0 w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800 border border-dashed border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 dark:text-slate-500 group-hover:bg-brand-light group-hover:text-brand group-hover:border-brand/30 transition-all active:scale-90">
+                <Plus size={16} strokeWidth={2.5} />
+            </div>
+        </div>
+    );
+}
+
+// ─── FILA EN AJUSTE (VISTA DE CONTROL DE CANTIDAD) ───
+function AdjustRow({ p, qty, direction, onSetQty }) {
+    const stock = p.stock ?? 0;
+    const newStock = direction === 'ingreso' ? stock + qty : Math.max(0, stock - qty);
+
+    return (
+        <div className="flex items-center justify-between gap-3 px-4 py-3 bg-slate-50/30 dark:bg-slate-900/10 border-b border-slate-100 dark:border-slate-800/40">
+            <div className="flex-1 min-w-0">
+                <p className="text-sm font-black text-slate-750 dark:text-slate-200 truncate">{p.name}</p>
+                <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-450">
+                        {stock}
+                    </span>
+                    <span className={`text-[11px] font-black flex items-center gap-0.5 ${direction === 'ingreso' ? 'text-emerald-500' : 'text-red-500'}`}>
+                        → {newStock} ({direction === 'ingreso' ? '+' : '-'}{qty})
+                    </span>
+                </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+                {/* Controles de cantidad integrados */}
+                <div className="flex items-center bg-slate-100 dark:bg-slate-800/70 p-0.5 rounded-full border border-slate-200/50 dark:border-slate-700/50">
                     <button
                         type="button"
                         onClick={() => onSetQty(p.id, qty - 1)}
                         disabled={qty <= 1}
-                        className="w-8 h-8 rounded-lg bg-white dark:bg-slate-805 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 hover:text-red-500 disabled:opacity-30 transition-all active:scale-90"
+                        className="w-7 h-7 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 disabled:opacity-30 transition-colors"
                     >
-                        <Minus size={14} strokeWidth={2.5} />
+                        <Minus size={12} strokeWidth={3} />
                     </button>
                     <input
                         type="number"
                         value={qty || ''}
                         placeholder="0"
                         onChange={(e) => onSetQty(p.id, e.target.value)}
-                        className="w-12 h-8 text-center text-sm font-black bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-brand/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="w-10 h-7 text-center text-xs font-black bg-transparent border-none outline-none focus:ring-0 text-slate-800 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                     <button
                         type="button"
                         onClick={() => onSetQty(p.id, qty + 1)}
-                        className="w-8 h-8 rounded-lg bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 hover:text-emerald-500 transition-all active:scale-90"
+                        className="w-7 h-7 rounded-full flex items-center justify-center text-slate-500 hover:text-emerald-500 transition-colors"
                     >
-                        <Plus size={14} strokeWidth={2.5} />
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => onSetQty(p.id, 0)}
-                        className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-950/30 flex items-center justify-center text-red-500 hover:text-red-650 transition-all active:scale-90 ml-1"
-                    >
-                        <X size={14} strokeWidth={2.5} />
+                        <Plus size={12} strokeWidth={3} />
                     </button>
                 </div>
-            ) : (
-                <div className="shrink-0 w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-800 border border-dashed border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 dark:text-slate-650 group-hover:bg-slate-100">
-                    <Plus size={14} />
-                </div>
-            )}
+
+                {/* Quitar item */}
+                <button
+                    type="button"
+                    onClick={() => onSetQty(p.id, 0)}
+                    className="w-8 h-8 rounded-full bg-red-50 dark:bg-red-950/20 flex items-center justify-center text-red-550 hover:text-red-650 hover:bg-red-100 transition-colors"
+                    title="Quitar de la lista"
+                >
+                    <X size={14} strokeWidth={2.5} />
+                </button>
+            </div>
         </div>
     );
 }
@@ -89,40 +104,39 @@ export default function StockBatchModal({
     categories,
     adjustStock,
     triggerHaptic,
-    copEnabled,
-    tasaCop,
-    copPrimary
 }) {
     const [direction, setDirection] = useState('ingreso'); // 'ingreso' | 'egreso'
     const [search, setSearch] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('todos');
     const [adjustments, setAdjustments] = useState({});
     const [note, setNote] = useState('');
+    const [activeTab, setActiveTab] = useState('catalog'); // 'catalog' | 'adjusting'
     const [isApplying, setIsApplying] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
+    
+    const categoryScrollRef = useRef(null);
     const listRef = useRef(null);
 
     const allProducts = useMemo(() =>
         (products || []).filter(p => !p.isCombo),
     [products]);
 
-    const categoryOptions = useMemo(() => {
-        return [
-            { value: 'todos', label: `Todas las categorías (${allProducts.length})` },
-            ...categories
-                .filter(c => c.id !== 'todos')
-                .map(cat => {
-                    const count = allProducts.filter(p => p.category === cat.id).length;
-                    return count > 0 ? { value: cat.id, label: `${cat.label} (${count})` } : null;
-                })
-                .filter(Boolean)
-        ];
-    }, [allProducts, categories]);
+    // Filtrar conteo por categoría
+    const getCategoryProductCount = (catId) => {
+        if (catId === 'todos') return allProducts.length;
+        return allProducts.filter(p => p.category === catId).length;
+    };
 
     const selectedProducts = useMemo(() =>
         allProducts.filter(p => (adjustments[p.id] || 0) > 0)
             .sort((a, b) => a.name.localeCompare(b.name)),
     [allProducts, adjustments]);
+
+    const activeAdjustments = useMemo(() =>
+        Object.entries(adjustments).filter(([, qty]) => qty > 0),
+    [adjustments]);
+
+    const totalItems = activeAdjustments.reduce((sum, [, qty]) => sum + qty, 0);
 
     const unselectedProducts = useMemo(() => {
         const term = search.toLowerCase().trim();
@@ -135,12 +149,6 @@ export default function StockBatchModal({
             })
             .sort((a, b) => a.name.localeCompare(b.name));
     }, [allProducts, search, selectedCategory, adjustments]);
-
-    const activeAdjustments = useMemo(() =>
-        Object.entries(adjustments).filter(([, qty]) => qty > 0),
-    [adjustments]);
-
-    const totalItems = activeAdjustments.reduce((sum, [, qty]) => sum + qty, 0);
 
     const setQty = (productId, val) => {
         const num = Math.max(0, parseInt(val) || 0);
@@ -183,6 +191,7 @@ export default function StockBatchModal({
             setNote('');
             setSearch('');
             setSelectedCategory('todos');
+            setActiveTab('catalog');
             setShowConfirm(false);
             onClose();
         } catch (e) {
@@ -197,6 +206,7 @@ export default function StockBatchModal({
         setSearch('');
         setNote('');
         setSelectedCategory('todos');
+        setActiveTab('catalog');
         setShowConfirm(false);
         onClose();
     };
@@ -212,48 +222,45 @@ export default function StockBatchModal({
             {/* Backdrop click to close */}
             <div className="absolute inset-0" onClick={handleClose} />
 
-            <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-xl animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-200 flex flex-col max-h-[90vh] sm:max-h-[85vh]">
+            <div className="relative bg-white dark:bg-slate-900 w-full max-w-md sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-200 flex flex-col max-h-[92vh] sm:max-h-[85vh]">
                 
                 {/* Header */}
-                <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50 rounded-t-3xl">
-                    <div className="flex items-center gap-2">
-                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${direction === 'ingreso' ? 'bg-emerald-100 dark:bg-emerald-900/20' : 'bg-red-100 dark:bg-red-900/20'}`}>
-                            {direction === 'ingreso'
-                                ? <TrendingUp size={16} className="text-emerald-600 dark:text-emerald-400" />
-                                : <TrendingDown size={16} className="text-red-500 dark:text-red-400" />
-                            }
+                <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50 rounded-t-3xl shrink-0">
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-brand-light dark:bg-slate-800 text-brand">
+                            <Boxes size={16} strokeWidth={2.5} />
                         </div>
-                        <h3 className="text-lg font-black text-slate-800 dark:text-white">
-                            {showConfirm ? 'Confirmar Ajuste' : 'Ajuste por Lote'}
+                        <h3 className="text-lg font-black text-slate-850 dark:text-white tracking-tight">
+                            {showConfirm ? 'Confirmar Ajuste' : 'Ajuste de Inventario'}
                         </h3>
                     </div>
-                    <button onClick={handleClose} className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                    <button onClick={handleClose} className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors active:scale-90">
                         <X size={20} />
                     </button>
                 </div>
 
                 {showConfirm ? (
                     /* ─── PANTALLA CONFIRMACIÓN ─── */
-                    <div className="p-5 space-y-4 overflow-y-auto flex-1">
-                        <div className={`p-4 rounded-xl border ${
+                    <div className="p-5 space-y-4 overflow-y-auto flex-1 scrollbar-hide">
+                        <div className={`p-4 rounded-2xl border ${
                             direction === 'ingreso'
-                                ? 'bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-200/50 dark:border-emerald-800/30'
-                                : 'bg-red-50/50 dark:bg-red-900/10 border-red-200/50 dark:border-red-800/30'
+                                ? 'bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-250/50 dark:border-emerald-800/30'
+                                : 'bg-red-50/50 dark:bg-red-900/10 border-red-250/50 dark:border-red-800/30'
                         }`}>
-                            <p className={`text-xs font-bold uppercase tracking-wider mb-3 ${
+                            <p className={`text-xs font-black uppercase tracking-widest mb-3.5 ${
                                 direction === 'ingreso' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'
                             }`}>
                                 {direction === 'ingreso' ? 'Ingreso' : 'Egreso'} masivo de stock
                             </p>
-                            <div className="space-y-2 max-h-[30vh] overflow-y-auto scrollbar-hide pr-1">
+                            <div className="space-y-2 max-h-[35vh] overflow-y-auto scrollbar-hide pr-1">
                                 {activeAdjustments.map(([id, qty]) => {
                                     const p = products.find(x => x.id === id);
                                     const stock = p?.stock ?? 0;
                                     const newStock = direction === 'ingreso' ? stock + qty : Math.max(0, stock - qty);
                                     return (
-                                        <div key={id} className="flex items-center justify-between text-xs py-1 border-b border-slate-100 dark:border-slate-800/40">
-                                            <span className="font-bold text-slate-600 dark:text-slate-300 truncate mr-4">{p?.name || '?'}</span>
-                                            <span className="font-bold shrink-0 text-slate-500 dark:text-slate-400">
+                                        <div key={id} className="flex items-center justify-between text-xs py-2 border-b border-slate-100 dark:border-slate-800/40">
+                                            <span className="font-bold text-slate-650 dark:text-slate-350 truncate mr-4">{p?.name || '?'}</span>
+                                            <span className="font-black shrink-0 text-slate-500 dark:text-slate-400">
                                                 {stock} <span className={direction === 'ingreso' ? 'text-emerald-500' : 'text-red-500'}>→ {newStock} ({direction === 'ingreso' ? '+' : '-'}{qty})</span>
                                             </span>
                                         </div>
@@ -261,13 +268,13 @@ export default function StockBatchModal({
                                 })}
                             </div>
                             {note.trim() && (
-                                <div className="mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800">
+                                <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-800">
                                     <p className="text-xs text-slate-500 dark:text-slate-400"><span className="font-bold">Motivo/Nota:</span> {note}</p>
                                 </div>
                             )}
                         </div>
 
-                        <div className="flex gap-3 mt-4">
+                        <div className="flex gap-3 pt-2">
                             <button
                                 type="button"
                                 onClick={() => setShowConfirm(false)}
@@ -279,7 +286,7 @@ export default function StockBatchModal({
                                 type="button"
                                 onClick={handleApply}
                                 disabled={isApplying}
-                                className={`flex-[2] py-3.5 text-white font-bold rounded-xl active:scale-[0.98] transition-all text-sm shadow-md ${
+                                className={`flex-[2] py-3.5 text-white font-bold rounded-xl active:scale-[0.98] transition-all text-sm shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${
                                     direction === 'ingreso'
                                         ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20'
                                         : 'bg-red-500 hover:bg-red-600 shadow-red-500/20'
@@ -292,146 +299,206 @@ export default function StockBatchModal({
                 ) : (
                     /* ─── PANTALLA PRINCIPAL ─── */
                     <>
-                        <div className="p-5 space-y-3.5 overflow-y-auto flex-1 scrollbar-hide">
+                        <div className="p-5 space-y-4 overflow-y-auto flex-1 scrollbar-hide">
                             {/* Direction Toggle */}
-                            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                            <div className="flex bg-slate-100 dark:bg-slate-800/80 p-1 rounded-2xl shrink-0">
                                 <button
                                     type="button"
                                     onClick={() => setDirection('ingreso')}
-                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-bold rounded-lg transition-all ${
+                                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold rounded-xl transition-all ${
                                         direction === 'ingreso'
-                                            ? 'bg-white dark:bg-slate-900 shadow-sm text-emerald-500'
+                                            ? 'bg-white dark:bg-slate-900 shadow-md text-emerald-600 dark:text-emerald-400 font-black'
                                             : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-350'
                                     }`}
                                 >
-                                    <TrendingUp size={16} /> Ingreso
+                                    <TrendingUp size={16} strokeWidth={2.5} /> Ingreso
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => setDirection('egreso')}
-                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-bold rounded-lg transition-all ${
+                                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold rounded-xl transition-all ${
                                         direction === 'egreso'
-                                            ? 'bg-white dark:bg-slate-900 shadow-sm text-red-500'
+                                            ? 'bg-white dark:bg-slate-900 shadow-md text-red-500 font-black'
                                             : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-350'
                                     }`}
                                 >
-                                    <TrendingDown size={16} /> Egreso
+                                    <TrendingDown size={16} strokeWidth={2.5} /> Egreso
                                 </button>
                             </div>
 
-                            {/* Filters Bar */}
-                            <div className="flex gap-2">
-                                {/* Search input */}
-                                <div className="relative flex-1">
-                                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                    <input
-                                        type="text"
-                                        placeholder="Buscar..."
-                                        value={search}
-                                        onChange={(e) => setSearch(e.target.value)}
-                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl py-2 pl-8.5 pr-3 text-xs text-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-brand/50 transition-all"
-                                    />
+                            {/* Search Bar - Ancho completo */}
+                            <div className="relative shrink-0">
+                                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-450" />
+                                <input
+                                    type="text"
+                                    placeholder="Buscar producto por nombre..."
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl py-2.5 pl-10 pr-4 text-xs text-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-brand/50 transition-all shadow-sm"
+                                />
+                            </div>
+
+                            {/* Category Filter Pills (Horizontal Scroll) */}
+                            <div className="relative w-full shrink-0">
+                                <div 
+                                    ref={categoryScrollRef}
+                                    className="flex gap-1.5 overflow-x-auto py-1 pl-0.5 pr-2 scrollbar-hide scroll-smooth"
+                                >
+                                    {/* Pestaña estática para la categoría 'Todos' */}
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedCategory('todos')}
+                                        className={`shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all border ${
+                                            selectedCategory === 'todos'
+                                                ? 'bg-brand text-white border-brand shadow-sm font-black'
+                                                : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 active:scale-95'
+                                        }`}
+                                    >
+                                        Todos
+                                        <span className={`ml-1 text-[9px] ${selectedCategory === 'todos' ? 'opacity-90' : 'text-slate-400'}`}>
+                                            · {getCategoryProductCount('todos')}
+                                        </span>
+                                    </button>
+
+                                    {categories.filter(c => c.id !== 'todos').map(cat => {
+                                        const count = getCategoryProductCount(cat.id);
+                                        const isActive = selectedCategory === cat.id;
+                                        const catColorClass = CATEGORY_COLORS[cat.color] || 'bg-brand text-white border-brand';
+                                        
+                                        return (
+                                            <button
+                                                key={cat.id}
+                                                type="button"
+                                                onClick={() => setSelectedCategory(cat.id)}
+                                                className={`shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all border ${
+                                                    isActive
+                                                        ? `${catColorClass} shadow-sm border-transparent font-black`
+                                                        : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 active:scale-95'
+                                                }`}
+                                            >
+                                                {cat.label}
+                                                <span className={`ml-1 text-[9px] ${isActive ? 'opacity-90' : 'text-slate-450 dark:text-slate-500'}`}>
+                                                    · {count}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
-                                {/* Category Dropdown */}
-                                <div className="w-[45%] shrink-0">
-                                    <CustomSelect
-                                        value={selectedCategory}
-                                        onChange={setSelectedCategory}
-                                        options={categoryOptions}
-                                        className="text-xs"
-                                    />
-                                </div>
+                            </div>
+
+                            {/* Navigation Tabs (Catálogo vs Ajustados) */}
+                            <div className="flex border-b border-slate-100 dark:border-slate-800 shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTab('catalog')}
+                                    className={`flex-1 pb-2.5 text-xs font-bold transition-all border-b-2 text-center ${
+                                        activeTab === 'catalog'
+                                            ? 'border-brand text-brand font-black'
+                                            : 'border-transparent text-slate-400 dark:text-slate-500 hover:text-slate-650'
+                                    }`}
+                                >
+                                    Catálogo ({unselectedProducts.length})
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTab('adjusting')}
+                                    className={`flex-1 pb-2.5 text-xs font-bold transition-all border-b-2 text-center flex items-center justify-center gap-1.5 ${
+                                        activeTab === 'adjusting'
+                                            ? 'border-brand text-brand font-black'
+                                            : 'border-transparent text-slate-400 dark:text-slate-500 hover:text-slate-650'
+                                    }`}
+                                >
+                                    En ajuste
+                                    {selectedProducts.length > 0 && (
+                                        <span className={`px-1.5 py-0.5 text-[9px] font-black rounded-full ${
+                                            direction === 'ingreso'
+                                                ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-450'
+                                                : 'bg-red-100 dark:bg-red-950 text-red-500'
+                                        }`}>
+                                            {selectedProducts.length}
+                                        </span>
+                                    )}
+                                </button>
                             </div>
 
                             {/* Product List Container */}
-                            <div ref={listRef} className="max-h-[35vh] overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col scrollbar-hide">
-                                
-                                {/* Selected sticky top section */}
-                                {selectedProducts.length > 0 && (
-                                    <div className="sticky top-0 z-10 border-b-2 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
-                                        <div className={`px-3.5 py-1.5 text-[9px] font-black uppercase tracking-wider ${
-                                            direction === 'ingreso'
-                                                ? 'bg-emerald-100/60 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
-                                                : 'bg-red-100/60 dark:bg-red-900/30 text-red-500 dark:text-red-400'
-                                        }`}>
-                                            Seleccionados ({selectedProducts.length})
-                                        </div>
-                                        <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-[18vh] overflow-y-auto scrollbar-hide">
-                                            {selectedProducts.map(p => (
-                                                <ProductRow
-                                                    key={p.id} p={p} qty={adjustments[p.id] || 0}
-                                                    direction={direction} isSelected maxStock={maxStock}
-                                                    onTapAdd={tapAdd} onSetQty={setQty}
-                                                    copEnabled={copEnabled} tasaCop={tasaCop} copPrimary={copPrimary}
-                                                />
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Available section */}
-                                {selectedProducts.length > 0 && unselectedProducts.length > 0 && (
-                                    <div className="px-3.5 py-1.5 text-[9px] font-black uppercase tracking-wider bg-slate-50 dark:bg-slate-900/40 text-slate-400 border-b border-slate-100 dark:border-slate-800">
-                                        Toca para agregar
-                                    </div>
-                                )}
-
-                                <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                                    {unselectedProducts.length === 0 && selectedProducts.length === 0 ? (
-                                        <div className="py-8 text-center text-xs text-slate-400 font-medium">
-                                            <Package size={20} className="mx-auto mb-1.5 opacity-40" />
-                                            Sin resultados
-                                        </div>
-                                    ) : unselectedProducts.map(p => (
-                                        <ProductRow
-                                            key={p.id} p={p} qty={0}
-                                            direction={direction} isSelected={false} maxStock={maxStock}
-                                            onTapAdd={tapAdd} onSetQty={setQty}
-                                            copEnabled={copEnabled} tasaCop={tasaCop} copPrimary={copPrimary}
-                                        />
-                                    ))}
+                            <div ref={listRef} className="max-h-[38vh] min-h-[22vh] overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col scrollbar-hide">
+                                <div className="divide-y divide-slate-100 dark:divide-slate-850">
+                                    {activeTab === 'catalog' ? (
+                                        /* VISTA CATÁLOGO */
+                                        unselectedProducts.length === 0 ? (
+                                            <div className="py-12 text-center text-xs text-slate-400 font-medium">
+                                                <Package size={22} className="mx-auto mb-2 opacity-40" />
+                                                Sin productos disponibles
+                                            </div>
+                                        ) : unselectedProducts.map(p => (
+                                            <CatalogRow
+                                                key={p.id} p={p} maxStock={maxStock}
+                                                onTapAdd={tapAdd}
+                                            />
+                                        ))
+                                    ) : (
+                                        /* VISTA EN AJUSTE */
+                                        selectedProducts.length === 0 ? (
+                                            <div className="py-12 text-center text-xs text-slate-400 font-medium">
+                                                <Boxes size={22} className="mx-auto mb-2 opacity-40 text-slate-300 dark:text-slate-700" />
+                                                No has seleccionado productos
+                                            </div>
+                                        ) : selectedProducts.map(p => (
+                                            <AdjustRow
+                                                key={p.id} p={p} qty={adjustments[p.id] || 0}
+                                                direction={direction} onSetQty={setQty}
+                                            />
+                                        ))
+                                    )}
                                 </div>
                             </div>
 
-                            {/* Motivo/Nota input */}
-                            <div className="relative">
-                                <input
-                                    type="text"
-                                    value={note}
-                                    onChange={(e) => setNote(e.target.value)}
-                                    placeholder={direction === 'egreso' ? 'Motivo del egreso (obligatorio)' : 'Nota / motivo (opcional)'}
-                                    className={`w-full bg-slate-50 dark:bg-slate-950 border rounded-xl py-2.5 px-3.5 text-xs text-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-brand/50 transition-all ${
-                                        direction === 'egreso' && !note.trim() && activeAdjustments.length > 0
-                                            ? 'border-red-300 dark:border-red-800 focus:ring-red-500/30'
-                                            : 'border-slate-200 dark:border-slate-800'
-                                    }`}
-                                />
-                                {direction === 'egreso' && !note.trim() && activeAdjustments.length > 0 && (
-                                    <p className="text-[10px] text-red-400 font-bold mt-1 ml-1 flex items-center gap-1">
-                                        <AlertTriangle size={10} /> Escribe un motivo para aplicar el egreso
-                                    </p>
-                                )}
-                            </div>
+                            {/* Motivo/Nota input (Solo visible en pestaña de ajuste o cuando hay seleccionados) */}
+                            {activeTab === 'adjusting' && selectedProducts.length > 0 && (
+                                <div className="relative shrink-0 animate-in fade-in slide-in-from-bottom-2 duration-150">
+                                    <input
+                                        type="text"
+                                        value={note}
+                                        onChange={(e) => setNote(e.target.value)}
+                                        placeholder={direction === 'egreso' ? 'Motivo del egreso (obligatorio)' : 'Nota / motivo (opcional)'}
+                                        className={`w-full bg-slate-50 dark:bg-slate-950 border rounded-2xl py-2.5 px-4 text-xs text-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-brand/50 transition-all ${
+                                            direction === 'egreso' && !note.trim() && activeAdjustments.length > 0
+                                                ? 'border-red-300 dark:border-red-800 focus:ring-red-500/30'
+                                                : 'border-slate-200 dark:border-slate-800'
+                                        }`}
+                                    />
+                                    {direction === 'egreso' && !note.trim() && activeAdjustments.length > 0 && (
+                                        <p className="text-[10px] text-red-400 font-bold mt-1.5 ml-1 flex items-center gap-1">
+                                            <AlertTriangle size={10} /> Escribe un motivo para aplicar el egreso
+                                        </p>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Footer (Apply Action) */}
-                        <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 rounded-b-3xl">
-                            <button
-                                type="button"
-                                onClick={handleApply}
-                                disabled={activeAdjustments.length === 0}
-                                className={`w-full py-3.5 text-white font-bold rounded-xl active:scale-95 transition-all text-sm flex justify-center items-center gap-2 ${
-                                    direction === 'ingreso'
-                                        ? 'bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-500/50'
-                                        : 'bg-red-500 hover:bg-red-600 disabled:bg-red-500/50'
-                                }`}
-                            >
-                                <Check size={16} />
-                                {activeAdjustments.length === 0
-                                    ? 'Selecciona productos'
-                                    : `Siguiente: Aplicar ${direction === 'ingreso' ? 'Ingreso' : 'Egreso'} (${totalItems} uds)`
-                                }
-                            </button>
+                        <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 rounded-b-3xl shrink-0">
+                             <button
+                                 type="button"
+                                 onClick={activeTab === 'catalog' && selectedProducts.length > 0 ? () => setActiveTab('adjusting') : handleApply}
+                                 disabled={activeAdjustments.length === 0}
+                                 className={`w-full py-3.5 font-bold rounded-xl active:scale-95 transition-all text-sm flex justify-center items-center gap-2 ${
+                                     activeAdjustments.length === 0
+                                         ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed shadow-none border border-slate-200/50 dark:border-slate-700/50'
+                                         : direction === 'ingreso'
+                                             ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/25'
+                                             : 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/25'
+                                 }`}
+                             >
+                                 {activeAdjustments.length > 0 && <Check size={16} />}
+                                 {activeAdjustments.length === 0
+                                     ? 'Toca productos para agregar'
+                                     : activeTab === 'catalog'
+                                         ? `Revisar ajuste (${selectedProducts.length} prod · ${totalItems} uds) →`
+                                         : `Aplicar ${direction === 'ingreso' ? 'Ingreso' : 'Egreso'} (${totalItems} uds)`
+                                 }
+                             </button>
                         </div>
                     </>
                 )}
