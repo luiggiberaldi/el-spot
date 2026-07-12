@@ -923,6 +923,7 @@ export const ProductsView = ({ rates, triggerHaptic }) => {
                 products={products}
                 categories={categories}
                 adjustStock={adjustStock}
+                setProducts={setProducts}
                 triggerHaptic={triggerHaptic}
                 copEnabled={copEnabled}
                 tasaCop={tasaCop}

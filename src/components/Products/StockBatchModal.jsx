@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useRef, useCallback } from 'react';
-import { Search, TrendingUp, TrendingDown, Check, Package, X, AlertTriangle, Minus, Plus, Boxes } from 'lucide-react';
+import { Search, TrendingUp, TrendingDown, Check, Package, X, AlertTriangle, Minus, Plus, Boxes, Edit3 } from 'lucide-react';
 import { showToast } from '../Toast';
 import { CATEGORY_COLORS } from '../../config/categories';
+import { storageService } from '../../utils/storageService';
 
 // ─── FILA DEL CATÁLOGO (VISTA SIMPLIFICADA) ───
 function CatalogRow({ p, maxStock, onTapAdd }) {
@@ -43,40 +44,119 @@ function CatalogRow({ p, maxStock, onTapAdd }) {
 }
 
 // ─── FILA EN AJUSTE (VISTA DE CONTROL DE CANTIDAD) ───
-function AdjustRow({ p, qty, direction, adjUnit, onSetQty, onSetAdjUnit }) {
+function AdjustRow({ p, qty, direction, adjUnit, tempPkgSize, onSetQty, onSetAdjUnit, onSetTempPkgSize }) {
     const stock = p.stock ?? 0;
-    const unitsPerPkg = (p.unitsPerPackage ?? 1) > 1 ? (p.unitsPerPackage ?? 1) : 1;
+    // Usar el tamaño temporal si existe (editado inline), sino el del producto
+    const storedUpp = (p.unitsPerPackage ?? 1) > 1 ? (p.unitsPerPackage ?? 1) : 1;
+    const unitsPerPkg = tempPkgSize > 1 ? tempPkgSize : storedUpp;
     const hasBulk = unitsPerPkg > 1;
 
     // Delta y stock nuevo calculados correctamente según la unidad elegida
     const delta = hasBulk && adjUnit === 'lotes' ? qty * unitsPerPkg : qty;
     const newStock = direction === 'ingreso' ? stock + delta : Math.max(0, stock - delta);
 
-    // Label del cambio (ej: "+2 bultos de 12 uds" o "+5 uds")
+    // Label del cambio
     const deltaLabel = hasBulk && adjUnit === 'lotes'
         ? `${direction === 'ingreso' ? '+' : '-'}${qty} bulto${qty !== 1 ? 's' : ''} de ${unitsPerPkg} uds`
         : `${direction === 'ingreso' ? '+' : '-'}${delta} ud${delta !== 1 ? 's' : ''}`;
 
+    // Cuantos bultos tiene en inventario ahora
+    const currentBultos = hasBulk ? Math.floor(stock / unitsPerPkg) : null;
+
+    const inputVal = tempPkgSize > 0 ? tempPkgSize : (storedUpp > 1 ? storedUpp : '');
+
     return (
-        <div className="flex items-start justify-between gap-3 px-4 py-3 bg-slate-50/30 dark:bg-slate-900/10 border-b border-slate-100 dark:border-slate-800/40">
-            {/* Info del producto */}
-            <div className="flex-1 min-w-0">
-                <p className="text-sm font-black text-slate-750 dark:text-slate-200 truncate">{p.name}</p>
-                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-450">
-                        {stock}
-                    </span>
-                    <span className={`text-[11px] font-black flex items-center gap-0.5 ${direction === 'ingreso' ? 'text-emerald-500' : 'text-red-500'}`}>
-                        → {newStock}
-                    </span>
-                    <span className={`text-[10px] font-bold ${direction === 'ingreso' ? 'text-emerald-500/70' : 'text-red-500/70'}`}>
-                        ({deltaLabel})
-                    </span>
+        <div className="px-4 py-3 bg-slate-50/30 dark:bg-slate-900/10 border-b border-slate-100 dark:border-slate-800/40">
+            {/* Fila superior: nombre + controles */}
+            <div className="flex items-start justify-between gap-3">
+                {/* Info del producto */}
+                <div className="flex-1 min-w-0">
+                    <p className="text-sm font-black text-slate-750 dark:text-slate-200 truncate">{p.name}</p>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-450">
+                            {stock}
+                        </span>
+                        <span className={`text-[11px] font-black flex items-center gap-0.5 ${direction === 'ingreso' ? 'text-emerald-500' : 'text-red-500'}`}>
+                            → {newStock}
+                        </span>
+                        <span className={`text-[10px] font-bold ${direction === 'ingreso' ? 'text-emerald-500/70' : 'text-red-500/70'}`}>
+                            ({deltaLabel})
+                        </span>
+                        {currentBultos !== null && (
+                            <span className="text-[9px] font-bold text-brand/80 dark:text-brand/70 bg-brand-light dark:bg-slate-800 px-1.5 py-0.5 rounded-md border border-brand/15">
+                                {currentBultos} bulto{currentBultos !== 1 ? 's' : ''} actuales
+                            </span>
+                        )}
+                    </div>
                 </div>
 
-                {/* Toggle Uds / Bultos — solo si tiene empaque master válido */}
+                {/* Controles de cantidad */}
+                <div className="flex items-center gap-2 shrink-0 mt-0.5">
+                    <div className="flex items-center bg-slate-100 dark:bg-slate-800/70 p-0.5 rounded-full border border-slate-200/50 dark:border-slate-700/50">
+                        <button
+                            type="button"
+                            onClick={() => onSetQty(p.id, qty - 1)}
+                            disabled={qty <= 1}
+                            className="w-7 h-7 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 disabled:opacity-30 transition-colors"
+                        >
+                            <Minus size={12} strokeWidth={3} />
+                        </button>
+                        <input
+                            type="number"
+                            value={qty || ''}
+                            placeholder="0"
+                            onChange={(e) => onSetQty(p.id, e.target.value)}
+                            className="w-10 h-7 text-center text-xs font-black bg-transparent border-none outline-none focus:ring-0 text-slate-800 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => onSetQty(p.id, qty + 1)}
+                            className="w-7 h-7 rounded-full flex items-center justify-center text-slate-500 hover:text-emerald-500 transition-colors"
+                        >
+                            <Plus size={12} strokeWidth={3} />
+                        </button>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={() => onSetQty(p.id, 0)}
+                        className="w-8 h-8 rounded-full bg-red-50 dark:bg-red-950/20 flex items-center justify-center text-red-500 hover:bg-red-100 transition-colors"
+                        title="Quitar de la lista"
+                    >
+                        <X size={14} strokeWidth={2.5} />
+                    </button>
+                </div>
+            </div>
+
+            {/* Fila inferior: configurador inline de tamano + toggle Uds/Bultos */}
+            <div className="flex items-center gap-3 mt-2.5 flex-wrap">
+                {/* Input inline de tamano de caja/bulto — siempre visible */}
+                <div className="flex items-center gap-1.5">
+                    <Edit3 size={10} className="text-slate-400 dark:text-slate-500 shrink-0" />
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Uds/bulto:</span>
+                    <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={inputVal}
+                        placeholder="—"
+                        onChange={(e) => {
+                            const val = parseInt(e.target.value) || 0;
+                            onSetTempPkgSize(p.id, val);
+                            if (val > 1 && adjUnit !== 'lotes') {
+                                onSetAdjUnit(p.id, 'lotes');
+                            }
+                            if (val <= 1) {
+                                onSetAdjUnit(p.id, 'uds');
+                            }
+                        }}
+                        className="w-12 h-6 text-center text-xs font-black bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/50 transition-all text-slate-700 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                </div>
+
+                {/* Toggle Uds / Bultos — solo si tiene tamano valido */}
                 {hasBulk && (
-                    <div className="flex items-center gap-1 mt-2">
+                    <div className="flex items-center gap-1">
                         <button
                             type="button"
                             onClick={() => onSetAdjUnit(p.id, 'uds')}
@@ -102,43 +182,6 @@ function AdjustRow({ p, qty, direction, adjUnit, onSetQty, onSetAdjUnit }) {
                     </div>
                 )}
             </div>
-
-            {/* Controles de cantidad */}
-            <div className="flex items-center gap-2 shrink-0 mt-0.5">
-                <div className="flex items-center bg-slate-100 dark:bg-slate-800/70 p-0.5 rounded-full border border-slate-200/50 dark:border-slate-700/50">
-                    <button
-                        type="button"
-                        onClick={() => onSetQty(p.id, qty - 1)}
-                        disabled={qty <= 1}
-                        className="w-7 h-7 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 disabled:opacity-30 transition-colors"
-                    >
-                        <Minus size={12} strokeWidth={3} />
-                    </button>
-                    <input
-                        type="number"
-                        value={qty || ''}
-                        placeholder="0"
-                        onChange={(e) => onSetQty(p.id, e.target.value)}
-                        className="w-10 h-7 text-center text-xs font-black bg-transparent border-none outline-none focus:ring-0 text-slate-800 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                    <button
-                        type="button"
-                        onClick={() => onSetQty(p.id, qty + 1)}
-                        className="w-7 h-7 rounded-full flex items-center justify-center text-slate-500 hover:text-emerald-500 transition-colors"
-                    >
-                        <Plus size={12} strokeWidth={3} />
-                    </button>
-                </div>
-
-                <button
-                    type="button"
-                    onClick={() => onSetQty(p.id, 0)}
-                    className="w-8 h-8 rounded-full bg-red-50 dark:bg-red-950/20 flex items-center justify-center text-red-500 hover:bg-red-100 transition-colors"
-                    title="Quitar de la lista"
-                >
-                    <X size={14} strokeWidth={2.5} />
-                </button>
-            </div>
         </div>
     );
 }
@@ -149,13 +192,15 @@ export default function StockBatchModal({
     products,
     categories,
     adjustStock,
+    setProducts,
     triggerHaptic,
 }) {
     const [direction, setDirection] = useState('ingreso');
     const [search, setSearch] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('todos');
-    const [adjustments, setAdjustments] = useState({});          // productId → qty (en bultos o uds, según adjUnit)
-    const [adjustmentUnits, setAdjustmentUnits] = useState({});  // productId → 'lotes' | 'uds'
+    const [adjustments, setAdjustments] = useState({});
+    const [adjustmentUnits, setAdjustmentUnits] = useState({});
+    const [tempPackageSizes, setTempPackageSizes] = useState({});
     const [note, setNote] = useState('');
     const [activeTab, setActiveTab] = useState('catalog');
     const [isApplying, setIsApplying] = useState(false);
@@ -178,18 +223,24 @@ export default function StockBatchModal({
             .sort((a, b) => a.name.localeCompare(b.name)),
     [allProducts, adjustments]);
 
-    // Lista de ajustes activos con delta en UNIDADES REALES calculado
+    const getEffectiveUpp = useCallback((p) => {
+        const temp = tempPackageSizes[p.id] || 0;
+        if (temp > 1) return temp;
+        const stored = p.unitsPerPackage ?? 1;
+        return stored > 1 ? stored : 1;
+    }, [tempPackageSizes]);
+
     const activeAdjustments = useMemo(() =>
         Object.entries(adjustments)
             .filter(([, qty]) => qty > 0)
             .map(([productId, qty]) => {
                 const p = allProducts.find(x => x.id === productId);
-        const unitsPerPkg = (p?.unitsPerPackage ?? 1) > 1 ? (p.unitsPerPackage ?? 1) : 1;
+                const unitsPerPkg = getEffectiveUpp(p);
                 const adjUnit = adjustmentUnits[productId] || (unitsPerPkg > 1 ? 'lotes' : 'uds');
                 const deltaUnits = (unitsPerPkg > 1 && adjUnit === 'lotes') ? qty * unitsPerPkg : qty;
                 return { productId, qty, adjUnit, unitsPerPkg, deltaUnits, p };
             }),
-    [adjustments, adjustmentUnits, allProducts]);
+    [adjustments, adjustmentUnits, allProducts, getEffectiveUpp]);
 
     const totalItems = activeAdjustments.reduce((sum, { deltaUnits }) => sum + deltaUnits, 0);
 
@@ -214,16 +265,21 @@ export default function StockBatchModal({
         setAdjustmentUnits(prev => ({ ...prev, [productId]: unit }));
     }, []);
 
+    const setTempPkgSize = useCallback((productId, size) => {
+        setTempPackageSizes(prev => ({ ...prev, [productId]: size }));
+    }, []);
+
     const tapAdd = useCallback((productId) => {
         triggerHaptic && triggerHaptic();
         const p = allProducts.find(x => x.id === productId);
-        // Auto-inicializar en 'lotes' si el producto tiene empaque master válido
-        const unitsPerPkg = (p?.unitsPerPackage ?? 1) > 1 ? (p.unitsPerPackage ?? 1) : 1;
+        const temp = tempPackageSizes[productId] || 0;
+        const stored = p?.unitsPerPackage ?? 1;
+        const unitsPerPkg = temp > 1 ? temp : stored > 1 ? stored : 1;
         if (unitsPerPkg > 1) {
             setAdjustmentUnits(prev => ({ ...prev, [productId]: 'lotes' }));
         }
         setAdjustments(prev => ({ ...prev, [productId]: (prev[productId] || 0) + 1 }));
-    }, [triggerHaptic, allProducts]);
+    }, [triggerHaptic, allProducts, tempPackageSizes]);
 
     const needsNote = direction === 'egreso' && !note.trim();
 
@@ -243,18 +299,30 @@ export default function StockBatchModal({
 
         try {
             for (const { productId, deltaUnits } of activeAdjustments) {
-                // Delta real en UNIDADES (ya calculado en activeAdjustments)
                 const delta = direction === 'ingreso' ? deltaUnits : -deltaUnits;
                 await adjustStock(productId, delta);
             }
 
+            // Persistir permanentemente los tamanos de empaque editados inline
+            const pkgEntries = Object.entries(tempPackageSizes).filter(([, size]) => size > 1);
+            if (pkgEntries.length > 0 && setProducts) {
+                setProducts(prev =>
+                    prev.map(p => {
+                        const newSize = tempPackageSizes[p.id];
+                        if (newSize && newSize > 1) return { ...p, unitsPerPackage: newSize };
+                        return p;
+                    })
+                );
+            }
+
             showToast(
-                `${direction === 'ingreso' ? 'Ingreso' : 'Egreso'} masivo completado con éxito`,
+                `${direction === 'ingreso' ? 'Ingreso' : 'Egreso'} masivo completado con exito`,
                 'success'
             );
 
             setAdjustments({});
             setAdjustmentUnits({});
+            setTempPackageSizes({});
             setNote('');
             setSearch('');
             setSelectedCategory('todos');
@@ -271,6 +339,7 @@ export default function StockBatchModal({
     const handleClose = () => {
         setAdjustments({});
         setAdjustmentUnits({});
+        setTempPackageSizes({});
         setSearch('');
         setNote('');
         setSelectedCategory('todos');
@@ -289,7 +358,7 @@ export default function StockBatchModal({
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="absolute inset-0" onClick={handleClose} />
 
-            <div className="relative bg-white dark:bg-slate-900 w-full max-w-md sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-200 flex flex-col max-h-[92vh] sm:max-h-[85vh]">
+            <div className="relative bg-white dark:bg-slate-900 w-full max-w-md md:max-w-2xl lg:max-w-3xl rounded-t-3xl sm:rounded-3xl shadow-2xl animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-200 flex flex-col max-h-[92vh] sm:max-h-[85vh]">
 
                 {/* Header */}
                 <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50 rounded-t-3xl shrink-0">
@@ -307,7 +376,6 @@ export default function StockBatchModal({
                 </div>
 
                 {showConfirm ? (
-                    /* ─── PANTALLA CONFIRMACIÓN ─── */
                     <div className="p-5 space-y-4 overflow-y-auto flex-1 scrollbar-hide">
                         <div className={`p-4 rounded-2xl border ${
                             direction === 'ingreso'
@@ -317,13 +385,14 @@ export default function StockBatchModal({
                             <p className={`text-xs font-black uppercase tracking-widest mb-3.5 ${
                                 direction === 'ingreso' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'
                             }`}>
-                                {direction === 'ingreso' ? 'Ingreso' : 'Egreso'} masivo · {activeAdjustments.length} prod · {totalItems} uds totales
+                                {direction === 'ingreso' ? 'Ingreso' : 'Egreso'} masivo - {activeAdjustments.length} prod - {totalItems} uds totales
                             </p>
                             <div className="space-y-2.5 max-h-[38vh] overflow-y-auto scrollbar-hide pr-1">
                                 {activeAdjustments.map(({ productId, qty, adjUnit, unitsPerPkg, deltaUnits, p }) => {
                                     const stock = p?.stock ?? 0;
                                     const newStock = direction === 'ingreso' ? stock + deltaUnits : Math.max(0, stock - deltaUnits);
                                     const isBulkMode = unitsPerPkg > 1 && adjUnit === 'lotes';
+                                    const hasInlineEdit = (tempPackageSizes[productId] || 0) > 1;
 
                                     return (
                                         <div key={productId} className="py-2 border-b border-slate-100 dark:border-slate-800/40">
@@ -335,10 +404,15 @@ export default function StockBatchModal({
                                             </div>
                                             <p className={`text-[10px] font-bold mt-0.5 ${direction === 'ingreso' ? 'text-emerald-500/70' : 'text-red-500/70'}`}>
                                                 {isBulkMode
-                                                    ? `${direction === 'ingreso' ? '+' : '-'}${qty} bulto${qty !== 1 ? 's' : ''} × ${unitsPerPkg} uds = ${direction === 'ingreso' ? '+' : '-'}${deltaUnits} uds`
+                                                    ? `${direction === 'ingreso' ? '+' : '-'}${qty} bulto${qty !== 1 ? 's' : ''} x ${unitsPerPkg} uds = ${direction === 'ingreso' ? '+' : '-'}${deltaUnits} uds`
                                                     : `${direction === 'ingreso' ? '+' : '-'}${deltaUnits} ud${deltaUnits !== 1 ? 's' : ''}`
                                                 }
                                             </p>
+                                            {hasInlineEdit && (
+                                                <p className="text-[9px] text-brand/70 font-bold mt-0.5">
+                                                    Tamano de empaque guardado: {tempPackageSizes[productId]} uds/bulto
+                                                </p>
+                                            )}
                                         </div>
                                     );
                                 })}
@@ -373,7 +447,6 @@ export default function StockBatchModal({
                         </div>
                     </div>
                 ) : (
-                    /* ─── PANTALLA PRINCIPAL ─── */
                     <>
                         <div className="p-5 space-y-4 overflow-y-auto flex-1 scrollbar-hide">
                             {/* Direction Toggle */}
@@ -431,7 +504,7 @@ export default function StockBatchModal({
                                     >
                                         Todos
                                         <span className={`ml-1 text-[9px] ${selectedCategory === 'todos' ? 'opacity-90' : 'text-slate-400'}`}>
-                                            · {getCategoryProductCount('todos')}
+                                            - {getCategoryProductCount('todos')}
                                         </span>
                                     </button>
 
@@ -452,7 +525,7 @@ export default function StockBatchModal({
                                             >
                                                 {cat.label}
                                                 <span className={`ml-1 text-[9px] ${isActive ? 'opacity-90' : 'text-slate-450 dark:text-slate-500'}`}>
-                                                    · {count}
+                                                    - {count}
                                                 </span>
                                             </button>
                                         );
@@ -471,7 +544,7 @@ export default function StockBatchModal({
                                             : 'border-transparent text-slate-400 dark:text-slate-500 hover:text-slate-600'
                                     }`}
                                 >
-                                    Catálogo ({unselectedProducts.length})
+                                    Catalogo ({unselectedProducts.length})
                                 </button>
                                 <button
                                     type="button"
@@ -517,9 +590,10 @@ export default function StockBatchModal({
                                                 No has seleccionado productos
                                             </div>
                                         ) : selectedProducts.map(p => {
-                                            const unitsPerPkg = (p.unitsPerPackage ?? 1) > 1 ? (p.unitsPerPackage ?? 1) : 1;
-                                            const defaultUnit = unitsPerPkg > 1 ? 'lotes' : 'uds';
+                                            const effUpp = getEffectiveUpp(p);
+                                            const defaultUnit = effUpp > 1 ? 'lotes' : 'uds';
                                             const adjUnit = adjustmentUnits[p.id] || defaultUnit;
+                                            const tempPkgSize = tempPackageSizes[p.id] || 0;
                                             return (
                                                 <AdjustRow
                                                     key={p.id}
@@ -527,8 +601,10 @@ export default function StockBatchModal({
                                                     qty={adjustments[p.id] || 0}
                                                     direction={direction}
                                                     adjUnit={adjUnit}
+                                                    tempPkgSize={tempPkgSize}
                                                     onSetQty={setQty}
                                                     onSetAdjUnit={setAdjUnit}
+                                                    onSetTempPkgSize={setTempPkgSize}
                                                 />
                                             );
                                         })
@@ -536,7 +612,7 @@ export default function StockBatchModal({
                                 </div>
                             </div>
 
-                            {/* Nota — solo en pestaña de ajuste con productos */}
+                            {/* Nota — solo en pestana de ajuste con productos */}
                             {activeTab === 'adjusting' && selectedProducts.length > 0 && (
                                 <div className="relative shrink-0 animate-in fade-in slide-in-from-bottom-2 duration-150">
                                     <input
@@ -577,7 +653,7 @@ export default function StockBatchModal({
                                 {activeAdjustments.length === 0
                                     ? 'Toca productos para agregar'
                                     : activeTab === 'catalog'
-                                        ? `Revisar ajuste (${selectedProducts.length} prod · ${totalItems} uds) →`
+                                        ? `Revisar ajuste (${selectedProducts.length} prod - ${totalItems} uds) →`
                                         : `Aplicar ${direction === 'ingreso' ? 'Ingreso' : 'Egreso'} (${totalItems} uds)`
                                 }
                             </button>
