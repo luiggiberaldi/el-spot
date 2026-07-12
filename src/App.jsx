@@ -77,7 +77,7 @@ export default function App() {
 
   const lastClickTimeRef = useRef(0);
 
-  const { rates } = useRates();
+  const { rates, rateDiscrepancyWarning } = useRates();
 
   // Purge old audit log entries on startup
   useEffect(() => { purgeOldEntries(); }, []);
@@ -202,7 +202,7 @@ export default function App() {
   if (isMonitorMode) {
     return (
       <ErrorBoundary>
-        <ProductProvider rates={rates}>
+        <ProductProvider rates={rates} rateDiscrepancyWarning={rateDiscrepancyWarning}>
           <Suspense fallback={<div className="flex-1 flex items-center justify-center p-6 text-slate-500 font-bold">Cargando monitor...</div>}>
             <OwnerMonitorView theme={theme} toggleTheme={toggleTheme} triggerHaptic={triggerHaptic} />
           </Suspense>
@@ -303,7 +303,7 @@ export default function App() {
 
 
       <CartProvider>
-      <ProductProvider rates={rates}>
+      <ProductProvider rates={rates} rateDiscrepancyWarning={rateDiscrepancyWarning}>
         <main className={`flex-1 min-h-0 w-full max-w-full px-0 lg:px-6 xl:px-8 mx-auto relative ${isKeyboardOpen ? 'pb-4' : 'pb-24'} flex flex-col overflow-y-auto`}>
 
           {/* Hidden Admin Trigger Area */}
@@ -319,7 +319,7 @@ export default function App() {
             <PremiumGuard featureName="Punto de Venta" isShop={true}>
               {(activeTab === 'ventas' || mountedViews.ventas) && (
                 <Suspense fallback={<div className="flex-1 p-4 space-y-4"><div className="skeleton h-10 w-40" /><div className="skeleton h-32" /><div className="skeleton h-48" /></div>}>
-                  <SalesView rates={rates} triggerHaptic={triggerHaptic} onNavigate={setActiveTab} isActive={activeTab === 'ventas'} />
+                  <SalesView rates={rates} rateDiscrepancyWarning={rateDiscrepancyWarning} triggerHaptic={triggerHaptic} onNavigate={setActiveTab} isActive={activeTab === 'ventas'} />
                 </Suspense>
               )}
             </PremiumGuard>

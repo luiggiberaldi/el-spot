@@ -1,4 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { BcvApiClient } from '../services/bcvApiClient';
+
+const BCV_API_URL = import.meta.env.VITE_BCV_API_URL || '';
 
 const DEFAULT_RATES = {
     bcv: { price: 36.35, source: 'BCV Oficial', change: 0.05 },
@@ -29,6 +32,7 @@ export function useRates() {
     const [loading, setLoading] = useState(false);
     const [isOffline, setIsOffline] = useState(false);
     const [logs, setLogs] = useState([]);
+    const [rateDiscrepancyWarning, setRateDiscrepancyWarning] = useState(null);
 
     const ratesRef = useRef(rates);
     // HOOK-016: Ref para isOffline, evita stale-closure dentro de updateData
@@ -151,132 +155,178 @@ export function useRates() {
         };
 
         try {
-            // Intentar endpoint cacheado primero
-            const apiData = await fetchGeneric('/api/rates');
-            if (apiData && apiData.bcv?.price > 0) {
-                const newRates = {
-                    bcv: apiData.bcv,
-                    euro: apiData.euro,
-                    usdt: apiData.usdt,
-                    ...(apiData.autoCopRate ? { autoCopRate: apiData.autoCopRate } : {}),
-                    lastUpdate: apiData.lastUpdate || new Date(),
-                };
-                setRates(newRates);
-                if (!isAutoUpdate) addLog("Actualización completada", 'success');
-                return;
-            }
-
-            // Fallback: fetch directo a las fuentes externas
-            log("ℹ️ Fallback a fuentes directas", "info");
-            // Fetch en paralelo: datos privados (Google Script), dolarapi fallback, y external rates (Euro, COP)
-            const taskPrivate = fetchGeneric(GOOGLE_SCRIPT_URL);
+            // Fetch en paralelo de todas las fuentes disponibles
+            const taskCacheApi = fetchGeneric('/api/rates');
+            const taskPrivate = GOOGLE_SCRIPT_URL ? fetchGeneric(GOOGLE_SCRIPT_URL) : Promise.resolve(null);
             const taskDolarApi = fetchGeneric('https://ve.dolarapi.com/v1/dolares');
             const taskExternal = getExternalRatesFallback();
+            
+            let taskClient = Promise.resolve(null);
+            if (BCV_API_URL) {
+                const client = new BcvApiClient(BCV_API_URL);
+                taskClient = client.getRaw().catch(() => null);
+            }
 
-            const [privateData, bcvFallbackData, externalRates] = await Promise.all([
+            const [cacheApiData, privateData, bcvFallbackData, externalRates, clientData] = await Promise.all([
+                taskCacheApi.catch(() => null),
                 taskPrivate.catch(() => null),
                 taskDolarApi.catch(() => null),
-                taskExternal.catch(() => ({ eur: DEFAULT_EUR_USD_RATIO, cop: null }))
+                taskExternal.catch(() => ({ eur: DEFAULT_EUR_USD_RATIO, cop: null })),
+                taskClient
             ]);
-            
+
             const euroFactor = externalRates.eur;
 
-            if (privateData) log("✅ Datos Privados Recibidos", "success");
+            const candidates = [];
 
-            let newRates = { ...(ratesRef.current || DEFAULT_RATES) };
+            const validateMagnitude = (val, min = 10, max = 5000) => {
+                if (!val || val <= 0) return 0;
+                if (val < min) {
+                    let v = val;
+                    let guard = 0;
+                    while (v < min && guard < 6) { v *= 10; guard++; }
+                    return v;
+                }
+                if (val > max) {
+                    let v = val;
+                    let guard = 0;
+                    while (v > max && guard < 6) { v /= 10; guard++; }
+                    return v;
+                }
+                return val;
+            };
 
-            let newBcvPrice = 0;
-            let newEuroPrice = 0;
-            let newUsdtPrice = 0;
-
-            // Extraer USDT de privateData o DolarApi
-            if (privateData && privateData.usdt) {
-                newUsdtPrice = parseSafeFloat(typeof privateData.usdt === 'object' ? privateData.usdt.price : privateData.usdt);
+            // 1. Candidato: cacheApiData (/api/rates)
+            if (cacheApiData && cacheApiData.bcv?.price > 0) {
+                const price = validateMagnitude(parseSafeFloat(cacheApiData.bcv.price));
+                if (price > 10.0) {
+                    candidates.push({ val: price, source: cacheApiData.bcv.source || '/api/rates' });
+                }
             }
-            if (!newUsdtPrice && bcvFallbackData) {
-                const usdtData = Array.isArray(bcvFallbackData) ? bcvFallbackData.find(d => d.nombre?.toLowerCase() === 'binance' || d.fuente === 'binance' || d.casa === 'binance') || bcvFallbackData.find(d => d.nombre?.toLowerCase() === 'paralelo' || d.fuente === 'paralelo' || d.casa === 'paralelo') : null;
-                if (usdtData?.promedio > 0) newUsdtPrice = parseSafeFloat(usdtData.promedio);
-            }
 
-            // Procesar BCV/Euro desde datos privados (Google Script)
+            // 2. Candidato: privateData (Google Script)
             if (privateData) {
                 const rawBcv = privateData.bcv || privateData.usd;
-                const rawEuro = privateData.euro || privateData.eur;
-
-                let bcvP = parseSafeFloat(typeof rawBcv === 'object' ? rawBcv.price : rawBcv);
-                let euroP = parseSafeFloat(typeof rawEuro === 'object' ? rawEuro.price : rawEuro);
-
-                let apiBcvChange = typeof rawBcv === 'object' ? rawBcv.change : null;
-                let apiEuroChange = typeof rawEuro === 'object' ? rawEuro.change : null;
-
-                // Validación de magnitud: si el precio es irrazonablemente bajo o alto, corregir
-                // HOOK-017: Pasar rango esperado como parámetro para no corromper COP u otras
-                // tasas con rangos muy distintos al BCV (que está entre 10 y 200).
-                const validateMagnitude = (val, min = 10, max = 200) => {
-                    if (!val || val <= 0) return val;
-                    // Si el valor está por debajo del mínimo esperado, multiplicar por 10 hasta entrar.
-                    if (val < min) {
-                        let v = val;
-                        // Salvaguarda: máximo 6 iteraciones para no loopear infinito si el dato es basura.
-                        let guard = 0;
-                        while (v < min && guard < 6) { v *= 10; guard++; }
-                        return v;
-                    }
-                    // Si está por encima del máximo esperado, dividir por 10 hasta entrar.
-                    if (val > max) {
-                        let v = val;
-                        let guard = 0;
-                        while (v > max && guard < 6) { v /= 10; guard++; }
-                        return v;
-                    }
-                    return val;
-                };
-
-                newBcvPrice = validateMagnitude(bcvP, 10, 200);
-                newEuroPrice = validateMagnitude(euroP, 10, 250);
-
-                if (newBcvPrice > 0) {
-                    const meta = getMeta(newBcvPrice, newRates.bcv.price, newRates.bcv.change, apiBcvChange);
-                    newRates.bcv = { ...newRates.bcv, ...meta, source: 'BCV Oficial' };
+                const price = validateMagnitude(parseSafeFloat(typeof rawBcv === 'object' ? rawBcv.price : rawBcv));
+                if (price > 10.0) {
+                    candidates.push({ val: price, source: 'Google Script (VITE_GOOGLE_SCRIPT_URL)' });
                 }
-                if (newEuroPrice > 0) {
-                    const meta = getMeta(newEuroPrice, newRates.euro.price, newRates.euro.change, apiEuroChange);
-                    newRates.euro = { ...newRates.euro, ...meta, source: 'Euro BCV' };
-                }
+            }
 
-            } else if (bcvFallbackData) {
-                // Fallback: DolarApi
-                const oficial = Array.isArray(bcvFallbackData) ? bcvFallbackData.find(d => d.fuente === 'oficial' || d.nombre === 'Oficial') : null;
-
+            // 3. Candidato: bcvFallbackData (DolarApi)
+            if (bcvFallbackData) {
+                const oficial = Array.isArray(bcvFallbackData) 
+                    ? bcvFallbackData.find(d => d.fuente === 'oficial' || d.nombre === 'Oficial') 
+                    : null;
                 if (oficial?.promedio > 0) {
-                    let bcvP = parseSafeFloat(oficial.promedio);
-                    newBcvPrice = bcvP;
-                    const meta = getMeta(newBcvPrice, newRates.bcv.price, newRates.bcv.change);
-                    newRates.bcv = { ...newRates.bcv, ...meta, source: 'BCV Oficial (Respaldo)' };
-
-                    if (euroFactor) {
-                        newEuroPrice = newBcvPrice * euroFactor;
-                        const metaEur = getMeta(newEuroPrice, newRates.euro.price, newRates.euro.change);
-                        newRates.euro = { ...newRates.euro, ...metaEur, source: 'Euro BCV (Triangulado)' };
+                    const price = validateMagnitude(parseSafeFloat(oficial.promedio));
+                    if (price > 10.0) {
+                        candidates.push({ val: price, source: 'DolarApi Oficial' });
                     }
                 }
             }
 
-            // Integrar tasa USDT si se obtuvo
-            if (newUsdtPrice > 0) {
-                const metaUsdt = getMeta(newUsdtPrice, newRates.usdt?.price ?? 0, newRates.usdt?.change ?? 0);
-                newRates.usdt = { ...metaUsdt, source: 'Paralelo / Binance' };
+            // 4. Candidato: clientData (BcvApiClient)
+            if (clientData && clientData.ok && clientData.tasa > 0) {
+                const price = validateMagnitude(parseSafeFloat(clientData.tasa));
+                if (price > 10.0) {
+                    candidates.push({ val: price, source: clientData.source || 'BcvApiClient' });
+                }
             }
 
-            // Integrar cálculo AutoCOP con TRM y USDT
+            let newRates = { ...(ratesRef.current || DEFAULT_RATES) };
+            let chosenBcv = 0;
+            let chosenSource = 'Default';
+
+            if (candidates.length > 0) {
+                // Ordenar por precio descendente para tomar la tasa más alta
+                candidates.sort((a, b) => b.val - a.val);
+                chosenBcv = candidates[0].val;
+                chosenSource = candidates[0].source;
+
+                // Calcular advertencia de discrepancia si hay una diferencia notable (> 3%)
+                const lowestRate = candidates[candidates.length - 1].val;
+                const diffPercent = ((chosenBcv - lowestRate) / lowestRate) * 100;
+                if (diffPercent > 3.0 && candidates.length > 1) {
+                    setRateDiscrepancyWarning({
+                        highest: chosenBcv,
+                        lowest: lowestRate,
+                        highestSource: chosenSource,
+                        lowestSource: candidates[candidates.length - 1].source,
+                        diff: diffPercent.toFixed(1)
+                    });
+                    if (!isAutoUpdate) addLog(`⚠️ Discrepancia del ${diffPercent.toFixed(1)}% detectada. Usando la más alta: ${chosenBcv.toFixed(2)} Bs (${chosenSource})`, 'warning');
+                } else {
+                    setRateDiscrepancyWarning(null);
+                }
+            } else {
+                chosenBcv = newRates.bcv.price;
+                chosenSource = newRates.bcv.source || 'Cache';
+                setRateDiscrepancyWarning(null);
+            }
+
+            // Extraer y procesar Euro
+            let newEuroPrice = 0;
+            let euroSource = 'Calculado';
+
+            if (privateData) {
+                const rawEuro = privateData.euro || privateData.eur;
+                newEuroPrice = validateMagnitude(parseSafeFloat(typeof rawEuro === 'object' ? rawEuro.price : rawEuro));
+                if (newEuroPrice > 0) euroSource = 'Google Script (VITE_GOOGLE_SCRIPT_URL)';
+            }
+
+            if (newEuroPrice <= 0 && cacheApiData && cacheApiData.euro?.price > 0) {
+                newEuroPrice = validateMagnitude(parseSafeFloat(cacheApiData.euro.price));
+                if (newEuroPrice > 0) euroSource = cacheApiData.euro.source || '/api/rates';
+            }
+
+            if (newEuroPrice <= 0) {
+                newEuroPrice = chosenBcv * (euroFactor || DEFAULT_EUR_USD_RATIO);
+                euroSource = 'Euro BCV (Triangulado)';
+            }
+
+            // Extraer y procesar USDT
+            let newUsdtPrice = 0;
+            let usdtSource = 'Default';
+
+            if (privateData && privateData.usdt) {
+                const rawUsdt = privateData.usdt;
+                const usdP = parseSafeFloat(typeof rawUsdt === 'object' ? rawUsdt.price : rawUsdt);
+                newUsdtPrice = validateMagnitude(usdP);
+                if (newUsdtPrice > 0) usdtSource = 'Google Script';
+            }
+            if (newUsdtPrice <= 0 && cacheApiData && cacheApiData.usdt?.price > 0) {
+                newUsdtPrice = validateMagnitude(parseSafeFloat(cacheApiData.usdt.price));
+                if (newUsdtPrice > 0) usdtSource = cacheApiData.usdt.source || '/api/rates';
+            }
+            if (newUsdtPrice <= 0 && bcvFallbackData) {
+                const usdtData = Array.isArray(bcvFallbackData) 
+                    ? bcvFallbackData.find(d => d.nombre?.toLowerCase() === 'binance' || d.fuente === 'binance' || d.casa === 'binance') || bcvFallbackData.find(d => d.nombre?.toLowerCase() === 'paralelo' || d.fuente === 'paralelo' || d.casa === 'paralelo') 
+                    : null;
+                if (usdtData?.promedio > 0) {
+                    newUsdtPrice = validateMagnitude(parseSafeFloat(usdtData.promedio));
+                    usdtSource = 'Binance P2P';
+                }
+            }
+
+            // Integrar a las tasas del sistema
+            const bcvMeta = getMeta(chosenBcv, newRates.bcv.price, newRates.bcv.change);
+            newRates.bcv = { ...newRates.bcv, ...bcvMeta, price: chosenBcv, source: chosenSource };
+
+            const euroMeta = getMeta(newEuroPrice, newRates.euro.price, newRates.euro.change);
+            newRates.euro = { ...newRates.euro, ...euroMeta, price: newEuroPrice, source: euroSource };
+
+            if (newUsdtPrice > 0) {
+                const usdtMeta = getMeta(newUsdtPrice, newRates.usdt?.price ?? 0, newRates.usdt?.change ?? 0);
+                newRates.usdt = { ...usdtMeta, price: newUsdtPrice, source: usdtSource };
+            }
+
             if (externalRates.cop > 0) {
-                // El usuario espera que 1 USD del sistema equivalga a 1 USDT real en COP (~TRM / Binance P2P)
-                let calcCop = externalRates.cop;
                 newRates.autoCopRate = { 
-                    price: calcCop, 
+                    price: externalRates.cop, 
                     source: 'Binance USDT / TRM', 
                     rawTrm: externalRates.cop, 
-                    rawUsdt: newUsdtPrice 
+                    rawUsdt: newUsdtPrice || chosenBcv
                 };
             }
 
@@ -284,13 +334,10 @@ export function useRates() {
             setRates(newRates);
             if (!isAutoUpdate) addLog("Actualización completada", 'success');
 
-            // HOOK-016: Si después de todo el flujo el BCV sigue siendo 0 o inválido,
-            // marcar offline para que la UI muestre indicador de modo degradado.
             if (!(newRates.bcv?.price > 0)) {
                 setIsOffline(true);
                 if (!isAutoUpdate) addLog("Sin tasa BCV válida, modo offline", 'warning');
             } else if (isOfflineRef.current) {
-                // Recuperamos tasa válida → salir de modo offline.
                 setIsOffline(false);
             }
 
@@ -310,5 +357,5 @@ export function useRates() {
     }, [updateData]);
 
     const currentRates = rates || DEFAULT_RATES;
-    return { rates: currentRates, loading, isOffline, logs, updateData };
+    return { rates: currentRates, loading, isOffline, logs, updateData, rateDiscrepancyWarning };
 }

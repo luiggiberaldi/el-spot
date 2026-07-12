@@ -26,6 +26,7 @@ import DiscountModal from '../components/Sales/DiscountModal';
 import CajaCerradaOverlay from '../components/Sales/CajaCerradaOverlay';
 import { getLocalISODate } from '../utils/dateHelpers';
 import AperturaCajaModal from '../components/Dashboard/AperturaCajaModal';
+import HoldsModal from '../components/Sales/HoldsModal';
 
 import ConfirmModal from '../components/ConfirmModal';
 import Confetti from '../components/Confetti';
@@ -41,7 +42,7 @@ export default function SalesView({ triggerHaptic, isActive }) {
     const { notifyLowStock, notifySaleComplete } = useNotifications();
 
     // ── Global Context ──────────────────────────────────────
-    const { products, setProducts, isLoadingProducts, rateMode, setRateMode, useAutoRate, setUseAutoRate, customRate, setCustomRate, effectiveRate, rates, copEnabled, copPrimary, tasaCop, autoCopEnabled, setAutoCopEnabled, tasaCopManual, setTasaCopManual, categories, checkoutMode, setCheckoutMode } = useProductContext();
+    const { products, setProducts, isLoadingProducts, rateMode, setRateMode, useAutoRate, setUseAutoRate, customRate, setCustomRate, effectiveRate, rates, rateDiscrepancyWarning, copEnabled, copPrimary, tasaCop, autoCopEnabled, setAutoCopEnabled, tasaCopManual, setTasaCopManual, categories, checkoutMode, setCheckoutMode } = useProductContext();
 
     // ── State ──────────────────────────────────────
     const [showConfetti, setShowConfetti] = useState(false);
@@ -76,6 +77,8 @@ export default function SalesView({ triggerHaptic, isActive }) {
 
     // Ventas en Espera (Listo POS: "ESPERA")
     const [pendingCarts, setPendingCarts] = useState([]);
+    const [showHoldsModal, setShowHoldsModal] = useState(false);
+    const [holdAlertData, setHoldAlertData] = useState(null); // { title, message, onConfirm } for price/rate discrepancy alerts
 
     // Cart Navigation State
     const [cartSelectedIndex, setCartSelectedIndex] = useState(-1);
@@ -108,15 +111,37 @@ export default function SalesView({ triggerHaptic, isActive }) {
     }, []);
 
     // Función para guardar el carrito activo como "en espera" (Listo POS: ESPERA)
-    const handleHoldCart = async () => {
+    const handleHoldCart = async (nota = '') => {
         if (cart.length === 0) return;
         triggerHaptic && triggerHaptic();
-        const newHolds = [...pendingCarts, { id: Date.now(), items: cart, discount }];
+
+        // En preciosaldia-bodega, el cliente se selecciona en Checkout, pero podemos
+        // verificar si ya tenemos uno seleccionado
+        const clienteActual = selectedCustomerId ? customers.find(c => c.id === selectedCustomerId) : null;
+
+        const newHolds = [...pendingCarts, {
+            id: Date.now(),
+            items: cart,
+            discount,
+            nota: nota.trim(),
+            tasaSnapshot: effectiveRate,
+            cliente: clienteActual ? { id: clienteActual.id, nombre: clienteActual.nombre } : null
+        }];
         setPendingCarts(newHolds);
         await storageService.setItem('bodega_pending_holds_v1', newHolds);
         setCart([]);
         setDiscount({ type: 'percentage', value: 0 });
-        showToast(`Venta guardada en espera (${newHolds.length} en cola)`, 'info');
+        setCartSelectedIndex(-1);
+        showToast(nota.trim() ? `Venta "${nota.trim()}" guardada en espera` : `Venta guardada en espera`, 'success');
+    };
+
+    // Función para eliminar permanentemente una venta en espera
+    const handleDeleteHold = async (holdId) => {
+        triggerHaptic && triggerHaptic();
+        const newHolds = pendingCarts.filter(h => h.id !== holdId);
+        setPendingCarts(newHolds);
+        await storageService.setItem('bodega_pending_holds_v1', newHolds);
+        showToast('Venta en espera eliminada', 'info');
     };
 
     // Función para restaurar una venta en espera
@@ -127,11 +152,62 @@ export default function SalesView({ triggerHaptic, isActive }) {
             showToast('Vacía la cesta actual antes de restaurar una venta en espera.', 'warning');
             return;
         }
-        setCart(hold.items);
-        setDiscount(hold.discount);
-        const newHolds = pendingCarts.filter(h => h.id !== holdId);
-        setPendingCarts(newHolds);
-        await storageService.setItem('bodega_pending_holds_v1', newHolds);
+
+        const itemsActualizados = [];
+        const reportesCambio = [];
+
+        for (const item of hold.items) {
+            // Buscamos el producto en el catálogo cargado en memoria
+            const prodActual = products.find(p => p.id === item.id);
+            if (!prodActual) {
+                reportesCambio.push(`❌ ${item.name} ya no existe en el catálogo.`);
+                continue;
+            }
+
+            // Validar cambio de precio
+            const precioSnapshot = item.priceUsd;
+            const precioActual = prodActual.priceUsd || prodActual.precio || 0;
+            if (Math.abs(precioSnapshot - precioActual) > 0.01) {
+                reportesCambio.push(`💰 ${item.name}: $${precioSnapshot.toFixed(2)} -> $${precioActual.toFixed(2)}`);
+            }
+
+            itemsActualizados.push({
+                ...item,
+                priceUsd: precioActual
+            });
+        }
+
+        // Validar cambio de tasa
+        const tasaSnapshot = hold.tasaSnapshot || 0;
+        if (tasaSnapshot > 0 && Math.abs(tasaSnapshot - effectiveRate) > 0.01) {
+            reportesCambio.push(`📉 Tasa de cambio: Bs ${tasaSnapshot.toFixed(2)} -> Bs ${effectiveRate.toFixed(2)}`);
+        }
+
+        const finalizeRestore = () => {
+            setCart(itemsActualizados);
+            setDiscount(hold.discount);
+            if (hold.cliente && hold.cliente.id) {
+                setSelectedCustomerId(hold.cliente.id);
+            }
+            
+            // Eliminar de espera
+            const newHolds = pendingCarts.filter(h => h.id !== holdId);
+            setPendingCarts(newHolds);
+            storageService.setItem('bodega_pending_holds_v1', newHolds);
+            setShowHoldsModal(false);
+            showToast('Venta cargada en cesta', 'success');
+        };
+
+        if (reportesCambio.length > 0) {
+            // Mostrar modal de discrepancias reutilizando ConfirmModal de la app
+            setHoldAlertData({
+                title: 'Actualización de Precios/Tasas',
+                message: `Se detectaron cambios desde que estacionaste la venta:\n\n${reportesCambio.join('\n')}\n\n¿Deseas cargar la cesta con los valores actuales?`,
+                onConfirm: finalizeRestore
+            });
+        } else {
+            finalizeRestore();
+        }
     };
 
     // Voice
@@ -295,18 +371,25 @@ export default function SalesView({ triggerHaptic, isActive }) {
     // Return focus after closing modals
     useEffect(() => { if (!showCheckout && !showReceipt && searchInputRef.current) searchInputRef.current.focus(); }, [showCheckout, showReceipt]);
 
-    // Global keybinds (F9 = checkout, Escape = close modals)
+    // Global keybinds (F9 = checkout, F7 = hold/park, Escape = close modals)
     useEffect(() => {
         const handler = (e) => {
             if (e.key === 'F9') { e.preventDefault(); if (cart.length > 0 && !showCheckout && !showReceipt) setShowCheckout(true); }
+            if (e.key === 'F7') {
+                e.preventDefault();
+                if (cart.length > 0 && !showCheckout && !showReceipt && !showHoldsModal) {
+                    handleHoldCart();
+                }
+            }
             if (e.key === 'Escape') {
                 if (showCheckout) { setShowCheckout(false); setSelectedCustomerId(''); }
                 else if (showReceipt) { setShowReceipt(null); setSelectedCustomerId(''); }
+                else if (showHoldsModal) { setShowHoldsModal(false); }
             }
         };
         window.addEventListener('keydown', handler);
         return () => window.removeEventListener('keydown', handler);
-    }, [cart, showCheckout, showReceipt]);
+    }, [cart, showCheckout, showReceipt, showHoldsModal, pendingCarts]);
 
     // ── Checkout Flow Hook ──────────────────────────
     const { handleCheckout, handleCreateCustomer, handleSaveApertura } = useCheckoutFlow({
@@ -609,6 +692,26 @@ export default function SalesView({ triggerHaptic, isActive }) {
                 tasaCopManual={tasaCopManual} setTasaCopManual={setTasaCopManual}
             />
 
+            {/* Banner de Advertencia de Discrepancia de Tasas */}
+            {rateDiscrepancyWarning && (
+                <div className="mx-4 lg:mx-0 mb-3 bg-amber-500/10 dark:bg-amber-500/5 backdrop-blur-sm border border-amber-500/20 text-amber-800 dark:text-amber-300 px-4 py-3 rounded-2xl flex items-center justify-between gap-3 animate-in slide-in-from-top-4 duration-300">
+                    <div className="flex items-center gap-2.5">
+                        <span className="text-lg">⚠️</span>
+                        <div className="text-left">
+                            <p className="text-xs font-black uppercase tracking-wider">Tasas en Conflicto Detectadas</p>
+                            <p className="text-[10px] text-amber-700/80 dark:text-amber-400/70 font-semibold leading-tight">
+                                Google Script: <span className="font-bold text-amber-900 dark:text-amber-200">{rateDiscrepancyWarning.lowest.toFixed(2)} Bs</span> vs. 
+                                DolarApi: <span className="font-bold text-amber-900 dark:text-amber-200">{rateDiscrepancyWarning.highest.toFixed(2)} Bs</span>. 
+                                Se seleccionó automáticamente la más alta para proteger tus ventas.
+                            </p>
+                        </div>
+                    </div>
+                    <span className="text-[9px] bg-amber-500/20 text-amber-800 dark:text-amber-300 px-1.5 py-0.5 rounded font-black tracking-widest uppercase shrink-0">
+                        {rateDiscrepancyWarning.diff}% DIF
+                    </span>
+                </div>
+            )}
+
             {!todayAperturaData ? (
                 <CajaCerradaOverlay
                     cartCount={cart.length}
@@ -682,6 +785,8 @@ export default function SalesView({ triggerHaptic, isActive }) {
                                     onRestoreHold={handleRestoreHold}
                                     pendingCarts={pendingCarts}
                                     onOpenHelp={() => setShowKeyboardHelp(true)}
+                                    onOpenHolds={() => setShowHoldsModal(true)}
+                                    cart={cart}
                                 />
                     )}
                 </div>
@@ -858,6 +963,33 @@ export default function SalesView({ triggerHaptic, isActive }) {
                 onConfirm={handleSaveApertura}
                 copEnabled={copEnabled}
                 copPrimary={copPrimary}
+            />
+
+            {/* Holds Modal */}
+            {showHoldsModal && (
+                <HoldsModal
+                    tickets={pendingCarts}
+                    onRecuperar={handleRestoreHold}
+                    onEliminar={handleDeleteHold}
+                    onClose={() => setShowHoldsModal(false)}
+                    effectiveRate={effectiveRate}
+                />
+            )}
+
+            {/* Price/Rate Discrepancy Alert Modal */}
+            <ConfirmModal
+                isOpen={!!holdAlertData}
+                onClose={() => setHoldAlertData(null)}
+                onConfirm={() => {
+                    if (holdAlertData && holdAlertData.onConfirm) {
+                        holdAlertData.onConfirm();
+                    }
+                }}
+                title={holdAlertData?.title || 'Actualización de Datos'}
+                message={holdAlertData?.message || ''}
+                confirmText="Cargar de todas formas"
+                cancelText="Cancelar"
+                variant="warning"
             />
         </div>
     );

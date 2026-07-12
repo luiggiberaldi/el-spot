@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Package, Calculator, ChevronDown, Clock, HelpCircle, Trash2 } from 'lucide-react';
+import { Package, Calculator, ChevronDown, Clock, HelpCircle, Trash2, X } from 'lucide-react';
 import { BODEGA_CATEGORIES, CATEGORY_ICONS, CATEGORY_COLORS } from '../../config/categories';
 import { formatCop, formatBs, getCop, getUsd } from '../../utils/calculatorUtils';
 
@@ -26,10 +26,21 @@ export default function CategoryBar({
     onRestoreHold,
     pendingCarts = [],
     onOpenHelp,
+    onOpenHolds,
+    cart = [],
 }) {
     const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
     const categoryScrollRef = useRef(null);
-    const [showHoldsDropdown, setShowHoldsDropdown] = useState(false);
+    const [showNoteInput, setShowNoteInput] = useState(false);
+    const [holdNote, setHoldNote] = useState('');
+
+    const handleConfirmHold = () => {
+        if (onHoldCart) {
+            onHoldCart(holdNote);
+        }
+        setHoldNote('');
+        setShowNoteInput(false);
+    };
 
     // Reset pagination when category changes
     useEffect(() => {
@@ -110,15 +121,67 @@ export default function CategoryBar({
             </div>
 
             {/* ── BARRA DE ACCIONES RÁPIDAS (Listo POS 2026 Style) ── */}
-            <div className="shrink-0 flex items-center justify-between gap-2 mb-2 relative">
+            <div className="shrink-0 flex items-center justify-between gap-2 mb-2 relative flex-wrap sm:flex-nowrap">
                 {/* Izquierda: acciones de venta */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                     <button
                         onClick={() => { triggerHaptic && triggerHaptic(); onOpenHelp && onOpenHelp(); }}
                         className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-blue-200 dark:border-blue-800/50 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[10px] font-black uppercase tracking-wide hover:bg-blue-100 transition-all active:scale-95"
                     >
                         <HelpCircle size={11} /> AYUDA (?)
                     </button>
+
+                    {/* Botón para abrir la lista de tickets en espera */}
+                    {pendingCartsCount > 0 && (
+                        <button
+                            onClick={() => { triggerHaptic && triggerHaptic(); onOpenHolds && onOpenHolds(); }}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-brand/20 bg-brand-light dark:bg-brand/10 text-brand-dark dark:text-brand text-[10px] font-black uppercase tracking-wide hover:bg-brand/20 transition-all active:scale-95 animate-pulse"
+                        >
+                            <Clock size={11} className="text-brand" /> EN ESPERA ({pendingCartsCount})
+                        </button>
+                    )}
+
+                    {/* Botón para estacionar la venta actual (con input en línea) */}
+                    {cart.length > 0 && (
+                        <div className="relative flex items-center">
+                            {showNoteInput ? (
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 rounded-full shadow-sm animate-in slide-in-from-left duration-150">
+                                    <input
+                                        type="text"
+                                        placeholder="Nombre o Nota (ej: Mesa 3)"
+                                        value={holdNote}
+                                        onChange={(e) => setHoldNote(e.target.value)}
+                                        className="bg-transparent text-xs font-bold text-amber-900 dark:text-amber-300 outline-none placeholder:text-amber-700/50 dark:placeholder:text-amber-500/40 w-60 sm:w-80 px-1 py-0.5"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') handleConfirmHold();
+                                            if (e.key === 'Escape') { setShowNoteInput(false); setHoldNote(''); }
+                                        }}
+                                        autoFocus
+                                    />
+                                    <button
+                                        onClick={handleConfirmHold}
+                                        className="px-3.5 py-1 bg-amber-500 hover:bg-amber-600 text-[10px] font-black text-white rounded-full transition-all active:scale-95 shadow-sm shadow-amber-500/10 shrink-0"
+                                    >
+                                        Listo
+                                    </button>
+                                    <button
+                                        onClick={() => { setShowNoteInput(false); setHoldNote(''); }}
+                                        className="p-1 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shrink-0"
+                                    >
+                                        <X size={12} />
+                                    </button>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => { triggerHaptic && triggerHaptic(); setShowNoteInput(true); }}
+                                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 text-[10px] font-black uppercase tracking-wide hover:bg-amber-100 transition-all active:scale-95"
+                                    title="Estacionar venta en espera (Atajo: F7)"
+                                >
+                                    <Clock size={11} /> Estacionar <span className="bg-amber-100 dark:bg-amber-950 text-amber-700 px-1 rounded text-[8px] font-black ml-0.5">F7</span>
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* Derecha: Vaciar cesta */}

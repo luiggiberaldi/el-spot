@@ -35,7 +35,7 @@ const normalizeCategories = (cats) => {
     }).filter(Boolean);
 };
 
-export function ProductProvider({ children, rates }) {
+export function ProductProvider({ children, rates, rateDiscrepancyWarning }) {
     const [products, setProducts] = useState([]);
     const [categories, setRawCategories] = useState(() => normalizeCategories(BODEGA_CATEGORIES));
     const setCategories = useCallback((cats) => {
@@ -360,6 +360,7 @@ export function ProductProvider({ children, rates }) {
         setCustomRate,
         effectiveRate,
         rates,
+        rateDiscrepancyWarning,
         copEnabled,
         setCopEnabled,
         autoCopEnabled,
@@ -380,6 +381,8 @@ export function ProductProvider({ children, rates }) {
         useAutoRate,
         customRate,
         effectiveRate,
+        rates,
+        rateDiscrepancyWarning,
         copEnabled,
         autoCopEnabled,
         tasaCopManual,
