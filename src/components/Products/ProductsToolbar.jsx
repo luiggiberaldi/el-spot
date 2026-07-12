@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Store, Plus, Trash2, Pencil, Search, LayoutGrid, List, Percent, CheckSquare } from 'lucide-react';
+import { Store, Plus, Trash2, Pencil, Search, LayoutGrid, List, Percent, CheckSquare, Boxes } from 'lucide-react';
 import { CATEGORY_COLORS } from '../../config/categories';
 
 const ProductsToolbar = ({
@@ -21,6 +21,7 @@ const ProductsToolbar = ({
     setIsBulkPriceOpen,
     setIsDeleteAllModalOpen,
     setIsCategoryManagerOpen,
+    setIsStockBatchOpen,
     triggerHaptic,
     onSelectAllToast,
 }) => {
@@ -70,6 +71,10 @@ const ProductsToolbar = ({
                     <div className="flex items-center gap-1 sm:hidden">
                         {products.length > 0 && !isCajero && (
                             <>
+                                <button onClick={() => { triggerHaptic && triggerHaptic(); setIsStockBatchOpen(true); }}
+                                    className="p-1.5 bg-brand-light dark:bg-surface-800/30 text-brand dark:text-brand rounded-lg transition-all active:scale-95" title="Ingreso/Egreso por Lote">
+                                    <Boxes size={14} strokeWidth={2.5} />
+                                </button>
                                 <button onClick={() => { triggerHaptic && triggerHaptic(); setIsBulkPriceOpen(true); }}
                                     className="p-1.5 bg-brand-light dark:bg-surface-800/30 text-brand dark:text-brand rounded-lg transition-all active:scale-95" title="Ajuste Masivo">
                                     <Percent size={14} strokeWidth={2.5} />
@@ -113,6 +118,10 @@ const ProductsToolbar = ({
                 <div className="hidden sm:flex items-center gap-1 shrink-0">
                     {products.length > 0 && !isCajero && (
                         <>
+                            <button onClick={() => { triggerHaptic && triggerHaptic(); setIsStockBatchOpen(true); }}
+                                className="p-1.5 bg-brand-light dark:bg-surface-800/30 text-brand dark:text-brand rounded-lg transition-all active:scale-95" title="Ajuste de Stock por Lote">
+                                <Boxes size={14} strokeWidth={2.5} />
+                            </button>
                             <button onClick={() => { triggerHaptic && triggerHaptic(); setIsBulkPriceOpen(true); }}
                                 className="p-1.5 bg-brand-light dark:bg-surface-800/30 text-brand dark:text-brand rounded-lg transition-all active:scale-95" title="Ajuste Masivo de Precios">
                                 <Percent size={14} strokeWidth={2.5} />

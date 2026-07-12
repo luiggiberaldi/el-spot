@@ -19,6 +19,7 @@ import ProductsToolbar from '../components/Products/ProductsToolbar';
 import ConfirmModal from '../components/ConfirmModal';
 import CategoryManagerModal from '../components/Products/CategoryManagerModal';
 import BulkPriceAdjustModal from '../components/Products/BulkPriceAdjustModal';
+import StockBatchModal from '../components/Products/StockBatchModal';
 import { useProductContext } from '../context/ProductContext';
 import EmptyState from '../components/EmptyState';
 import Skeleton from '../components/Skeleton';
@@ -83,6 +84,7 @@ export const ProductsView = ({ rates, triggerHaptic }) => {
 
     const [isShareOpen, setIsShareOpen] = useState(false);
     const [isBulkPriceOpen, setIsBulkPriceOpen] = useState(false);
+    const [isStockBatchOpen, setIsStockBatchOpen] = useState(false);
     const [deleteCategoryConfirmId, setDeleteCategoryConfirmId] = useState(null);
 
     // Share State
@@ -592,6 +594,7 @@ export const ProductsView = ({ rates, triggerHaptic }) => {
                 setIsBulkPriceOpen={setIsBulkPriceOpen}
                 setIsDeleteAllModalOpen={setIsDeleteAllModalOpen}
                 setIsCategoryManagerOpen={setIsCategoryManagerOpen}
+                setIsStockBatchOpen={setIsStockBatchOpen}
                 triggerHaptic={triggerHaptic}
                 onSelectAllToast={() => showToast('Todo el inventario seleccionado', 'success')}
             />
@@ -911,6 +914,19 @@ export const ProductsView = ({ rates, triggerHaptic }) => {
                 handleSave={handleSave}
                 categories={categories}
                 productMovements={editingId ? productMovements : null}
+            />
+
+            {/* Ajuste por Lotes */}
+            <StockBatchModal
+                isOpen={isStockBatchOpen}
+                onClose={() => setIsStockBatchOpen(false)}
+                products={products}
+                categories={categories}
+                adjustStock={adjustStock}
+                triggerHaptic={triggerHaptic}
+                copEnabled={copEnabled}
+                tasaCop={tasaCop}
+                copPrimary={copPrimary}
             />
 
             {/* Confirmación precio alto */}
