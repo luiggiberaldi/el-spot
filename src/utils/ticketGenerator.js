@@ -7,8 +7,7 @@ import {
 } from './ticketConstants';
 import { buildTicketHtml } from './ticketHtmlTemplate';
 import { openPrintWindow } from './printerUtils';
-// FIN-024: reemplazar `* rate` raw y `.toFixed(2)` con mulR + formatUsd (sin Math.round/toFixed).
-import { mulR } from './dinero';
+import { mulR, divR } from './dinero';
 
 // Re-export generarEtiquetas so existing imports keep working
 export { generarEtiquetas } from './labelGenerator';
@@ -125,8 +124,9 @@ export async function generateTicketPDF(sale, bcvRate) {
             const qty = item.isWeight ? formatUsd(item.qty) : String(item.qty);
             const unit = item.isWeight ? 'Kg' : 'u';
             // FIN-024: mulR en vez de multiplicación raw.
-            const sub = item.exactBs != null ? (rate > 0 ? divR(item.exactBs, rate) : item.priceUsd) : mulR(item.priceUsd, item.qty);
-            const subBs = item.exactBs != null ? mulR(item.exactBs, item.qty) : mulR(sub, rate);
+            const itemExactBs = item.exactBs ?? (item.isCashAdvance && item.currency === 'BS' ? (item.montoEfectivo + item.montoComision) : null);
+            const sub = itemExactBs != null ? (rate > 0 ? divR(itemExactBs, rate) : item.priceUsd) : mulR(item.priceUsd, item.qty);
+            const subBs = itemExactBs != null ? mulR(itemExactBs, item.qty) : mulR(sub, rate);
 
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(7.5);
@@ -146,8 +146,8 @@ export async function generateTicketPDF(sale, bcvRate) {
             doc.setFontSize(is80 ? 6 : 5.2);
             doc.setTextColor(...MUTED);
             // FIN-024: mulR para conversiones (priceCop*qty, sub*tasaCop, etc.).
-            let detailLine = item.exactBs != null
-                ? 'Bs ' + formatBs(item.exactBs) + ' c/u'
+            let detailLine = itemExactBs != null
+                ? 'Bs ' + formatBs(itemExactBs) + ' c/u'
                 : (isCop
                     ? 'USD ' + formatUsd(item.priceUsd) + ' c/u  ·  ' + formatCop(item.priceCop ? mulR(item.priceCop, item.qty) : mulR(sub, sale.tasaCop)) + ' COP  ·  Bs ' + formatBs(subBs)
                     : '$' + formatUsd(item.priceUsd) + ' c/u  ·  Bs ' + formatBs(subBs));

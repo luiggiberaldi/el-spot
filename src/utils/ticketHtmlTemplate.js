@@ -38,10 +38,11 @@ export function buildTicketHtml(sale, bcvRate, paperConfig, settings) {
         const qty = item.isWeight ? formatUsd(item.qty) : String(item.qty);
         const unit = item.isWeight ? 'Kg' : 'u';
         // FIN-024: mulR en vez de multiplicación raw.
-        const sub = item.exactBs != null ? (rate > 0 ? divR(item.exactBs, rate) : item.priceUsd) : mulR(item.priceUsd, item.qty);
-        const subBs = item.exactBs != null ? mulR(item.exactBs, item.qty) : mulR(sub, rate);
+        const itemExactBs = item.exactBs ?? (item.isCashAdvance && item.currency === 'BS' ? (item.montoEfectivo + item.montoComision) : null);
+        const sub = itemExactBs != null ? (rate > 0 ? divR(itemExactBs, rate) : item.priceUsd) : mulR(item.priceUsd, item.qty);
+        const subBs = itemExactBs != null ? mulR(itemExactBs, item.qty) : mulR(sub, rate);
         const name = escapeHtml(item.name);
-        const priceBs = item.exactBs != null ? item.exactBs : item.priceUsd * rate;
+        const priceBs = itemExactBs != null ? itemExactBs : item.priceUsd * rate;
 
         let totalStr = '';
         let unitPriceStr = '';
