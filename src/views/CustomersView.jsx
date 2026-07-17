@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 // v1.2.0: useReveal hook para animaciones reveal-on-scroll (design system "Precios al Día")
 import { useReveal } from '../hooks/useReveal';
-import { Users, Plus, Search, User, X, Trash2, Pencil, Phone, RefreshCw, Save, ArrowDownRight, ArrowUpRight, Clock, CheckCircle2, CreditCard, ShoppingBag, Truck, Smartphone } from 'lucide-react';
+import { Users, Plus, Search, User, X, Trash2, Pencil, Phone, RefreshCw, Save, ArrowDownRight, ArrowUpRight, Clock, CheckCircle2, CreditCard, ShoppingBag, Truck, Smartphone, Download } from 'lucide-react';
 import { storageService } from '../utils/storageService';
 import { showToast } from '../components/Toast';
 import { formatBs, formatUsd, formatCop } from '../utils/calculatorUtils';
@@ -52,6 +52,7 @@ export default function CustomersView({ triggerHaptic, rates, isActive }) {
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [editingCustomer, setEditingCustomer] = useState(null);
     const [deleteCustomerTarget, setDeleteCustomerTarget] = useState(null);
+    const [detailingTransaction, setDetailingTransaction] = useState(null);
 
     // Guard: evita eliminar clientes con deuda o saldo a favor pendiente
     const handleDeleteCustomerRequest = (customer) => {
@@ -231,6 +232,7 @@ export default function CustomersView({ triggerHaptic, rates, isActive }) {
                 <div className="flex-1 overflow-y-auto scrollbar-hide">
                     <SuppliersList
                         suppliers={suppliers}
+                        invoices={invoices}
                         bcvRate={bcvRate}
                         tasaCop={tasaCop}
                         copEnabled={copEnabled}
@@ -279,6 +281,7 @@ export default function CustomersView({ triggerHaptic, rates, isActive }) {
                     copEnabled={copEnabled}
                     copPrimary={copPrimary}
                     historyData={supplierHistoryData}
+                    triggerHaptic={triggerHaptic}
                     onClose={() => setSelectedSupplier(null)}
                     onAddInvoice={() => setIsAddInvoiceModalOpen(true)}
                     onPayInvoice={() => setIsPayInvoiceModalOpen(true)}
@@ -527,6 +530,7 @@ export default function CustomersView({ triggerHaptic, rates, isActive }) {
                 copEnabled={copEnabled}
                 copPrimary={copPrimary}
                 sales={historyData}
+                onSelectTransaction={setDetailingTransaction}
             />
 
             {/* Modal Confirmación: Reiniciar Saldo */}
@@ -556,6 +560,17 @@ export default function CustomersView({ triggerHaptic, rates, isActive }) {
                 confirmText="Sí, eliminar"
                 variant="danger"
             />
+
+            {detailingTransaction && (
+                <TransactionDetailModal
+                    sale={detailingTransaction}
+                    bcvRate={bcvRate}
+                    tasaCop={tasaCop}
+                    copEnabled={copEnabled}
+                    copPrimary={copPrimary}
+                    onClose={() => setDetailingTransaction(null)}
+                />
+            )}
 
             {/* Modal Editar Cliente */}
             {editingCustomer && (
@@ -738,7 +753,7 @@ function buildCustomerStatementWhatsAppUrl(customer, sales, bcvRate) {
 }
 
 // ─── Sub-componente: Bottom Sheet de Detalle ────────────────
-function CustomerDetailSheet({ customer, isOpen, isAdmin, onClose, onAjustar, onReset, onSaldarCashea, onEdit, onDelete, bcvRate, tasaCop, copEnabled, copPrimary, sales }) {
+function CustomerDetailSheet({ customer, isOpen, isAdmin, onClose, onAjustar, onReset, onSaldarCashea, onEdit, onDelete, bcvRate, tasaCop, copEnabled, copPrimary, sales, onSelectTransaction }) {
     if (!isOpen || !customer) return null;
 
     // Mini-paginación del historial
@@ -939,7 +954,11 @@ function CustomerDetailSheet({ customer, isOpen, isAdmin, onClose, onAjustar, on
                                     const isCashea = sale.tipo === 'VENTA_CASHEA';
                                     const isAnulada = sale.status === 'ANULADA';
                                     return (
-                                        <div key={sale.id} className={`flex items-start gap-2.5 py-3 px-3.5 bg-slate-50 dark:bg-slate-950 rounded-xl ${isAnulada ? 'opacity-50 grayscale' : ''}`}>
+                                        <div 
+                                            key={sale.id} 
+                                            onClick={() => onSelectTransaction && onSelectTransaction(sale)}
+                                            className={`flex items-start gap-2.5 py-3 px-3.5 bg-slate-50 dark:bg-slate-950 rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-900/60 transition-colors ${isAnulada ? 'opacity-50 grayscale' : ''}`}
+                                        >
                                             <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${isAnulada ? 'bg-slate-200 dark:bg-slate-800' : isCobro ? 'bg-emerald-100 dark:bg-emerald-900/30' : isFiada ? 'bg-amber-100 dark:bg-amber-900/30' : isCashea ? 'bg-purple-100 dark:bg-purple-900/30' : 'bg-brand-light dark:bg-surface-800/30'}`}>
                                                 {isCobro ? <ArrowUpRight size={14} className={isAnulada ? "text-slate-500" : "text-emerald-500"} /> : isFiada ? <CreditCard size={14} className={isAnulada ? "text-slate-500" : "text-amber-500"} /> : isCashea ? <Smartphone size={14} className={isAnulada ? "text-slate-500" : "text-purple-500"} /> : <ShoppingBag size={14} className={isAnulada ? "text-slate-500" : "text-brand"} />}
                                             </div>
@@ -1179,6 +1198,208 @@ function AddCustomerModal({ onClose, onSave }) {
                         <Save size={18} aria-hidden="true" /> Guardar Cliente
                     </button>
                 </form>
+            </div>
+        </div>
+    );
+}
+
+export function TransactionDetailModal({ sale, bcvRate, tasaCop, copEnabled, copPrimary, onClose }) {
+    if (!sale) return null;
+
+    const d = new Date(sale.timestamp);
+    const dateStr = d.toLocaleString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+    
+    const isCobro = sale.tipo === 'COBRO_DEUDA';
+    const isFiada = sale.tipo === 'VENTA_FIADA';
+    const isCashea = sale.tipo === 'VENTA_CASHEA';
+    const isAnulada = sale.status === 'ANULADA';
+
+    const handleShare = () => {
+        const useCop = copEnabled && copPrimary && tasaCop > 0;
+        let text = `*COMPROBANTE | PRECIOS AL DIA*\n`;
+        text += `Orden: #${sale.id.substring(0, 6).toUpperCase()}\n`;
+        text += `Fecha: ${d.toLocaleString('es-VE')}\n`;
+        text += `================================\n`;
+        if (sale.items && sale.items.length > 0) {
+            sale.items.forEach(item => {
+                const qty = item.isWeight ? `${item.qty.toFixed(3)}Kg` : `${item.qty} Und`;
+                if (useCop) {
+                    text += `- ${item.name} ${qty} x ${formatCop(item.priceCop || Math.round(item.priceUsd * tasaCop))} COP = *${formatCop((item.priceCop || Math.round(item.priceUsd * tasaCop)) * item.qty)} COP*\n`;
+                } else {
+                    text += `- ${item.name} ${qty} x $${item.priceUsd.toFixed(2)} = *$${(item.priceUsd * item.qty).toFixed(2)}*\n`;
+                }
+            });
+        }
+        if (useCop) {
+            text += `\n*TOTAL: ${formatCop((sale.totalUsd || 0) * tasaCop)} COP*\n`;
+            text += `Ref: $${(sale.totalUsd || 0).toFixed(2)}\n`;
+        } else {
+            text += `\n*TOTAL: $${(sale.totalUsd || 0).toFixed(2)}*\n`;
+            text += `Ref: ${formatBs(sale.totalBs || 0)} Bs\n`;
+        }
+        const encoded = encodeURIComponent(text);
+        window.open(`https://wa.me/?text=${encoded}`, '_blank');
+    };
+
+    const handlePDF = () => {
+        import('../utils/dailyCloseGenerator').then(({ generateTicketPDF }) => {
+            generateTicketPDF(sale, bcvRate);
+        });
+    };
+
+    const getPaymentLabel = (methodId) => {
+        const labels = {
+            efectivo_bs:       'Efectivo Bs',
+            pago_movil:        'Pago Móvil',
+            punto_venta:       'Punto de Venta',
+            efectivo_usd:      'Efectivo $',
+            efectivo_cop:      'Efectivo COP',
+            transferencia_cop: 'Transferencia COP',
+            saldo_favor:       'Saldo a Favor',
+            fiado:             'Fiado (Por Cobrar)',
+            cashea:            'Cashea (Por Cobrar)',
+        };
+        return labels[methodId] || methodId;
+    };
+
+    return (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
+            <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200 text-left" onClick={e => e.stopPropagation()}>
+                <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
+                    <div>
+                        <h3 className="text-sm font-black text-slate-800 dark:text-white flex items-center gap-1.5 uppercase tracking-wide">
+                            Detalle de Movimiento
+                        </h3>
+                        <p className="text-[10px] text-slate-400 font-mono">ID: #{sale.id.toUpperCase()}</p>
+                    </div>
+                    <button onClick={onClose} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"><X size={18} /></button>
+                </div>
+
+                <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                    {/* Resumen de Montos */}
+                    <div className="text-center p-4 bg-slate-50 dark:bg-slate-955 rounded-2xl border border-slate-100 dark:border-slate-850">
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                            {isCobro ? 'Abono Recibido' : isFiada ? 'Crédito Otorgado' : isCashea ? 'Venta Cashea' : 'Total Transacción'}
+                        </p>
+                        <p className={`text-3xl font-black ${isAnulada ? 'text-slate-400 line-through' : isCobro ? 'text-emerald-500' : isFiada ? 'text-amber-500' : isCashea ? 'text-purple-500' : 'text-slate-800 dark:text-white'}`}>
+                            {isCobro ? '+' : ''}${formatUsd(sale.totalUsd || 0)}
+                        </p>
+                        <div className="flex flex-col gap-0.5 mt-1 text-[10px] text-slate-400 font-bold">
+                            {bcvRate > 0 && <p>{isCobro ? '+' : ''}{formatBs((sale.totalUsd || 0) * (sale.rate || bcvRate))} Bs</p>}
+                            {copEnabled && tasaCop > 0 && <p>{isCobro ? '+' : ''}{formatCop((sale.totalUsd || 0) * (sale.tasaCop || tasaCop))} COP</p>}
+                        </div>
+                        {isAnulada && (
+                            <span className="inline-block mt-2 px-2 py-0.5 text-[10px] font-black tracking-widest text-white bg-red-500 rounded-md">ANULADA</span>
+                        )}
+                    </div>
+
+                    {/* Meta Info */}
+                    <div className="grid grid-cols-2 gap-3 text-[11px] text-slate-500 dark:text-slate-400">
+                        <div>
+                            <span className="text-[9px] uppercase tracking-wider text-slate-400 block font-bold">Tipo Operación</span>
+                            <span className="font-bold text-slate-700 dark:text-slate-200">{isCobro ? 'Abono de Deuda' : isFiada ? 'Venta Fiada' : isCashea ? 'Venta Cashea' : 'Venta de Productos'}</span>
+                        </div>
+                        <div>
+                            <span className="text-[9px] uppercase tracking-wider text-slate-400 block font-bold">Fecha / Hora</span>
+                            <span className="font-bold text-slate-700 dark:text-slate-200">{dateStr}</span>
+                        </div>
+                    </div>
+
+                    {/* Productos listados */}
+                    {sale.items && sale.items.length > 0 ? (
+                        <div className="border-t border-dashed border-slate-200 dark:border-slate-800 pt-3">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Productos ({sale.items.length})</p>
+                            <div className="space-y-1.5">
+                                {sale.items.map((item, idx) => (
+                                    <div key={idx} className="flex justify-between items-center text-xs text-slate-600 dark:text-slate-300">
+                                        <span className="truncate pr-4 flex-1">
+                                            {item.isWeight ? `${item.qty.toFixed(3)}kg` : `${item.qty}u`} {item.name}
+                                            {(item.isWeight || item.qty !== 1) && (
+                                                <span className="text-[10px] text-slate-400 font-normal ml-1">
+                                                    (c/u ${item.priceUsd.toFixed(2)})
+                                                </span>
+                                            )}
+                                        </span>
+                                        <span className="font-bold text-slate-800 dark:text-slate-200">${(item.priceUsd * item.qty).toFixed(2)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        isCobro && (
+                            <div className="border-t border-dashed border-slate-200 dark:border-slate-800 pt-3 text-xs text-slate-500 leading-normal bg-slate-50 dark:bg-slate-900/30 p-3 rounded-xl">
+                                ℹ️ Esta operación es un abono para amortizar la deuda acumulada del cliente. No incluye venta directa de artículos.
+                            </div>
+                        )
+                    )}
+
+                    {/* Desglose de pagos */}
+                    {sale.payments && sale.payments.length > 0 && (
+                        <div className="border-t border-dashed border-slate-200 dark:border-slate-800 pt-3">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Método de Cobro/Pago</p>
+                            <div className="space-y-1.5">
+                                {sale.payments.map((p, idx) => {
+                                    const isCopCurrency = p.currency === 'COP';
+                                    const isBsCurrency = !isCopCurrency && (p.currency ? p.currency !== 'USD' : p.methodId?.includes('_bs'));
+                                    const label = p.methodLabel || getPaymentLabel(p.methodId);
+                                    
+                                    let formattedAmt = `$${(p.amountUsd || 0).toFixed(2)}`;
+                                    if (isCopCurrency) {
+                                        formattedAmt = `${(p.amountCop || Math.round(p.amountUsd * (sale.tasaCop || tasaCop))).toLocaleString('es-CO')} COP`;
+                                    } else if (isBsCurrency) {
+                                        formattedAmt = `${formatBs(p.amountBs || (p.amountUsd * (sale.rate || bcvRate)))} Bs`;
+                                    }
+
+                                    return (
+                                        <div key={idx} className="flex justify-between items-center text-xs text-slate-650 dark:text-slate-350">
+                                            <span>{label}</span>
+                                            <span className="font-bold text-slate-800 dark:text-slate-200">
+                                                {formattedAmt} {p.currency !== 'USD' && <span className="text-[9px] text-slate-400 font-normal">(${p.amountUsd.toFixed(2)})</span>}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Vuelto y Notas */}
+                    {(sale.changeUsd > 0 || sale.changeBs > 0 || sale.note) && (
+                        <div className="border-t border-dashed border-slate-200 dark:border-slate-800 pt-3 space-y-2">
+                            {sale.changeUsd > 0 && (
+                                <div className="flex justify-between text-xs text-orange-500">
+                                    <span>Vuelto entregado ($)</span>
+                                    <span className="font-black">-${formatUsd(sale.changeUsd)}</span>
+                                </div>
+                            )}
+                            {sale.changeBs > 0 && (
+                                <div className="flex justify-between text-xs text-orange-500">
+                                    <span>Vuelto entregado (Bs)</span>
+                                    <span className="font-black">-${formatBs(sale.changeBs)} Bs</span>
+                                </div>
+                            )}
+                            {sale.note && (
+                                <div className="text-left text-xs bg-slate-50 dark:bg-slate-900/30 p-2.5 rounded-xl text-slate-550 dark:text-slate-400">
+                                    <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold block mb-0.5">Notas</span>
+                                    {sale.note}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer de Acciones */}
+                <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex gap-2">
+                    <button onClick={handleShare} className="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5 shadow-sm">
+                        <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24">
+                            <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.625 1.451 5.403.002 9.803-4.392 9.806-9.8.001-2.617-1.01-5.079-2.859-6.93C16.378 2.025 13.926.994 12.01.994c-5.405 0-9.804 4.393-9.807 9.8-.001 1.77.464 3.5 1.345 5.03L2.57 20.31l4.077-1.156z"/>
+                        </svg>
+                        Compartir
+                    </button>
+                    <button onClick={handlePDF} className="flex-1 py-3 px-4 bg-brand text-slate-900 hover:brightness-110 rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5 shadow-sm">
+                        <Download size={14} /> PDF
+                    </button>
+                </div>
             </div>
         </div>
     );

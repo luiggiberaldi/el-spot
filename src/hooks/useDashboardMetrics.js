@@ -37,7 +37,8 @@ export function useDashboardMetrics(sales, customers, products, bcvRate) {
     const todayCashFlow = useMemo(() =>
         salesWithLocalDate.filter(s => {
             if (s.status === 'ANULADA') return false;
-            if (s.tipo !== 'VENTA' && s.tipo !== 'VENTA_FIADA' && s.tipo !== 'VENTA_CASHEA' && s.tipo !== 'COBRO_DEUDA' && s.tipo !== 'PAGO_PROVEEDOR' && s.tipo !== 'APERTURA_CAJA') return false;
+            if (s.tipo !== 'VENTA' && s.tipo !== 'VENTA_FIADA' && s.tipo !== 'VENTA_CASHEA' && s.tipo !== 'COBRO_DEUDA' && s.tipo !== 'PAGO_PROVEEDOR' && s.tipo !== 'GASTO_INTERNO' && s.tipo !== 'APERTURA_CAJA') return false;
+            if ((s.tipo === 'PAGO_PROVEEDOR' || s.tipo === 'GASTO_INTERNO') && s.afectaCaja === false) return false;
             if (s.cajaCerrada === true) return false;
             return s.localDate === today;
         }),
@@ -57,15 +58,28 @@ export function useDashboardMetrics(sales, customers, products, bcvRate) {
     const todayTotalCop = useMemo(() => sumR(todaySales.map(s => s.totalCop || 0)), [todaySales]);
     const todayItemsSold = useMemo(() => todaySales.reduce((sum, s) => sum + (s.items ? s.items.reduce((is, i) => is + i.qty, 0) : 0), 0), [todaySales]);
 
-    // Egresos del día (pagos a proveedores)
+    // Egresos del día (pagos a proveedores + gastos internos)
     const todayExpenses = useMemo(() => {
         return salesWithLocalDate.filter(s => {
-            if (s.tipo !== 'PAGO_PROVEEDOR') return false;
+            if (s.status === 'ANULADA') return false;
+            if (s.tipo !== 'PAGO_PROVEEDOR' && s.tipo !== 'GASTO_INTERNO') return false;
+            if ((s.tipo === 'PAGO_PROVEEDOR' || s.tipo === 'GASTO_INTERNO') && s.afectaCaja === false) return false;
             if (s.cajaCerrada === true) return false;
             return s.localDate === today;
         });
     }, [salesWithLocalDate, today]);
     const todayExpensesUsd = useMemo(() => sumR(todayExpenses.map(s => Math.abs(s.totalUsd || 0))), [todayExpenses]);
+
+    // Gastos internos del día (excluyendo proveedores)
+    const todayGastos = useMemo(() => {
+        return salesWithLocalDate.filter(s => {
+            if (s.status === 'ANULADA') return false;
+            if (s.tipo !== 'GASTO_INTERNO') return false;
+            if (s.cajaCerrada === true) return false;
+            return s.localDate === today;
+        });
+    }, [salesWithLocalDate, today]);
+    const todayGastosUsd = useMemo(() => sumR(todayGastos.map(s => Math.abs(s.totalUsd || 0))), [todayGastos]);
 
     const todayProfit = useMemo(() =>
         FinancialEngine.calculateAggregateProfit(todaySales, bcvRate, products),
@@ -170,6 +184,8 @@ export function useDashboardMetrics(sales, customers, products, bcvRate) {
         todayItemsSold,
         todayExpenses,
         todayExpensesUsd,
+        todayGastos,
+        todayGastosUsd,
         todayProfit,
         getRecentSales,
         weekData,

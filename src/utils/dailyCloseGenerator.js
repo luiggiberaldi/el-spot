@@ -30,6 +30,43 @@ export async function generateDailyClosePDF({
     const usdLabel = '$';
     const fmtUsd = (v) => `$${formatUsd(v)}`;
 
+    // Calcular Egresos desde allSales
+    const totalProveedoresUsd = allSales.filter(s => s.tipo === 'PAGO_PROVEEDOR' && s.afectaCaja !== false && s.status !== 'ANULADA').reduce((sum, s) => sum + Math.abs(s.totalUsd || 0), 0);
+    const totalGastosUsd = allSales.filter(s => s.tipo === 'GASTO_INTERNO' && s.afectaCaja !== false && s.status !== 'ANULADA').reduce((sum, s) => sum + Math.abs(s.totalUsd || 0), 0);
+    const totalEgresosUsd = totalProveedoresUsd + totalGastosUsd;
+
+    const totalProveedoresBs = allSales.filter(s => s.tipo === 'PAGO_PROVEEDOR' && s.afectaCaja !== false && s.status !== 'ANULADA').reduce((sum, s) => sum + Math.abs(s.totalBs || 0), 0);
+    const totalGastosBs = allSales.filter(s => s.tipo === 'GASTO_INTERNO' && s.afectaCaja !== false && s.status !== 'ANULADA').reduce((sum, s) => sum + Math.abs(s.totalBs || 0), 0);
+    const totalEgresosBs = totalProveedoresBs + totalGastosBs;
+
+    // ── Categorías de gastos de caja (excluye autoconsumos) ──
+    const CATEGORY_LABELS = {
+        insumos: 'Insumos', servicios: 'Servicios', transporte: 'Transporte',
+        personal: 'Personal', mantenimiento: 'Mantenimiento', otros: 'Otros',
+    };
+    const gastosPorCat = {};
+    allSales
+        .filter(s => s.tipo === 'GASTO_INTERNO' && s.afectaCaja !== false && !s.isAutoconsumo && s.status !== 'ANULADA')
+        .forEach(s => {
+            const cat = s.category || 'otros';
+            if (!gastosPorCat[cat]) gastosPorCat[cat] = { usd: 0, bs: 0 };
+            gastosPorCat[cat].usd += Math.abs(s.totalUsd || 0);
+            gastosPorCat[cat].bs  += Math.abs(s.totalBs  || 0);
+        });
+
+    // ── Autoconsumos (retiros de inventario, no afectan caja) ──
+    const totalAutoconsumoUsd = allSales
+        .filter(s => s.tipo === 'GASTO_INTERNO' && s.isAutoconsumo === true && s.status !== 'ANULADA')
+        .reduce((sum, s) => sum + Math.abs(s.totalUsd || 0), 0);
+    const totalAutoconsumoBs = allSales
+        .filter(s => s.tipo === 'GASTO_INTERNO' && s.isAutoconsumo === true && s.status !== 'ANULADA')
+        .reduce((sum, s) => sum + Math.abs(s.totalBs || 0), 0);
+
+    // ── Detalle de egresos para tabla dedicada en PDF carta ──
+    const egresosDetalle = allSales.filter(s =>
+        (s.tipo === 'GASTO_INTERNO' || s.tipo === 'PAGO_PROVEEDOR') && s.status !== 'ANULADA'
+    );
+
     // Detección de configuración de COP
     let isCop = false;
     let tasaCop = 0;
@@ -204,9 +241,9 @@ export async function generateDailyClosePDF({
 
         leftY += aptH + 4;
 
-        // Tarjeta Resumen Operaciones
+        const salesCount = sales.filter(s => s.tipo === 'VENTA' || s.tipo === 'VENTA_FIADA' || s.tipo === 'VENTA_CASHEA').length;
         const opsRows = [
-            ['Operaciones Realizadas', `${sales.length} ventas`],
+            ['Operaciones Realizadas', `${salesCount} ${salesCount === 1 ? 'venta' : 'ventas'}`],
             ['Artículos Vendidos', `${todayItemsSold} unidades`],
             ['Ingresos Brutos USD', fmtUsd(todayTotalUsd)],
             ['Ingresos Brutos Bs', `Bs ${formatBs(todayTotalBs)}`],
@@ -214,21 +251,48 @@ export async function generateDailyClosePDF({
         if (isCop && tasaCop > 0) {
             opsRows.push(['Ingresos Brutos COP', `${formatCop(mulR(todayTotalUsd, tasaCop))} COP`]);
         }
+        if (totalGastosUsd > 0) {
+            opsRows.push(['Gastos de Caja Chica', `-$${formatUsd(totalGastosUsd)}`]);
+            Object.entries(gastosPorCat).filter(([, v]) => v.usd > 0).forEach(([cat, { usd }]) => {
+                opsRows.push([`  · ${CATEGORY_LABELS[cat] || cat}`, `-$${formatUsd(usd)}`]);
+            });
+        }
+        if (totalProveedoresUsd > 0) {
+            opsRows.push(['Pagos a Proveedores', `-$${formatUsd(totalProveedoresUsd)}`]);
+        }
+        if (totalEgresosUsd > 0) {
+            opsRows.push(['Total Egresos Bs', `-Bs ${formatBs(totalEgresosBs)}`]);
+        }
+        if (totalAutoconsumoUsd > 0) {
+            opsRows.push(['Retiros Inventario (*)', `$${formatUsd(totalAutoconsumoUsd)}`]);
+        }
         opsRows.push(['Ganancia Estimada USD', fmtUsd(bcvRate > 0 ? divR(todayProfit, bcvRate) : 0)]);
         opsRows.push(['Ganancia Estimada Bs', `Bs ${formatBs(todayProfit)}`]);
 
         const opsH = 10 + (opsRows.length * 4.5);
         contentY = drawCard(M, leftY, colW, opsH, 'Resumen de Operaciones');
         opsRows.forEach(([lbl, val]) => {
+            const isSub    = lbl.startsWith('  ·');
+            const isNeg    = String(val).startsWith('-');
+            const isRetiro = lbl.includes('Retiros');
             doc.setFont('helvetica', 'normal');
-            doc.setFontSize(7.5);
-            doc.setTextColor(...BODY);
+            doc.setFontSize(isSub ? 6.5 : 7.5);
+            doc.setTextColor(...(isSub ? MUTED : BODY));
             doc.text(lbl, M + 4, contentY);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(...INK);
+            doc.setFont('helvetica', isSub ? 'normal' : 'bold');
+            doc.setFontSize(isSub ? 6.5 : 7.5);
+            doc.setTextColor(...(isRetiro ? MUTED : isNeg ? RED : INK));
             doc.text(val, M + colW - 4, contentY, { align: 'right' });
-            contentY += 4.5;
+            contentY += isSub ? 4 : 4.5;
         });
+        // Nota al pie si hay retiros de inventario
+        if (totalAutoconsumoUsd > 0) {
+            doc.setFont('helvetica', 'italic');
+            doc.setFontSize(6);
+            doc.setTextColor(...MUTED);
+            doc.text('(*) No impacta el arqueo de caja', M + 4, contentY);
+            contentY += 4;
+        }
 
         leftY += opsH;
 
@@ -338,6 +402,113 @@ export async function generateDailyClosePDF({
             y += 10 + topProducts.length * 5.5 + 6;
         }
 
+        // 3b. Detalle de Egresos del Día
+        if (egresosDetalle.length > 0) {
+            checkPageBreak(35);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(9.5);
+            doc.setTextColor(...RED);
+            doc.text('DETALLE DE EGRESOS DEL DÍA', M, y);
+            y += 5;
+
+            const drawEgresosHeaders = (yy) => {
+                doc.setFillColor(255, 243, 243);
+                doc.rect(M, yy - 4, RIGHT - M, 6.5, 'F');
+                doc.setDrawColor(...BORDER_CARD);
+                doc.rect(M, yy - 4, RIGHT - M, 6.5, 'S');
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(7.5);
+                doc.setTextColor(...RED);
+                doc.text('Hora',       M + 4,   yy + 0.2);
+                doc.text('Tipo',       M + 19,  yy + 0.2);
+                doc.text('Descripción / Concepto', M + 40, yy + 0.2);
+                doc.text('Método',     M + 128, yy + 0.2);
+                doc.text('Monto',      RIGHT - 4, yy + 0.2, { align: 'right' });
+            };
+            drawEgresosHeaders(y);
+            y += 5.5;
+
+            egresosDetalle.forEach((s, idx) => {
+                const hora = new Date(s.timestamp).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+                const sinCaja = s.isAutoconsumo || s.afectaCaja === false;
+
+                let tipo = '';
+                if (s.isAutoconsumo)              tipo = 'Autoconsumo';
+                else if (s.tipo === 'GASTO_INTERNO')  tipo = CATEGORY_LABELS[s.category] || 'Gasto';
+                else if (s.tipo === 'PAGO_PROVEEDOR') tipo = 'Proveedor';
+
+                const desc = s.tipo === 'PAGO_PROVEEDOR'
+                    ? (s.supplierName || s.description || 'Pago a proveedor')
+                    : (s.description || 'Gasto interno');
+
+                const metodo = sinCaja
+                    ? '(sin impacto en caja)'
+                    : (s.payments && s.payments[0]
+                        ? toTitleCase(s.payments[0].methodLabel || getPaymentLabel(s.payments[0].methodId) || '—')
+                        : '—');
+
+                const descLines = doc.splitTextToSize(desc, 85);
+                const metodoLines = doc.splitTextToSize(metodo, 34);
+                const rowHeight = Math.max(10, Math.max(descLines.length, metodoLines.length) * 4.2 + 4);
+
+                checkPageBreak(rowHeight);
+
+                if (idx % 2 === 0) {
+                    doc.setFillColor(255, 250, 250);
+                    doc.rect(M, y - 4, RIGHT - M, rowHeight, 'F');
+                }
+                doc.setDrawColor(...BORDER_CARD);
+                doc.setLineWidth(0.15);
+                doc.line(M, y - 4 + rowHeight, RIGHT, y - 4 + rowHeight);
+
+                // Hora
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(7.5);
+                doc.setTextColor(...BODY);
+                doc.text(hora, M + 4, y);
+
+                // Tipo con color
+                const tipoColor = s.isAutoconsumo ? MUTED : s.tipo === 'PAGO_PROVEEDOR' ? BLUE : RED;
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(7);
+                doc.setTextColor(...tipoColor);
+                doc.text(tipo, M + 19, y);
+
+                // Descripción
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(7.5);
+                doc.setTextColor(...MUTED);
+                doc.text(descLines, M + 40, y);
+
+                // Método
+                doc.setFontSize(6.5);
+                doc.setTextColor(...BODY);
+                doc.text(metodoLines, M + 128, y);
+
+                // Monto
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(7.5);
+                if (sinCaja) {
+                    doc.setTextColor(...MUTED);
+                    doc.text(`$${formatUsd(Math.abs(s.totalUsd || 0))} *`, RIGHT - 4, y, { align: 'right' });
+                } else {
+                    doc.setTextColor(...RED);
+                    doc.text(`-$${formatUsd(Math.abs(s.totalUsd || 0))}`, RIGHT - 4, y, { align: 'right' });
+                }
+
+                y += rowHeight;
+            });
+
+            if (egresosDetalle.some(s => s.isAutoconsumo || s.afectaCaja === false)) {
+                doc.setFont('helvetica', 'italic');
+                doc.setFontSize(7);
+                doc.setTextColor(...MUTED);
+                doc.text('(*) No impacta el arqueo de caja', M, y);
+                y += 5;
+            }
+            y += 6;
+        }
+
         // 4. Detalle de Ventas (Tabla Impecable)
         if (allSales.length > 0) {
             checkPageBreak(35);
@@ -369,7 +540,16 @@ export async function generateDailyClosePDF({
             allSales.forEach((s, idx) => {
                 const isCanceled = s.status === 'ANULADA';
                 const hora = new Date(s.timestamp).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
-                const cliente = s.customerName || 'Consumidor Final';
+                let cliente = s.customerName || 'Consumidor Final';
+                if (s.tipo === 'PAGO_PROVEEDOR') {
+                    cliente = `PROV: ${s.supplierName || 'Proveedor'}`;
+                } else if (s.tipo === 'GASTO_INTERNO') {
+                    cliente = s.isAutoconsumo
+                        ? `AUTOCONSUMO: ${s.description || 'Retiro de inventario'}`
+                        : `GASTO: ${s.description || 'Gasto Interno'}`;
+                } else if (s.tipo === 'APERTURA_CAJA') {
+                    cliente = 'Apertura de Caja';
+                }
 
                 // Items
                 let itemsText = '';
@@ -444,7 +624,8 @@ export async function generateDailyClosePDF({
                     doc.setTextColor(...RED);
                     doc.text('ANULADA', RIGHT - 4, y, { align: 'right' });
                 } else {
-                    doc.setTextColor(...GREEN);
+                    const isExpense = (s.totalUsd || 0) < 0 || s.tipo === 'PAGO_PROVEEDOR' || s.tipo === 'GASTO_INTERNO';
+                    doc.setTextColor(...(isExpense ? RED : GREEN));
                     doc.text(fmtUsd(s.totalUsd || 0), RIGHT - 4, y, { align: 'right' });
                     doc.setFont('helvetica', 'normal');
                     doc.setFontSize(6.5);
@@ -484,7 +665,25 @@ export async function generateDailyClosePDF({
 
     const paymentRows = Object.keys(paymentBreakdown || {}).length;
     const topProdRows = topProducts ? topProducts.length : 0;
-    const H = 145
+    
+    let expectedStatsRowsCount = 7;
+    if (isCop && tasaCop > 0) expectedStatsRowsCount += 2;
+
+    // Altura de la nueva sección EGRESOS DE CAJA en el ticket
+    const catEntries = Object.entries(gastosPorCat).filter(([, v]) => v.usd > 0);
+    const hasEgresos = totalGastosUsd > 0 || totalProveedoresUsd > 0;
+    let egresosRowCount = 0;
+    if (hasEgresos) {
+        egresosRowCount += 3; // sectionTitle + total + sep
+        if (totalGastosUsd > 0)      egresosRowCount += 1 + catEntries.length;
+        if (totalProveedoresUsd > 0) egresosRowCount += 1;
+        if (totalEgresosUsd > 0)     egresosRowCount += 2; // total usd + bs
+    }
+    if (totalAutoconsumoUsd > 0) egresosRowCount += 5; // title + value + note + sep
+
+    const H = 100
+        + (expectedStatsRowsCount * 5.2)
+        + (egresosRowCount * 5.2)
         + (paymentRows * 6.5)
         + (topProdRows * 9.5)
         + (apertura ? 24 : 0)
@@ -567,8 +766,9 @@ export async function generateDailyClosePDF({
     // Resumen de operaciones
     y = sectionTitle('RESUMEN DE OPERACIONES', y);
 
+    const salesCount = sales.filter(s => s.tipo === 'VENTA' || s.tipo === 'VENTA_FIADA' || s.tipo === 'VENTA_CASHEA').length;
     const statsRows = [
-        ['Operaciones realizadas', `${sales.length}`],
+        ['Operaciones realizadas', `${salesCount}`],
         ['Artículos vendidos', `${todayItemsSold}`],
         [`Ingresos brutos (${usdLabel})`, fmtUsd(todayTotalUsd)],
         ['Ingresos brutos (Bs)', `Bs ${formatBs(todayTotalBs)}`],
@@ -581,6 +781,7 @@ export async function generateDailyClosePDF({
         statsRows.push(['Tasa de Cambio COP', `${tasaCop.toLocaleString('es-CO')} / $1`]);
         statsRows.splice(3, 0, ['Ingresos brutos (COP)', `${formatCop(mulR(todayTotalUsd, tasaCop))} COP`]);
     }
+
 
     statsRows.forEach(([label, value]) => {
         doc.setFont('helvetica', 'normal');
@@ -595,6 +796,84 @@ export async function generateDailyClosePDF({
 
     y += 1;
     dash(y); y += 6;
+
+    // ── EGRESOS DE CAJA ──
+    if (hasEgresos) {
+        y = sectionTitle('EGRESOS DE CAJA', y);
+
+        if (totalGastosUsd > 0) {
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(fBody);
+            doc.setTextColor(...BODY);
+            doc.text('Gastos de Caja Chica', M, y);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(...RED);
+            doc.text(`-$${formatUsd(totalGastosUsd)}`, VALUE_RIGHT, y, { align: 'right' });
+            y += 5;
+
+            catEntries.forEach(([cat, { usd }]) => {
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(fMuted);
+                doc.setTextColor(...MUTED);
+                doc.text(`  › ${CATEGORY_LABELS[cat] || cat}`, M, y);
+                doc.setFont('helvetica', 'bold');
+                doc.text(`-$${formatUsd(usd)}`, VALUE_RIGHT, y, { align: 'right' });
+                y += 4.5;
+            });
+        }
+
+        if (totalProveedoresUsd > 0) {
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(fBody);
+            doc.setTextColor(...BODY);
+            doc.text('Pago Proveedores', M, y);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(...RED);
+            doc.text(`-$${formatUsd(totalProveedoresUsd)}`, VALUE_RIGHT, y, { align: 'right' });
+            y += 5;
+        }
+
+        if (totalEgresosUsd > 0) {
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(fBody);
+            doc.setTextColor(...INK);
+            doc.text('Total Egresos Caja', M, y);
+            doc.setTextColor(...RED);
+            doc.text(`-$${formatUsd(totalEgresosUsd)}`, VALUE_RIGHT, y, { align: 'right' });
+            y += 4;
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(fMuted);
+            doc.setTextColor(...MUTED);
+            doc.text(`-Bs ${formatBs(totalEgresosBs)}`, VALUE_RIGHT, y, { align: 'right' });
+            y += 5;
+        }
+
+        y += 1;
+        dash(y); y += 6;
+    }
+
+    // ── RETIROS DE INVENTARIO ──
+    if (totalAutoconsumoUsd > 0) {
+        y = sectionTitle('RETIROS INVENTARIO (*)', y);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(fBody);
+        doc.setTextColor(...BODY);
+        doc.text('Autoconsumo de mercancía', M, y);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...MUTED);
+        doc.text(`$${formatUsd(totalAutoconsumoUsd)}`, VALUE_RIGHT, y, { align: 'right' });
+        y += 5;
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(fMuted);
+        doc.setTextColor(...MUTED);
+        doc.text('(*) No impacta el arqueo de caja', M, y);
+        y += 5;
+
+        y += 1;
+        dash(y); y += 6;
+    }
 
     // Desglose por método de pago
     if (paymentRows > 0) {

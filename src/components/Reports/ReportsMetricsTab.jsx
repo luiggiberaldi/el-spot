@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, DollarSign, TrendingUp, ShoppingBag, Package, ChevronDown, ChevronUp, Clock, Send, Ban, Shuffle, Search, X, Recycle, LockIcon, CornerDownLeft, Printer } from 'lucide-react';
+import { Calendar, DollarSign, TrendingUp, TrendingDown, ShoppingBag, Package, ChevronDown, ChevronUp, Clock, Send, Ban, Shuffle, Search, X, Recycle, LockIcon, CornerDownLeft, Printer, Lightbulb, Car, User, Wrench, FileText } from 'lucide-react';
 import { formatBs, formatCop } from '../../utils/calculatorUtils';
 import { getPaymentLabel, getPaymentMethod, PAYMENT_ICONS, toTitleCase, getPaymentIcon } from '../../config/paymentMethods';
 import { generateTicketPDF, printThermalTicket } from '../../utils/ticketGenerator';
@@ -22,6 +22,7 @@ function StatCard({ icon: Icon, label, value, sub, color }) {
         blue: 'bg-brand-light dark:bg-surface-800/30 text-brand-dark dark:text-brand',
         indigo: 'bg-brand-light dark:bg-surface-800/30 text-brand-dark dark:text-brand',
         amber: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
+        rose: 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400',
     };
     return (
         <div className="bg-white dark:bg-slate-900 rounded-2xl p-3 md:p-4 border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -34,6 +35,15 @@ function StatCard({ icon: Icon, label, value, sub, color }) {
         </div>
     );
 }
+
+const GASTO_META = {
+    insumos: { label: 'Insumos', icon: Package, bgIcon: 'bg-blue-100 dark:bg-blue-900/30 text-blue-500 dark:text-blue-400' },
+    servicios: { label: 'Servicios', icon: Lightbulb, bgIcon: 'bg-amber-100 dark:bg-amber-900/30 text-amber-500 dark:text-amber-400' },
+    transporte: { label: 'Transporte', icon: Car, bgIcon: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-500 dark:text-indigo-400' },
+    personal: { label: 'Personal', icon: User, bgIcon: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-500 dark:text-emerald-400' },
+    mantenimiento: { label: 'Mantenimiento', icon: Wrench, bgIcon: 'bg-rose-100 dark:bg-rose-900/30 text-rose-500 dark:text-rose-400' },
+    otros: { label: 'Otros', icon: FileText, bgIcon: 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400' }
+};
 
 function TransactionRow({ sale: s, bcvRate, isExpanded, onToggle, onVoidSale, onRecycleSale, copEnabled, copPrimary, tasaCop, onPrintTicket }) {
     const d = new Date(s.timestamp);
@@ -266,6 +276,9 @@ export default function ReportsMetricsTab({
     topProducts,
     salesByDay,
     maxDayTotal,
+    expensesList = [],
+    expensesUsd = 0,
+    expensesBs = 0,
     bcvRate,
     copEnabled,
     copPrimary,
@@ -290,14 +303,19 @@ export default function ReportsMetricsTab({
     return (
         <>
             {/* Summary Cards — ocultar si onlyHistory */}
-            {!onlyHistory && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <StatCard icon={ShoppingBag} label="Ventas" value={salesForStats.length} color="emerald" />
-                <StatCard icon={DollarSign} label="Ingresos" value={copEnabled && copPrimary && tasaCop > 0 ? `${formatCop(totalCop || Math.round(totalUsd * tasaCop))} COP` : `$${totalUsd.toFixed(2)}`} sub={copEnabled && tasaCop > 0 ? (copPrimary ? `$${totalUsd.toFixed(2)} · ${formatBs(totalBs)} Bs` : `${formatCop(totalCop || Math.round(totalUsd * tasaCop))} COP · ${formatBs(totalBs)} Bs`) : `${formatBs(totalBs)} Bs`} color="blue" />
-                <StatCard icon={TrendingUp} label="Ganancia" value={copEnabled && copPrimary && tasaCop > 0 ? `${formatCop((bcvRate > 0 ? profit / bcvRate : 0) * tasaCop)} COP` : (bcvRate > 0 ? `$${(profit / bcvRate).toFixed(2)}` : '$0.00')} sub={copEnabled && tasaCop > 0 ? (copPrimary ? `$${(bcvRate > 0 ? profit / bcvRate : 0).toFixed(2)} · ${formatBs(profit)} Bs` : `${formatCop((bcvRate > 0 ? profit / bcvRate : 0) * tasaCop)} COP · ${formatBs(profit)} Bs`) : `${formatBs(profit)} Bs`} color="indigo" />
-                <StatCard icon={Package} label="Artículos" value={totalItems} color="amber" />
-            </div>
-            )}
+            {!onlyHistory && (() => {
+                const netProfitUsd = (bcvRate > 0 ? profit / bcvRate : 0) - expensesUsd;
+                const netProfitBs = profit - expensesBs;
+                return (
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                        <StatCard icon={ShoppingBag} label="Ventas" value={salesForStats.length} color="emerald" />
+                        <StatCard icon={DollarSign} label="Ingresos" value={copEnabled && copPrimary && tasaCop > 0 ? `${formatCop(totalCop || Math.round(totalUsd * tasaCop))} COP` : `$${totalUsd.toFixed(2)}`} sub={copEnabled && tasaCop > 0 ? (copPrimary ? `$${totalUsd.toFixed(2)} · ${formatBs(totalBs)} Bs` : `${formatCop(totalCop || Math.round(totalUsd * tasaCop))} COP · ${formatBs(totalBs)} Bs`) : `${formatBs(totalBs)} Bs`} color="blue" />
+                        <StatCard icon={TrendingDown} label="Egresos" value={copEnabled && copPrimary && tasaCop > 0 ? `${formatCop(expensesUsd * tasaCop)} COP` : `$${expensesUsd.toFixed(2)}`} sub={copEnabled && tasaCop > 0 ? (copPrimary ? `$${expensesUsd.toFixed(2)} · ${formatBs(expensesBs)} Bs` : `${formatCop(expensesUsd * tasaCop)} COP · ${formatBs(expensesBs)} Bs`) : `${formatBs(expensesBs)} Bs`} color="rose" />
+                        <StatCard icon={TrendingUp} label="Ganancia Neta" value={copEnabled && copPrimary && tasaCop > 0 ? `${formatCop(netProfitUsd * tasaCop)} COP` : `$${netProfitUsd.toFixed(2)}`} sub={copEnabled && tasaCop > 0 ? (copPrimary ? `$${netProfitUsd.toFixed(2)} · ${formatBs(netProfitBs)} Bs` : `${formatCop(netProfitUsd * tasaCop)} COP · ${formatBs(netProfitBs)} Bs`) : `${formatBs(netProfitBs)} Bs`} color="indigo" />
+                        <StatCard icon={Package} label="Artículos" value={totalItems} color="amber" />
+                    </div>
+                );
+            })()}
 
             {/* Mini bar chart per day */}
             {!onlyHistory && salesByDay.length > 1 && (
@@ -326,179 +344,189 @@ export default function ReportsMetricsTab({
                 </div>
             )}
 
-            {/* Payment Breakdown */}
-            {!onlyHistory && Object.keys(paymentBreakdown).length > 0 && (() => {
-                const allEntries = Object.entries(paymentBreakdown).filter(([, d]) => d.total > 0);
-                const fiadoMethods = allEntries.filter(([, d]) => d.currency === 'FIADO' && !d.isChange);
-                const bsMethods    = allEntries.filter(([, d]) => (d.currency === 'BS' || (!d.currency)) && !d.isChange);
-                const usdMethods   = allEntries.filter(([, d]) => d.currency === 'USD' && !d.isChange);
-                const copMethods   = allEntries.filter(([, d]) => d.currency === 'COP' && !d.isChange);
-                const vueltoBs     = allEntries.filter(([, d]) => d.isChange && d.currency === 'BS');
-                const vueltoUsd    = allEntries.filter(([, d]) => d.isChange && d.currency === 'USD');
-                const fmtCop = (v) => v.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            {/* Payment Breakdown & Top Products Grid */}
+            {!onlyHistory && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {/* Medios de Pago */}
+                    {Object.keys(paymentBreakdown).length > 0 && (() => {
+                        const allEntries = Object.entries(paymentBreakdown).filter(([, d]) => d.total > 0);
+                        const fiadoMethods = allEntries.filter(([, d]) => d.currency === 'FIADO' && !d.isChange);
+                        const bsMethods    = allEntries.filter(([, d]) => (d.currency === 'BS' || (!d.currency)) && !d.isChange);
+                        const usdMethods   = allEntries.filter(([, d]) => d.currency === 'USD' && !d.isChange);
+                        const copMethods   = allEntries.filter(([, d]) => d.currency === 'COP' && !d.isChange);
+                        const vueltoBs     = allEntries.filter(([, d]) => d.isChange && d.currency === 'BS');
+                        const vueltoUsd    = allEntries.filter(([, d]) => d.isChange && d.currency === 'USD');
+                        const fmtCop = (v) => v.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-                const subtotalBs     = bsMethods.reduce((s, [, d]) => s + d.total, 0);
-                const subtotalUsd    = usdMethods.reduce((s, [, d]) => s + d.total, 0);
-                const subtotalCop    = copMethods.reduce((s, [, d]) => s + d.total, 0);
-                const totalVueltoBs  = vueltoBs.reduce((s, [, d]) => s + d.total, 0);
-                const totalVueltoUsd = vueltoUsd.reduce((s, [, d]) => s + d.total, 0);
-                const netoBs  = subtotalBs - totalVueltoBs;
-                const netoUsd = subtotalUsd - totalVueltoUsd;
+                        const subtotalBs     = bsMethods.reduce((s, [, d]) => s + d.total, 0);
+                        const subtotalUsd    = usdMethods.reduce((s, [, d]) => s + d.total, 0);
+                        const subtotalCop    = copMethods.reduce((s, [, d]) => s + d.total, 0);
+                        const totalVueltoBs  = vueltoBs.reduce((s, [, d]) => s + d.total, 0);
+                        const totalVueltoUsd = vueltoUsd.reduce((s, [, d]) => s + d.total, 0);
+                        const netoBs  = subtotalBs - totalVueltoBs;
+                        const netoUsd = subtotalUsd - totalVueltoUsd;
 
-                const toBsEquiv = (data) => {
-                    if (data.currency === 'USD' || data.currency === 'FIADO') return data.total * bcvRate;
-                    if (data.currency === 'COP') return tasaCop > 0 ? (data.total / tasaCop) * bcvRate : 0;
-                    return data.total;
-                };
+                        const toBsEquiv = (data) => {
+                            if (data.currency === 'USD' || data.currency === 'FIADO') return data.total * bcvRate;
+                            if (data.currency === 'COP') return tasaCop > 0 ? (data.total / tasaCop) * bcvRate : 0;
+                            return data.total;
+                        };
 
-                // Grand total in Bs equiv from all income entries — used as 100% reference
-                const grandTotalBsEquiv = allEntries
-                    .filter(([, d]) => !d.isChange)
-                    .reduce((s, [, d]) => s + toBsEquiv(d), 0);
+                        const grandTotalBsEquiv = allEntries
+                            .filter(([, d]) => !d.isChange)
+                            .reduce((s, [, d]) => s + toBsEquiv(d), 0);
 
-                const renderMethod = ([method, data]) => {
-                    const label = toTitleCase(getPaymentLabel(method, data.label));
-                    const PayIcon = getPaymentIcon(method) || PAYMENT_ICONS[method];
-                    const bsEquiv = toBsEquiv(data);
-                    const pct = grandTotalBsEquiv > 0 ? (bsEquiv / grandTotalBsEquiv * 100) : 0;
+                        const renderMethod = ([method, data]) => {
+                            const label = toTitleCase(getPaymentLabel(method, data.label));
+                            const PayIcon = getPaymentIcon(method) || PAYMENT_ICONS[method];
+                            const bsEquiv = toBsEquiv(data);
+                            const pct = grandTotalBsEquiv > 0 ? (bsEquiv / grandTotalBsEquiv * 100) : 0;
 
-                    let displayAmount = `${formatBs(data.total)} Bs`;
-                    if (data.currency === 'FIADO') displayAmount = `USD ${data.total.toFixed(2)}`;
-                    else if (data.currency === 'USD') displayAmount = `USD ${data.total.toFixed(2)}`;
-                    else if (data.currency === 'COP') displayAmount = `${fmtCop(data.total)} COP`;
+                            let displayAmount = `${formatBs(data.total)} Bs`;
+                            if (data.currency === 'FIADO') displayAmount = `USD ${data.total.toFixed(2)}`;
+                            else if (data.currency === 'USD') displayAmount = `USD ${data.total.toFixed(2)}`;
+                            else if (data.currency === 'COP') displayAmount = `${fmtCop(data.total)} COP`;
 
-                    return (
-                        <div key={method}>
-                            <div className="flex justify-between text-sm mb-1.5">
-                                <span className="text-slate-600 dark:text-slate-300 font-medium flex items-center gap-1.5">
-                                    {PayIcon && <PayIcon size={14} className="text-slate-400" />}
-                                    {label}
-                                </span>
-                                <div className="text-right flex items-center gap-2">
-                                    <span className="font-bold text-slate-700 dark:text-white">{displayAmount}</span>
-                                    {data.currency !== 'FIADO' && <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium w-8 text-right">{pct.toFixed(0)}%</span>}
-                                    {data.currency === 'FIADO' && (
-                                        <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">{formatBs(bsEquiv)} Bs</div>
+                            return (
+                                <div key={method}>
+                                    <div className="flex justify-between text-sm mb-1.5">
+                                        <span className="text-slate-600 dark:text-slate-300 font-medium flex items-center gap-1.5">
+                                            {PayIcon && <PayIcon size={14} className="text-slate-400" />}
+                                            {label}
+                                        </span>
+                                        <div className="text-right flex items-center gap-2">
+                                            <span className="font-bold text-slate-700 dark:text-white">{displayAmount}</span>
+                                            {data.currency !== 'FIADO' && <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium w-8 text-right">{pct.toFixed(0)}%</span>}
+                                            {data.currency === 'FIADO' && (
+                                                <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">{formatBs(bsEquiv)} Bs</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    {data.currency !== 'FIADO' && (
+                                        <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                            <div className="h-full bg-gradient-to-r from-brand via-cyan-400 to-teal-400 rounded-full transition-all" style={{ width: `${Math.min(pct, 100)}%` }} />
+                                        </div>
                                     )}
                                 </div>
-                            </div>
-                            {data.currency !== 'FIADO' && (
-                                <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                    <div className="h-full bg-gradient-to-r from-brand via-cyan-400 to-teal-400 rounded-full transition-all" style={{ width: `${Math.min(pct, 100)}%` }} />
+                            );
+                        };
+
+                        const renderVuelto = ([method, data]) => {
+                            const bsEquiv = data.currency === 'USD' ? data.total * bcvRate : data.total;
+                            const pct = grandTotalBsEquiv > 0 ? (bsEquiv / grandTotalBsEquiv * 100) : 0;
+                            const isUsd = data.currency === 'USD';
+                            const displayAmount = isUsd ? `USD ${data.total.toFixed(2)}` : `${formatBs(data.total)} Bs`;
+
+                            return (
+                                <div key={method}>
+                                    <div className="flex justify-between text-sm mb-1.5">
+                                        <span className="text-orange-500 dark:text-orange-400 font-medium">{data.label || 'Vuelto entregado'}</span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-orange-500 dark:text-orange-400">− {displayAmount}</span>
+                                            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium w-8 text-right">{pct.toFixed(0)}%</span>
+                                        </div>
+                                    </div>
+                                    <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                        <div className="h-full bg-gradient-to-r from-orange-400 to-amber-400 rounded-full transition-all" style={{ width: `${Math.min(pct, 100)}%` }} />
+                                    </div>
                                 </div>
-                            )}
-                        </div>
-                    );
-                };
+                            );
+                        };
 
-                const renderVuelto = ([method, data]) => {
-                    const bsEquiv = data.currency === 'USD' ? data.total * bcvRate : data.total;
-                    const pct = grandTotalBsEquiv > 0 ? (bsEquiv / grandTotalBsEquiv * 100) : 0;
-                    const isUsd = data.currency === 'USD';
-                    const displayAmount = isUsd ? `USD ${data.total.toFixed(2)}` : `${formatBs(data.total)} Bs`;
+                        return (
+                            <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm h-full">
+                                <h3 className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4">
+                                    Medios de Pago
+                                </h3>
 
-                    return (
-                        <div key={method}>
-                            <div className="flex justify-between text-sm mb-1.5">
-                                <span className="text-orange-500 dark:text-orange-400 font-medium">{data.label || 'Vuelto entregado'}</span>
-                                <div className="flex items-center gap-2">
-                                    <span className="font-bold text-orange-500 dark:text-orange-400">− {displayAmount}</span>
-                                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium w-8 text-right">{pct.toFixed(0)}%</span>
+                                {fiadoMethods.length > 0 && (
+                                    <div className="mb-5">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <span className="text-[11px] font-bold text-amber-500 uppercase tracking-wider">Por Cobrar</span>
+                                            <span className="text-xs font-black text-amber-600 dark:text-amber-400">{copEnabled && copPrimary && tasaCop > 0 ? `${formatCop(fiadoMethods.reduce((s, [,d]) => s + d.total, 0) * tasaCop)} COP` : `USD ${fiadoMethods.reduce((s, [,d]) => s + d.total, 0).toFixed(2)}`}</span>
+                                        </div>
+                                        <div className="space-y-4">{fiadoMethods.map(e => renderMethod(e))}</div>
+                                    </div>
+                                )}
+
+                                {(bsMethods.length > 0 || vueltoBs.length > 0) && (
+                                    <div className="mb-5">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <span className="text-[11px] font-bold text-brand uppercase tracking-wider">Bolívares</span>
+                                            <span className={`text-xs font-black ${totalVueltoBs > 0 ? 'text-cyan-500 dark:text-cyan-400' : 'text-brand-dark dark:text-brand'}`}>
+                                                {totalVueltoBs > 0
+                                                    ? `${netoBs < 0 ? '−' : ''}${formatBs(Math.abs(netoBs))} Bs neto`
+                                                    : `${formatBs(subtotalBs)} Bs`}
+                                            </span>
+                                        </div>
+                                        <div className="space-y-4">
+                                            {bsMethods.map(e => renderMethod(e))}
+                                            {vueltoBs.map(e => renderVuelto(e))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {(usdMethods.length > 0 || vueltoUsd.length > 0) && (
+                                    <div className={copMethods.length > 0 ? 'mb-5' : ''}>
+                                        <div className="flex items-center justify-between mb-3">
+                                            <span className="text-[11px] font-bold text-emerald-500 uppercase tracking-wider">Dólares</span>
+                                            <span className={`text-xs font-black ${totalVueltoUsd > 0 ? 'text-emerald-500 dark:text-emerald-400' : copEnabled && copPrimary ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                                                {totalVueltoUsd > 0
+                                                    ? (copEnabled && copPrimary && tasaCop > 0
+                                                        ? `${netoUsd < 0 ? '−' : ''}${formatCop(Math.abs(netoUsd) * tasaCop)} COP neto`
+                                                        : `${netoUsd < 0 ? '−' : ''}USD ${Math.abs(netoUsd).toFixed(2)} neto`)
+                                                    : (copEnabled && copPrimary && tasaCop > 0
+                                                        ? `${formatCop(subtotalUsd * tasaCop)} COP`
+                                                        : `USD ${subtotalUsd.toFixed(2)}`)}
+                                            </span>
+                                        </div>
+                                        <div className="space-y-4">
+                                            {usdMethods.map(e => renderMethod(e))}
+                                            {vueltoUsd.map(e => renderVuelto(e))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {copEnabled && copMethods.length > 0 && (
+                                    <div>
+                                        <div className="flex items-center justify-between mb-3">
+                                            <span className="text-[11px] font-bold text-amber-500 uppercase tracking-wider">Pesos Colombianos</span>
+                                            <span className="text-xs font-black text-amber-600 dark:text-amber-400">{fmtCop(subtotalCop)} COP</span>
+                                        </div>
+                                        <div className="space-y-4">{copMethods.map(e => renderMethod(e))}</div>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })()}
+
+                    {/* Top Productos */}
+                    {topProducts.length > 0 && (
+                        <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm h-full flex flex-col justify-between">
+                            <div>
+                                <h3 className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-1.5">
+                                    <TrendingUp size={14} />
+                                    Top Productos
+                                </h3>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[360px] overflow-y-auto pr-1 custom-scrollbar">
+                                    {topProducts.map((p, i) => (
+                                        <div key={p.name} className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800/45 rounded-xl p-2.5 border border-slate-100/50 dark:border-slate-800/50">
+                                            <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black shrink-0 ${
+                                                i < 3 ? 'bg-brand-light dark:bg-surface-800/30 text-brand-dark dark:text-brand' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+                                            }`}>{i + 1}</span>
+                                            <div className="flex-1 min-w-0 text-left">
+                                                <p className="text-xs font-bold text-slate-750 dark:text-slate-200 truncate">{p.name}</p>
+                                                <p className="text-[9px] text-slate-400 font-medium">{p.qty} vendidos</p>
+                                            </div>
+                                            <span className="text-xs font-black text-brand-dark dark:text-brand shrink-0">
+                                                {copEnabled && copPrimary && tasaCop > 0 ? `${formatCop(p.revenue * tasaCop)} COP` : `$${p.revenue.toFixed(2)}`}
+                                            </span>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
-                            <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                <div className="h-full bg-gradient-to-r from-orange-400 to-amber-400 rounded-full transition-all" style={{ width: `${Math.min(pct, 100)}%` }} />
-                            </div>
-                        </div>
-                    );
-                };
-
-                return (
-                <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm">
-                    <h3 className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-4">
-                        Medios de Pago
-                    </h3>
-
-                    {fiadoMethods.length > 0 && (
-                        <div className="mb-5">
-                            <div className="flex items-center justify-between mb-3">
-                                <span className="text-[11px] font-bold text-amber-500 uppercase tracking-wider">Por Cobrar</span>
-                                <span className="text-xs font-black text-amber-600 dark:text-amber-400">{copEnabled && copPrimary && tasaCop > 0 ? `${formatCop(fiadoMethods.reduce((s, [,d]) => s + d.total, 0) * tasaCop)} COP` : `USD ${fiadoMethods.reduce((s, [,d]) => s + d.total, 0).toFixed(2)}`}</span>
-                            </div>
-                            <div className="space-y-4">{fiadoMethods.map(e => renderMethod(e))}</div>
                         </div>
                     )}
-
-                    {(bsMethods.length > 0 || vueltoBs.length > 0) && (
-                        <div className="mb-5">
-                            <div className="flex items-center justify-between mb-3">
-                                <span className="text-[11px] font-bold text-brand uppercase tracking-wider">Bolívares</span>
-                                <span className={`text-xs font-black ${totalVueltoBs > 0 ? 'text-cyan-500 dark:text-cyan-400' : 'text-brand-dark dark:text-brand'}`}>
-                                    {totalVueltoBs > 0
-                                        ? `${netoBs < 0 ? '−' : ''}${formatBs(Math.abs(netoBs))} Bs neto`
-                                        : `${formatBs(subtotalBs)} Bs`}
-                                </span>
-                            </div>
-                            <div className="space-y-4">
-                                {bsMethods.map(e => renderMethod(e))}
-                                {vueltoBs.map(e => renderVuelto(e))}
-                            </div>
-                        </div>
-                    )}
-
-                    {(usdMethods.length > 0 || vueltoUsd.length > 0) && (
-                        <div className={copMethods.length > 0 ? 'mb-5' : ''}>
-                            <div className="flex items-center justify-between mb-3">
-                                <span className="text-[11px] font-bold text-emerald-500 uppercase tracking-wider">Dólares</span>
-                                <span className={`text-xs font-black ${totalVueltoUsd > 0 ? 'text-emerald-500 dark:text-emerald-400' : copEnabled && copPrimary ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                                    {totalVueltoUsd > 0
-                                        ? (copEnabled && copPrimary && tasaCop > 0
-                                            ? `${netoUsd < 0 ? '−' : ''}${formatCop(Math.abs(netoUsd) * tasaCop)} COP neto`
-                                            : `${netoUsd < 0 ? '−' : ''}USD ${Math.abs(netoUsd).toFixed(2)} neto`)
-                                        : (copEnabled && copPrimary && tasaCop > 0
-                                            ? `${formatCop(subtotalUsd * tasaCop)} COP`
-                                            : `USD ${subtotalUsd.toFixed(2)}`)}
-                                </span>
-                            </div>
-                            <div className="space-y-4">
-                                {usdMethods.map(e => renderMethod(e))}
-                                {vueltoUsd.map(e => renderVuelto(e))}
-                            </div>
-                        </div>
-                    )}
-
-                    {copEnabled && copMethods.length > 0 && (
-                        <div>
-                            <div className="flex items-center justify-between mb-3">
-                                <span className="text-[11px] font-bold text-amber-500 uppercase tracking-wider">Pesos Colombianos</span>
-                                <span className="text-xs font-black text-amber-600 dark:text-amber-400">{fmtCop(subtotalCop)} COP</span>
-                            </div>
-                            <div className="space-y-4">{copMethods.map(e => renderMethod(e))}</div>
-                        </div>
-                    )}
-                </div>
-                );
-            })()}
-
-            {/* Top Products */}
-            {!onlyHistory && topProducts.length > 0 && (
-                <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm">
-                    <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-3 flex items-center gap-1">
-                        <TrendingUp size={12} /> Top Productos
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {topProducts.map((p, i) => (
-                            <div key={p.name} className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800 rounded-xl p-2.5">
-                                <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black ${i < 3 ? 'bg-brand-light dark:bg-surface-800/30 text-brand-dark dark:text-brand' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
-                                    }`}>{i + 1}</span>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{p.name}</p>
-                                    <p className="text-[10px] text-slate-500 dark:text-slate-400">{p.qty} vendidos</p>
-                                </div>
-                                <span className="text-xs font-black text-brand-dark dark:text-brand">{copEnabled && copPrimary && tasaCop > 0 ? `${formatCop(p.revenue * tasaCop)} COP` : `$${p.revenue.toFixed(2)}`}</span>
-                            </div>
-                        ))}
-                    </div>
                 </div>
             )}
 

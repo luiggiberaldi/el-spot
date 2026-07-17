@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 // v1.2.0: useReveal hook para animaciones reveal-on-scroll (design system "Precios al Día")
 import { useReveal } from '../hooks/useReveal';
-import { BarChart3, Download, LockIcon, Recycle } from 'lucide-react';
+import { BarChart3, Download, LockIcon, Recycle, TrendingDown } from 'lucide-react';
 import { storageService } from '../utils/storageService';
 import { formatBs } from '../utils/calculatorUtils';
 import { useProductContext } from '../context/ProductContext';
@@ -13,6 +13,7 @@ import { processVoidSale } from '../utils/voidSaleProcessor';
 import { useReportExport } from '../hooks/useReportExport';
 import ReportsMetricsTab from '../components/Reports/ReportsMetricsTab';
 import ReportsHistoryTab from '../components/Reports/ReportsHistoryTab';
+import ReportsExpensesTab from '../components/Reports/ReportsExpensesTab';
 import { printThermalTicket } from '../utils/ticketGenerator';
 
 const SALES_KEY = 'bodega_sales_v1';
@@ -97,7 +98,10 @@ export default function ReportsView({ rates, triggerHaptic, onNavigate, isActive
         profit,
         paymentBreakdown,
         topProducts,
-        salesByDay
+        salesByDay,
+        expensesList,
+        expensesUsd,
+        expensesBs
     } = useMemo(() => calculateReportsData(allSales, from, to, bcvRate, products), [allSales, from, to, bcvRate, products]);
 
     const groupedClosings = useMemo(() => {
@@ -168,7 +172,7 @@ export default function ReportsView({ rates, triggerHaptic, onNavigate, isActive
                 </button>
             </div>
 
-            {/* Tab Selector — 3 tabs */}
+            {/* Tab Selector — 4 tabs */}
             <div className="flex bg-slate-200 dark:bg-surface-800 p-1 rounded-xl gap-1">
                 <button
                     onClick={() => { triggerHaptic && triggerHaptic(); setActiveTab('metrics'); }}
@@ -180,7 +184,13 @@ export default function ReportsView({ rates, triggerHaptic, onNavigate, isActive
                     onClick={() => { triggerHaptic && triggerHaptic(); setActiveTab('sales_history'); }}
                     className={`flex-1 py-2.5 min-h-[40px] text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${activeTab === 'sales_history' ? 'bg-white dark:bg-surface-900 text-brand-dark dark:text-brand shadow-tone-sm' : 'text-slate-600 hover:text-slate-800 dark:text-surface-400'}`}
                 >
-                    <Download size={14} aria-hidden="true"/> Historial
+                    <Download size={14} aria-hidden="true"/> Ventas
+                </button>
+                <button
+                    onClick={() => { triggerHaptic && triggerHaptic(); setActiveTab('expenses'); }}
+                    className={`flex-1 py-2.5 min-h-[40px] text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${activeTab === 'expenses' ? 'bg-white dark:bg-surface-900 text-brand-dark dark:text-brand shadow-tone-sm' : 'text-slate-600 hover:text-slate-800 dark:text-surface-400'}`}
+                >
+                    <TrendingDown size={14} aria-hidden="true"/> Gastos
                 </button>
                 <button
                     onClick={() => { triggerHaptic && triggerHaptic(); setActiveTab('history'); }}
@@ -246,6 +256,9 @@ export default function ReportsView({ rates, triggerHaptic, onNavigate, isActive
                     topProducts={topProducts}
                     salesByDay={salesByDay}
                     maxDayTotal={maxDayTotal}
+                    expensesList={expensesList}
+                    expensesUsd={expensesUsd}
+                    expensesBs={expensesBs}
                     bcvRate={bcvRate}
                     copEnabled={copEnabled}
                     copPrimary={copPrimary}
@@ -282,6 +295,9 @@ export default function ReportsView({ rates, triggerHaptic, onNavigate, isActive
                     topProducts={topProducts}
                     salesByDay={salesByDay}
                     maxDayTotal={maxDayTotal}
+                    expensesList={expensesList}
+                    expensesUsd={expensesUsd}
+                    expensesBs={expensesBs}
                     bcvRate={bcvRate}
                     copEnabled={copEnabled}
                     copPrimary={copPrimary}
@@ -302,6 +318,18 @@ export default function ReportsView({ rates, triggerHaptic, onNavigate, isActive
                     hideHistory={false}
                     onlyHistory={true}
                     onPrintTicket={handlePrintTicket}
+                />
+            )}
+
+            {activeTab === 'expenses' && (
+                <ReportsExpensesTab
+                    expensesList={expensesList}
+                    expensesUsd={expensesUsd}
+                    expensesBs={expensesBs}
+                    bcvRate={bcvRate}
+                    copEnabled={copEnabled}
+                    copPrimary={copPrimary}
+                    tasaCop={tasaCop}
                 />
             )}
 

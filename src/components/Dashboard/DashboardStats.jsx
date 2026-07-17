@@ -7,7 +7,7 @@ import CasheaIcon from '../CasheaIcon';
 export default function DashboardStats({
     isDemo, demoTimeLeft, deviceId,
     todayTotalUsd, todayTotalBs, todayTotalCop, todaySales, todayItemsSold,
-    todayExpenses, todayExpensesUsd,
+    todayExpenses, todayExpensesUsd, todayGastosUsd = 0,
     todayProfit, bcvRate,
     todayCashFlow,
     totalDeudas, showTopDeudas, setShowTopDeudas,
@@ -97,7 +97,7 @@ export default function DashboardStats({
                                 <Package size={20} className="text-orange-500" />
                             </div>
                             <div>
-                                <p className="text-[11px] font-medium text-slate-400">Egresos del dia (Proveedores)</p>
+                                <p className="text-[11px] font-medium text-slate-400">Egresos del día</p>
                                 {copEnabled && copPrimary && tasaCop > 0 ? (
                                     <>
                                         <p className="text-2xl font-outfit font-semibold text-orange-600 dark:text-orange-400">
@@ -115,9 +115,17 @@ export default function DashboardStats({
                                         )}
                                     </>
                                 )}
+                                {todayGastosUsd > 0 && (
+                                    <div className="mt-2 pt-1.5 border-t border-orange-100/50 dark:border-orange-950/50 flex gap-3 text-[10px] text-slate-400 font-bold">
+                                        <span>Caja Chica: -${todayGastosUsd.toFixed(2)}</span>
+                                        {todayExpensesUsd - todayGastosUsd > 0.01 && (
+                                            <span>Proveedores: -${(todayExpensesUsd - todayGastosUsd).toFixed(2)}</span>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
-                        <span className="text-xs font-bold text-orange-500 bg-orange-50 dark:bg-orange-900/20 px-2.5 py-1 rounded-lg">{todayExpenses.length} {todayExpenses.length === 1 ? 'pago' : 'pagos'}</span>
+                        <span className="text-xs font-bold text-orange-500 bg-orange-50 dark:bg-orange-900/20 px-2.5 py-1 rounded-lg shrink-0 self-start">{todayExpenses.length} {todayExpenses.length === 1 ? 'pago' : 'pagos'}</span>
                     </div>
                 </div>
             )}

@@ -79,7 +79,7 @@ export function useSupplierManagement({ bcvRate, tasaCop, copEnabled, triggerHap
         refreshSupplierHistory(invoiceData.supplierId);
     };
 
-    const handlePayInvoice = async (amountUsd, amountBs, methodId, currency) => {
+    const handlePayInvoice = async ({ amountUsd, amountBs, amountCop, paymentMethod, currencyMode, retiraCaja }) => {
         triggerHaptic && triggerHaptic();
         const supplier = selectedSupplier;
         if (!supplier) return;
@@ -90,11 +90,11 @@ export function useSupplierManagement({ bcvRate, tasaCop, copEnabled, triggerHap
         await saveSuppliers(updatedSuppliers);
         setSelectedSupplier(updatedSupplier);
 
-        // 2. Registrar en Caja como Egreso
+        // 2. Registrar en Caja/Sistema
         const sales = await storageService.getItem('bodega_sales_v1', []);
-        const totalEnBs = currency === 'BS' ? amountBs : (amountUsd * bcvRate);
-        const totalEnUsd = currency === 'USD' ? amountUsd : (bcvRate > 0 ? amountBs / bcvRate : 0);
-        const totalEnCop = currency === 'COP' ? amountBs : (amountUsd * tasaCop);
+        const totalEnBs = currencyMode === 'BS' ? amountBs : (amountUsd * bcvRate);
+        const totalEnUsd = currencyMode === 'USD' ? amountUsd : (bcvRate > 0 ? amountBs / bcvRate : 0);
+        const totalEnCop = currencyMode === 'COP' ? amountBs : (amountUsd * tasaCop);
 
         const pagoRecord = {
             id: crypto.randomUUID(),
@@ -105,23 +105,24 @@ export function useSupplierManagement({ bcvRate, tasaCop, copEnabled, triggerHap
             totalBs: -totalEnBs,
             totalUsd: -totalEnUsd,
             ...(copEnabled && { totalCop: -totalEnCop }),
-            paymentMethod: methodId,
+            paymentMethod: paymentMethod,
+            afectaCaja: retiraCaja, // <-- Sostiene si descuenta de caja
             payments: [{
-                methodId: methodId,
-                amountUsd: currency === 'USD' ? -totalEnUsd : 0,
-                amountBs: currency === 'BS' ? -totalEnBs : 0,
-                ...(copEnabled && { amountCop: currency === 'COP' ? -totalEnCop : 0 }),
-                currency: currency,
-                methodLabel: 'Pago a Proveedor'
+                methodId: paymentMethod,
+                amountUsd: currencyMode === 'USD' ? -totalEnUsd : 0,
+                amountBs: currencyMode === 'BS' ? -totalEnBs : 0,
+                ...(copEnabled && { amountCop: currencyMode === 'COP' ? -totalEnCop : 0 }),
+                currency: currencyMode,
+                methodLabel: retiraCaja ? 'Pago a Proveedor' : 'Pago Externo a Proveedor'
             }],
-            items: [{ name: `Pago a proveedor: ${supplier.name}`, qty: 1, priceUsd: -totalEnUsd, costBs: 0 }]
+            items: [{ name: `Pago a proveedor: ${supplier.name}${retiraCaja ? '' : ' (Externo)'}`, qty: 1, priceUsd: -totalEnUsd, costBs: 0 }]
         };
         sales.push(pagoRecord);
         await storageService.setItem('bodega_sales_v1', sales);
 
         setIsPayInvoiceModalOpen(false);
-        showToast('Pago registrado correctamente', 'success');
-        auditLog('PROVEEDOR', 'PAGO_PROVEEDOR', `Pago $${amountUsd.toFixed(2)} a ${supplier.name}`);
+        showToast(retiraCaja ? 'Pago registrado y descontado de caja' : 'Pago registrado (externo)', 'success');
+        auditLog('PROVEEDOR', 'PAGO_PROVEEDOR', `Pago $${amountUsd.toFixed(2)} a ${supplier.name} (${retiraCaja ? 'Caja' : 'Externo'})`);
         refreshSupplierHistory(supplier.id);
     };
 

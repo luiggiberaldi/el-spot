@@ -331,14 +331,18 @@ export function ProductProvider({ children, rates, rateDiscrepancyWarning }) {
     // HOOK-005: Memoizar adjustStock para que el objeto `value` del Provider
     // sea estable entre renders cuando los productos no cambian.
     const adjustStock = useCallback((productId, delta) => {
-        setProducts(prevProducts => prevProducts.map(p => {
-            if (p.id === productId) {
-                const allowNeg = localStorage.getItem('allow_negative_stock') === 'true';
-                const newStock = (p.stock ?? 0) + delta;
-                return { ...p, stock: allowNeg ? newStock : Math.max(0, newStock) };
-            }
-            return p;
-        }));
+        setProducts(prevProducts => {
+            const updated = prevProducts.map(p => {
+                if (p.id === productId) {
+                    const allowNeg = localStorage.getItem('allow_negative_stock') === 'true';
+                    const newStock = (p.stock ?? 0) + delta;
+                    return { ...p, stock: allowNeg ? newStock : Math.max(0, newStock) };
+                }
+                return p;
+            });
+            storageService.setItem('bodega_products_v1', updated);
+            return updated;
+        });
     }, []);
 
     // HOOK-005: Envolver `value` en useMemo con deps correctas para evitar que

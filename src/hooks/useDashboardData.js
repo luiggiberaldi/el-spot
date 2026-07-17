@@ -29,14 +29,12 @@ export function useDashboardData(isActive, requestPermission) {
         return () => { mounted = false; };
     }, [isActive]);
 
-    const refreshData = async (setProducts) => {
-        const [savedSales, savedProducts, savedCustomers] = await Promise.all([
+    const refreshData = async () => {
+        const [savedSales, savedCustomers] = await Promise.all([
             storageService.getItem(SALES_KEY, []),
-            storageService.getItem('bodega_products_v1', []),
             storageService.getItem('bodega_customers_v1', []),
         ]);
         setSales(savedSales);
-        setProducts(savedProducts);
         setCustomers(savedCustomers);
     };
 

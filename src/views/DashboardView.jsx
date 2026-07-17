@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { processVoidSale } from '../utils/voidSaleProcessor';
 import { storageService } from '../utils/storageService';
 import { showToast } from '../components/Toast';
-import { BarChart3, TrendingUp, Package, AlertTriangle, ShoppingCart, Store, Users, Settings } from 'lucide-react';
+import { BarChart3, TrendingUp, Package, AlertTriangle, ShoppingCart, Store, Users, Settings, Wallet } from 'lucide-react';
 import { formatBs, formatCop } from '../utils/calculatorUtils';
 import DashboardStats from '../components/Dashboard/DashboardStats';
 import DashboardPaymentBreakdown from '../components/Dashboard/DashboardPaymentBreakdown';
@@ -30,6 +30,8 @@ import { TicketClientModal, DeleteHistoryModal, RecycleOfferModal } from '../com
 import { useReveal } from '../hooks/useReveal';
 import MonitorView from './MonitorView';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
+import { useGastosInternos } from '../hooks/useGastosInternos';
+import GastosInternosModal from '../components/GastosInternos/GastosInternosModal';
 
 const SALES_KEY = 'bodega_sales_v1';
 
@@ -125,10 +127,27 @@ export default function DashboardView({ rates, triggerHaptic, onNavigate, theme,
     const {
         today, todaySales, todayCashFlow, todayApertura,
         todayTotalBs, todayTotalUsd, todayTotalCop, todayItemsSold,
-        todayExpenses, todayExpensesUsd, todayProfit,
+        todayExpenses, todayExpensesUsd, todayGastos, todayGastosUsd, todayProfit,
         getRecentSales, weekData, lowStockProducts,
         totalDeudas, topProducts, paymentBreakdown, todayTopProducts,
     } = useDashboardMetrics(sales, customers, products, bcvRate);
+
+    // Gastos Internos
+    const {
+        isAddGastoOpen,
+        setIsAddGastoOpen,
+        registrarGasto,
+        registrarAutoconsumo,
+        anularGasto
+    } = useGastosInternos({
+        bcvRate,
+        tasaCop,
+        copEnabled,
+        triggerHaptic,
+        auditLog,
+        sales,
+        setSales
+    });
 
     const recentSales = useMemo(() => getRecentSales(selectedChartDate), [getRecentSales, selectedChartDate]);
 
@@ -275,7 +294,7 @@ export default function DashboardView({ rates, triggerHaptic, onNavigate, theme,
         const currentCierreId = new Date().getTime();
         const existingCloses = sales.filter(s => s.tipo === 'REGISTRO_CIERRE');
         const cierreNumber = existingCloses.reduce((mx, s) => Math.max(mx, s.cierreNumber || 0), 0) + 1;
-        const validTiposParaCerrar = ['VENTA', 'VENTA_FIADA', 'VENTA_CASHEA', 'COBRO_DEUDA', 'PAGO_PROVEEDOR', 'APERTURA_CAJA', 'AVANCE_EFECTIVO'];
+        const validTiposParaCerrar = ['VENTA', 'VENTA_FIADA', 'VENTA_CASHEA', 'COBRO_DEUDA', 'PAGO_PROVEEDOR', 'GASTO_INTERNO', 'APERTURA_CAJA', 'AVANCE_EFECTIVO'];
         
         // Registrar el cierre formalmente en el log de transacciones para sincronización con el supervisor
         let registroCierre = null;
@@ -373,7 +392,7 @@ export default function DashboardView({ rates, triggerHaptic, onNavigate, theme,
     const handleTouchEnd = async () => {
         if (pullDistance > 60) {
             setIsRefreshing(true);
-            await refreshData(setProducts);
+            await refreshData();
             setIsRefreshing(false);
         }
         setPullDistance(0);
@@ -445,6 +464,13 @@ export default function DashboardView({ rates, triggerHaptic, onNavigate, theme,
                     <TrendingUp size={22} />
                     <span className="text-xs font-bold">Monitor</span>
                 </button>
+                <button 
+                    onClick={() => { triggerHaptic(); setIsAddGastoOpen(true); }} 
+                    className="bg-red-500 hover:bg-red-600 dark:bg-red-500 dark:hover:bg-red-600 text-white rounded-2xl p-3 flex flex-col items-center justify-center gap-2 shadow-tone-sm hover:scale-[1.02] active:scale-95 transition-all"
+                >
+                    <Wallet size={22} />
+                    <span className="text-xs font-bold">Gastos</span>
+                </button>
             </div>
 
             {/* ── CAJERO: vista simplificada — v1.2.0: reveal + shadow-tone-sm + font-display en totales ── */}
@@ -485,6 +511,7 @@ export default function DashboardView({ rates, triggerHaptic, onNavigate, theme,
                 todayItemsSold={todayItemsSold}
                 todayExpenses={todayExpenses}
                 todayExpensesUsd={todayExpensesUsd}
+                todayGastosUsd={todayGastosUsd}
                 todayProfit={todayProfit}
                 bcvRate={bcvRate}
                 todayCashFlow={todayCashFlow}
@@ -711,13 +738,26 @@ export default function DashboardView({ rates, triggerHaptic, onNavigate, theme,
                     generateDailyClosePDF({ ...cierreSummaryData, action: 'share' });
                 }}
             />
+            <GastosInternosModal
+                isOpen={isAddGastoOpen}
+                onClose={() => setIsAddGastoOpen(false)}
+                sales={sales}
+                products={products}
+                bcvRate={bcvRate}
+                tasaCop={tasaCop}
+                copEnabled={copEnabled}
+                registrarGasto={registrarGasto}
+                registrarAutoconsumo={registrarAutoconsumo}
+                anularGasto={anularGasto}
+                triggerHaptic={triggerHaptic}
+            />
             {showMonitor && (
                 <div className="fixed inset-0 z-[150] bg-[#080E1C] flex flex-col">
                     <MonitorView
                         rates={rates}
                         loading={false}
                         isOffline={!isOnline}
-                        onRefresh={() => refreshData(setProducts)}
+                        onRefresh={() => refreshData()}
                         toggleTheme={toggleTheme}
                         theme={theme}
                         addLog={console.log}

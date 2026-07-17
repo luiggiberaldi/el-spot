@@ -305,7 +305,10 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
             
             // Filtrar para métricas generales y de caja
             const salesForStats = g.sales.filter(s => s.tipo === 'VENTA' || s.tipo === 'VENTA_FIADA' || s.tipo === 'VENTA_CASHEA');
-            const salesForCashFlow = g.sales.filter(s => s.tipo === 'VENTA' || s.tipo === 'VENTA_FIADA' || s.tipo === 'VENTA_CASHEA' || s.tipo === 'COBRO_DEUDA' || s.tipo === 'PAGO_PROVEEDOR');
+            const salesForCashFlow = g.sales.filter(s => {
+                if (s.tipo === 'PAGO_PROVEEDOR' && s.afectaCaja === false) return false;
+                return s.tipo === 'VENTA' || s.tipo === 'VENTA_FIADA' || s.tipo === 'VENTA_CASHEA' || s.tipo === 'COBRO_DEUDA' || s.tipo === 'PAGO_PROVEEDOR' || s.tipo === 'GASTO_INTERNO';
+            });
             
             const totalUsd = salesForStats.reduce((sum, s) => sum + (s.totalUsd || 0), 0);
             const totalBs = salesForStats.reduce((sum, s) => sum + (s.totalBs || 0), 0);

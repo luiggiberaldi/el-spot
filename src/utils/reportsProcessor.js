@@ -13,7 +13,8 @@ export function calculateReportsData(allSales, from, to, bcvRate, products) {
     // Flujo de Dinero (para Desglose de Pagos, incluye pagos de deudas y avances de efectivo)
     const salesForCashFlow = allSales.filter(s => {
         if (s.status === 'ANULADA') return false;
-        if (s.tipo !== 'VENTA' && s.tipo !== 'VENTA_FIADA' && s.tipo !== 'VENTA_CASHEA' && s.tipo !== 'COBRO_DEUDA' && s.tipo !== 'PAGO_PROVEEDOR' && s.tipo !== 'AVANCE_EFECTIVO') return false;
+        if (s.tipo !== 'VENTA' && s.tipo !== 'VENTA_FIADA' && s.tipo !== 'VENTA_CASHEA' && s.tipo !== 'COBRO_DEUDA' && s.tipo !== 'PAGO_PROVEEDOR' && s.tipo !== 'GASTO_INTERNO' && s.tipo !== 'AVANCE_EFECTIVO') return false;
+        if (s.tipo === 'PAGO_PROVEEDOR' && s.afectaCaja === false) return false;
         const dateStr = getLocalISODate(new Date(s.timestamp));
         return dateStr >= from && dateStr <= to;
     });
@@ -43,30 +44,29 @@ export function calculateReportsData(allSales, from, to, bcvRate, products) {
     }, 0);
     const profit = round2(profitFromSales + profitFromAdvances);
     
+    // Desglose de Medios de Pago y Top Productos
     const paymentBreakdown = FinancialEngine.calculatePaymentBreakdown(salesForCashFlow);
-
-    // Top productos
-    // FIN-018: acumular revenue con round2 (antes era `+= mulR(...)` sin re-redondeo → drift).
-    const productMap = {};
-    salesForStats.forEach(s => {
-        s.items?.forEach(item => {
-            const key = item.id || item.name;
-            if (!productMap[key]) productMap[key] = { name: item.name, qty: 0, revenue: 0 };
-            productMap[key].qty += item.qty;
-            productMap[key].revenue = round2(productMap[key].revenue + mulR(item.priceUsd, item.qty));
-        });
-    });
-    const topProducts = Object.values(productMap).sort((a, b) => b.revenue - a.revenue).slice(0, 8);
-
-    // Ventas por día para mini gráfica
+    const topProducts = FinancialEngine.calculateTopProducts(salesForStats);
+    
+    // Agrupar ventas por día
     const map = {};
     salesForStats.forEach(s => {
-        const day = s.timestamp ? getLocalISODate(new Date(s.timestamp)) : getLocalISODate(new Date());
+        const day = getLocalISODate(new Date(s.timestamp));
         if (!map[day]) map[day] = { date: day, total: 0, count: 0 };
         map[day].total = round2(map[day].total + (s.totalUsd || 0));
         map[day].count++;
     });
     const salesByDay = Object.values(map).sort((a, b) => a.date.localeCompare(b.date));
+
+    // Calcular egresos y gastos en el periodo
+    const expensesList = allSales.filter(s => {
+        if (s.status === 'ANULADA' || (s.tipo !== 'PAGO_PROVEEDOR' && s.tipo !== 'GASTO_INTERNO')) return false;
+        const dateStr = getLocalISODate(new Date(s.timestamp));
+        return dateStr >= from && dateStr <= to;
+    });
+
+    const expensesUsd = sumR(expensesList.filter(s => s.afectaCaja !== false).map(s => Math.abs(s.totalUsd || 0)));
+    const expensesBs = sumR(expensesList.filter(s => s.afectaCaja !== false).map(s => Math.abs(s.totalBs || 0)));
 
     return {
         salesForStats,
@@ -79,7 +79,10 @@ export function calculateReportsData(allSales, from, to, bcvRate, products) {
         profit,
         paymentBreakdown,
         topProducts,
-        salesByDay
+        salesByDay,
+        expensesList,
+        expensesUsd,
+        expensesBs
     };
 }
 
@@ -117,7 +120,7 @@ export function groupSalesByCierreId(allSales, from, to) {
 
             // Filtrar para métricas generales (stats) y flujo de caja (cashflow)
             const salesForStats = c.sales.filter(s => s.tipo === 'VENTA' || s.tipo === 'VENTA_FIADA' || s.tipo === 'VENTA_CASHEA');
-            const salesForCashFlow = c.sales.filter(s => s.tipo === 'VENTA' || s.tipo === 'VENTA_FIADA' || s.tipo === 'VENTA_CASHEA' || s.tipo === 'COBRO_DEUDA' || s.tipo === 'PAGO_PROVEEDOR' || s.tipo === 'AVANCE_EFECTIVO');
+            const salesForCashFlow = c.sales.filter(s => s.tipo === 'VENTA' || s.tipo === 'VENTA_FIADA' || s.tipo === 'VENTA_CASHEA' || s.tipo === 'COBRO_DEUDA' || s.tipo === 'PAGO_PROVEEDOR' || s.tipo === 'GASTO_INTERNO' || s.tipo === 'AVANCE_EFECTIVO');
 
             const totalUsd = sumR(salesForStats.map(s => s.totalUsd || 0));
             const totalBs = sumR(salesForStats.map(s => s.totalBs || 0));

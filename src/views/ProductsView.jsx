@@ -510,7 +510,11 @@ export const ProductsView = ({ rates, triggerHaptic }) => {
         if (deleteId) {
             const p = products.find(x => x.id === deleteId);
             auditLog('INVENTARIO', 'PRODUCTO_ELIMINADO', `Producto "${p?.name || '?'}" eliminado`);
-            setProducts(products.filter(p => p.id !== deleteId)); setDeleteId(null); triggerHaptic && triggerHaptic();
+            const updatedProducts = products.filter(prod => prod.id !== deleteId);
+            storageService.setItem('bodega_products_v1', updatedProducts);
+            setProducts(updatedProducts);
+            setDeleteId(null);
+            triggerHaptic && triggerHaptic();
         }
     };
 

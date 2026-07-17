@@ -199,13 +199,13 @@ export const getPaymentLabel = (id, fallbackLabel) => {
     if (id === 'cashea') return 'Cashea (Por Cobrar)';
 
     // Use fallback if provided and it's not a raw ID
-    if (fallbackLabel && fallbackLabel !== id && !fallbackLabel.startsWith('custom_')) {
+    if (fallbackLabel && typeof fallbackLabel === 'string' && fallbackLabel !== id && !fallbackLabel.startsWith('custom_')) {
         return toTitleCase(fallbackLabel);
     }
 
-    if (id && id.startsWith('custom_')) return 'Metodo Personalizado';
+    if (id && typeof id === 'string' && id.startsWith('custom_')) return 'Metodo Personalizado';
 
-    return toTitleCase(id);
+    return toTitleCase(String(id || ''));
 };
 
 export const getPaymentIcon = (id) => {

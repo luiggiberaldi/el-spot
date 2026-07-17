@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Truck, Plus, Search, CheckCircle2, Phone } from 'lucide-react';
+import { Truck, Plus, Search, CheckCircle2, Phone, FileText } from 'lucide-react';
 import { formatUsd, formatBs, formatCop } from '../../utils/calculatorUtils';
 import EmptyState from '../EmptyState';
 import SwipeableItem from '../SwipeableItem';
 
 export default function SuppliersList({
     suppliers,
+    invoices = [],
     bcvRate,
     tasaCop,
     copEnabled,
@@ -76,21 +77,49 @@ export default function SuppliersList({
                         className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl py-3.5 pl-11 pr-4 text-slate-800 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand/50 shadow-sm"
                     />
                 </div>
-                {/* Filtros tipo Chips */}
-                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
-                    <button 
-                        onClick={() => { setFilterType('all'); triggerHaptic && triggerHaptic(); }}
-                        className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${filterType === 'all' ? 'bg-brand-dark text-white shadow-sm shadow-primary/30' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800'}`}
-                    >
-                        Todos
-                    </button>
-                    <button 
-                        onClick={() => { setFilterType('deuda'); triggerHaptic && triggerHaptic(); }}
-                        className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap transition-colors flex items-center gap-1.5 ${filterType === 'deuda' ? 'bg-red-500 text-white shadow-sm shadow-red-500/30' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800'}`}
-                    >
-                        <div className={`w-2 h-2 rounded-full ${filterType === 'deuda' ? 'bg-white' : 'bg-red-500'}`}></div>
-                        Al Debe
-                    </button>
+                {/* Filtros tipo Chips y Botón Reporte */}
+                <div className="flex items-center justify-between gap-2 overflow-x-auto scrollbar-hide pb-1">
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={() => { setFilterType('all'); triggerHaptic && triggerHaptic(); }}
+                            className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${filterType === 'all' ? 'bg-brand-dark text-white shadow-sm shadow-primary/30' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800'}`}
+                        >
+                            Todos
+                        </button>
+                        <button 
+                            onClick={() => { setFilterType('deuda'); triggerHaptic && triggerHaptic(); }}
+                            className={`px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap transition-colors flex items-center gap-1.5 ${filterType === 'deuda' ? 'bg-red-500 text-white shadow-sm shadow-red-500/30' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800'}`}
+                        >
+                            <div className={`w-2 h-2 rounded-full ${filterType === 'deuda' ? 'bg-white' : 'bg-red-500'}`}></div>
+                            Al Debe
+                        </button>
+                    </div>
+
+                    {suppliers.length > 0 && (
+                        <button
+                            onClick={async () => {
+                                triggerHaptic && triggerHaptic();
+                                try {
+                                    const { storageService } = await import('../../utils/storageService');
+                                    const allSales = await storageService.getItem('bodega_sales_v1', []);
+                                    const { generateGlobalSuppliersPDF } = await import('../../utils/supplierReportGenerator');
+                                    generateGlobalSuppliersPDF({
+                                        suppliers,
+                                        invoices,
+                                        allSales,
+                                        bcvRate,
+                                        tasaCop,
+                                        copEnabled
+                                    });
+                                } catch (e) {
+                                    console.error('Error al generar el reporte global de proveedores:', e);
+                                }
+                            }}
+                            className="px-4 py-1.5 rounded-full text-sm font-bold bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm shadow-emerald-500/20 flex items-center gap-1.5 active:scale-95 transition-all whitespace-nowrap"
+                        >
+                            <FileText size={14} /> Reporte Global
+                        </button>
+                    )}
                 </div>
             </div>
 

@@ -469,4 +469,21 @@ export class FinancialEngine {
             totalCop
         };
     }
+
+    /**
+     * Calculates the top products by revenue.
+     */
+    static calculateTopProducts(salesArray) {
+        if (!Array.isArray(salesArray)) return [];
+        const productMap = {};
+        salesArray.forEach(s => {
+            s.items?.forEach(item => {
+                const key = item.id || item.name;
+                if (!productMap[key]) productMap[key] = { name: item.name, qty: 0, revenue: 0 };
+                productMap[key].qty += item.qty;
+                productMap[key].revenue = round2(productMap[key].revenue + mulR(item.priceUsd, item.qty));
+            });
+        });
+        return Object.values(productMap).sort((a, b) => b.revenue - a.revenue).slice(0, 8);
+    }
 }

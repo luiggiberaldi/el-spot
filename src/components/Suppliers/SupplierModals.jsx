@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Truck, Save, Pencil, FileText, CreditCard, Clock, Phone, Trash2, ArrowUpRight, CheckCircle2 } from 'lucide-react';
+import { X, Truck, Save, Pencil, FileText, CreditCard, Clock, Phone, Trash2, ArrowUpRight, CheckCircle2, Download } from 'lucide-react';
 import { formatUsd, formatBs, formatCop } from '../../utils/calculatorUtils';
 import CustomSelect from '../CustomSelect';
 
@@ -129,6 +129,7 @@ export function PayInvoiceModal({ supplier, bcvRate, tasaCop, copEnabled, copPri
     const [amount, setAmount] = useState('');
     const [currencyMode, setCurrencyMode] = useState('BS');
     const [paymentMethod, setPaymentMethod] = useState('efectivo_bs');
+    const [retiraCaja, setRetiraCaja] = useState(true);
 
     const handleSave = (e) => {
         e.preventDefault();
@@ -142,7 +143,14 @@ export function PayInvoiceModal({ supplier, bcvRate, tasaCop, copEnabled, copPri
         const amountBs = currencyMode === 'BS' ? rawAmt : (amountUsd * bcvRate);
         const amountCop = currencyMode === 'COP' ? rawAmt : (amountUsd * tasaCop);
 
-        onSave(amountUsd, amountBs, amountCop, paymentMethod, currencyMode);
+        onSave({
+            amountUsd,
+            amountBs,
+            amountCop,
+            paymentMethod: retiraCaja ? paymentMethod : 'pago_externo',
+            currencyMode,
+            retiraCaja
+        });
     };
 
     return (
@@ -168,9 +176,19 @@ export function PayInvoiceModal({ supplier, bcvRate, tasaCop, copEnabled, copPri
 
                     {/* Input */}
                     <div>
-                        <div className="relative">
-                            <span className={`absolute left-3 top-1/2 -translate-y-1/2 font-black text-lg ${currencyMode === 'BS' ? 'text-brand' : 'text-emerald-500'}`}>{currencyMode === 'BS' ? 'Bs' : currencyMode === 'COP' ? 'COP' : 'USD'}</span>
-                            <input type="number" step="0.01" required value={amount} onChange={e => setAmount(e.target.value)} className={`w-full form-input border rounded-xl px-3 py-3 ${currencyMode === 'BS' ? 'pl-10' : 'pl-12'} text-2xl font-black dark:bg-slate-950`} autoFocus />
+                        <div className="flex items-center w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-brand/50">
+                            <span className={`pl-4 text-lg font-black shrink-0 select-none ${currencyMode === 'BS' ? 'text-brand' : currencyMode === 'COP' ? 'text-amber-500' : 'text-emerald-500'}`}>
+                                {currencyMode === 'BS' ? 'Bs' : currencyMode === 'COP' ? 'COP' : 'USD'}
+                            </span>
+                            <input 
+                                type="number" 
+                                step="0.01" 
+                                required 
+                                value={amount} 
+                                onChange={e => setAmount(e.target.value)} 
+                                className="flex-1 bg-transparent border-none outline-none focus:ring-0 px-3 py-3 text-2xl font-black dark:text-white" 
+                                autoFocus 
+                            />
                         </div>
                         {amount && bcvRate > 0 && (
                             <div className="mt-2 text-right">
@@ -191,22 +209,52 @@ export function PayInvoiceModal({ supplier, bcvRate, tasaCop, copEnabled, copPri
                         )}
                     </div>
 
+                    {/* Switch Retirar de Caja */}
+                    <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-800/40 p-3 rounded-xl border border-slate-100 dark:border-slate-800/80">
+                        <div className="text-left">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200 block">¿Descontar de Caja Chica?</span>
+                            <span className="text-[9px] text-slate-400 block leading-tight">
+                                {retiraCaja 
+                                    ? 'El pago se registrará como egreso en el arqueo diario.' 
+                                    : 'Pago con fondos externos. No altera el arqueo de caja.'}
+                            </span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
+                            <input 
+                                type="checkbox" 
+                                checked={retiraCaja} 
+                                onChange={e => setRetiraCaja(e.target.checked)} 
+                                className="sr-only peer" 
+                            />
+                            <div className="w-11 h-6 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                        </label>
+                    </div>
+
                     {/* Método de pago */}
-                    {(() => {
-                        const filteredMethods = activePaymentMethods.filter(m => m.currency === currencyMode);
-                        return (
-                            <div>
-                                <CustomSelect
-                                    value={filteredMethods.some(m => m.id === paymentMethod) ? paymentMethod : (filteredMethods[0]?.id || '')}
-                                    onChange={setPaymentMethod}
-                                    options={filteredMethods.map(method => ({
-                                        value: method.id,
-                                        label: method.label
-                                    }))}
-                                />
-                            </div>
-                        );
-                    })()}
+                    {retiraCaja ? (
+                        (() => {
+                            const filteredMethods = activePaymentMethods.filter(m => m.currency === currencyMode);
+                            return (
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-slate-400 dark:text-slate-505 uppercase tracking-wider block">Medio de Pago</label>
+                                    <CustomSelect
+                                        value={filteredMethods.some(m => m.id === paymentMethod) ? paymentMethod : (filteredMethods[0]?.id || '')}
+                                        onChange={setPaymentMethod}
+                                        options={filteredMethods.map(method => ({
+                                            value: method.id,
+                                            label: method.label
+                                        }))}
+                                    />
+                                </div>
+                            );
+                        })()
+                    ) : (
+                        <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200/50 dark:border-amber-800/30 p-3 rounded-xl text-left">
+                            <p className="text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                                ℹ️ Este pago disminuirá el saldo adeudado al proveedor en su estado de cuenta, pero no registrará salidas de efectivo en la caja registradora de hoy.
+                            </p>
+                        </div>
+                    )}
 
                     <button type="submit" disabled={!amount || parseFloat(amount) <= 0} className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-500/50 text-white font-bold rounded-xl active:scale-95 transition-all text-sm flex justify-center items-center gap-2 mt-4">
                         Procesar Pago
@@ -217,7 +265,7 @@ export function PayInvoiceModal({ supplier, bcvRate, tasaCop, copEnabled, copPri
     );
 }
 
-export function SupplierDetailsSheet({ supplier, isOpen, isAdmin, onClose, onAddInvoice, onPayInvoice, onEdit, onDelete, bcvRate, tasaCop, copEnabled, copPrimary, historyData }) {
+export function SupplierDetailsSheet({ supplier, isOpen, isAdmin, onClose, onAddInvoice, onPayInvoice, onEdit, onDelete, bcvRate, tasaCop, copEnabled, copPrimary, historyData, triggerHaptic }) {
     if (!isOpen || !supplier) return null;
 
     return (
@@ -274,9 +322,29 @@ export function SupplierDetailsSheet({ supplier, isOpen, isAdmin, onClose, onAdd
 
                     {/* Historial (Facturas y Pagos) */}
                     <div>
-                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5 mb-3">
-                            <Clock size={12} /> Estado de Cuenta
-                        </h4>
+                        <div className="flex items-center justify-between mb-3">
+                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <Clock size={12} /> Estado de Cuenta
+                            </h4>
+                            {historyData.length > 0 && (
+                                <button
+                                    onClick={async () => {
+                                        triggerHaptic && triggerHaptic();
+                                        const { generateSupplierHistoryPDF } = await import('../../utils/supplierReportGenerator');
+                                        generateSupplierHistoryPDF({
+                                            supplier,
+                                            historyData,
+                                            bcvRate,
+                                            tasaCop,
+                                            copEnabled
+                                        });
+                                    }}
+                                    className="text-[10px] font-bold text-brand-dark dark:text-brand bg-slate-100 dark:bg-slate-800/40 px-2.5 py-1 rounded-lg flex items-center gap-1 active:scale-95 transition-all animate-in fade-in duration-200"
+                                >
+                                    <Download size={10} /> Reporte PDF
+                                </button>
+                            )}
+                        </div>
                         {historyData.length === 0 ? (
                             <p className="text-xs text-slate-400 text-center py-4">Sin facturas registradas</p>
                         ) : (
