@@ -213,7 +213,9 @@ ${showSecondary ? `[PRECIO SECUNDARIO]
                             // de memoria y dejaba el <img> en blanco sin reintento. Forzamos
                             // una recarga con cache-busting (una sola vez, solo URLs remotas).
                             const img = e.currentTarget;
-                            if (img.dataset.retried || !/^https?:/i.test(p.image)) return;
+                            // OFFLINE-IMG: sin conexión no reintentar (el ?cb= nunca
+                            // coincidiría con el cache del SW y ensucia el cache).
+                            if (img.dataset.retried || !navigator.onLine || !/^https?:/i.test(p.image)) return;
                             img.dataset.retried = '1';
                             img.src = `${p.image}${p.image.includes('?') ? '&' : '?'}cb=${Date.now()}`;
                         }}

@@ -795,7 +795,8 @@ export const ProductsView = ({ rates, triggerHaptic }) => {
                                                                 // IMG-FIX: reintento con cache-busting cuando la WebView
                                                                 // descarta la imagen de memoria (una vez, solo URLs remotas).
                                                                 const img = e.currentTarget;
-                                                                if (img.dataset.retried || !/^https?:/i.test(p.image)) return;
+                                                                // OFFLINE-IMG: sin conexión no reintentar.
+                                                                if (img.dataset.retried || !navigator.onLine || !/^https?:/i.test(p.image)) return;
                                                                 img.dataset.retried = '1';
                                                                 img.src = `${p.image}${p.image.includes('?') ? '&' : '?'}cb=${Date.now()}`;
                                                             }}

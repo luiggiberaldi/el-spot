@@ -28,6 +28,7 @@ import { useAuthStore } from './hooks/store/useAuthStore';
 import { LogOut } from 'lucide-react';
 import { purgeOldEntries } from './services/auditService';
 import { useCloudSync } from './hooks/useCloudSync';
+import { ImagePrecacheRunner } from './hooks/useImagePrecache';
 
 const OwnerMonitorView = lazy(() => import('./views/OwnerMonitorView'));
 import PairingScanScreen from './components/PairingScanScreen';
@@ -210,6 +211,7 @@ export default function App() {
     return (
       <ErrorBoundary>
         <ProductProvider rates={rates} rateDiscrepancyWarning={rateDiscrepancyWarning}>
+          <ImagePrecacheRunner />
           <Suspense fallback={<div className="flex-1 flex items-center justify-center p-6 text-slate-500 font-bold">Cargando monitor...</div>}>
             <OwnerMonitorView theme={theme} toggleTheme={toggleTheme} triggerHaptic={triggerHaptic} />
           </Suspense>
@@ -311,6 +313,8 @@ export default function App() {
 
       <CartProvider>
       <ProductProvider rates={rates} rateDiscrepancyWarning={rateDiscrepancyWarning}>
+        {/* OFFLINE-IMG: precalienta el cache del SW con TODAS las imágenes del inventario */}
+        <ImagePrecacheRunner />
         <main className={`flex-1 min-h-0 w-full max-w-full px-0 lg:px-6 xl:px-8 mx-auto relative ${isKeyboardOpen ? 'pb-4' : 'pb-24'} flex flex-col overflow-y-auto`}>
 
           {/* Hidden Admin Trigger Area */}

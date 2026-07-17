@@ -24,8 +24,11 @@ export default defineConfig(({ mode }) => {
         clientsClaim: true,
         // INFRA-006: cacheId estable basado en versión del package.json (no Date.now()).
         cacheId: `preciosaldia-bodega-v${APP_VERSION}`,
-        // Evitar que el SW intercepte peticiones de navegación POST (ej. Next.js Server Actions)
-        navigateFallback: null,
+        // OFFLINE-IMG: servir el shell (index.html) en navegaciones offline para
+        // que la PWA abra sin internet. navigateFallback solo aplica a GET; los
+        // endpoints same-origin /api/* quedan excluidos por la denylist.
+        navigateFallback: 'index.html',
+        navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,

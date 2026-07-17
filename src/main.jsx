@@ -19,6 +19,13 @@ if (window.location.protocol === 'file:') {
   };
 }
 
+// ── OFFLINE-IMG: pedir almacenamiento persistente ──
+// Evita que el navegador purgue Cache Storage (imágenes de producto) e
+// IndexedDB (datos) bajo presión de disco en equipos de gama baja.
+if (navigator.storage?.persist) {
+  navigator.storage.persist().catch(() => { /* denegado o no soportado: best-effort */ });
+}
+
 // ── Forzar actualización del Service Worker al cargar ──
 if ('serviceWorker' in navigator) {
   // Forzar chequeo de nueva versión en cada carga
