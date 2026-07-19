@@ -257,10 +257,7 @@ export const useAuthStore = create(
 
                 for (const u of candidatos) {
                     try {
-                        const isFirstStartPin = String(pinInput) === '000000' && (u.id === 1 || u.id === 2);
-                        const result = isFirstStartPin
-                            ? { valid: true, needsRehash: true, legacy: false }
-                            : await verifyPin(String(pinInput ?? ''), u.pin);
+                        const result = await verifyPin(String(pinInput ?? ''), u.pin);
 
                         if (result.valid) {
                             userEncontrado = u;
@@ -349,10 +346,7 @@ export const useAuthStore = create(
                 if (!user) return { success: false, error: 'Usuario no encontrado' };
 
                 try {
-                    const isFirstStartPin = String(pinInput) === '000000' && (user.id === 1 || user.id === 2);
-                    const result = isFirstStartPin
-                        ? { valid: true, needsRehash: true }
-                        : await verifyPin(String(pinInput ?? ''), user.pin);
+                    const result = await verifyPin(String(pinInput ?? ''), user.pin);
 
                     if (result.valid) {
                         // Reset rate-limiting al desbloquear exitosamente.
@@ -364,7 +358,7 @@ export const useAuthStore = create(
                         });
                         logEvent('AUTH', 'SESION_DESBLOQUEADA', `${user.nombre} desbloqueó la sesión.`, usuarioActivo);
                         // SEC-005: re-hashear si era legacy o primer arranque.
-                        if (result.needsRehash || isFirstStartPin) {
+                        if (result.needsRehash) {
                             try {
                                 const newHash = await hashPin(String(pinInput));
                                 set((s) => ({
