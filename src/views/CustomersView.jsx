@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 // v1.2.0: useReveal hook para animaciones reveal-on-scroll (design system "Precios al Día")
 import { useReveal } from '../hooks/useReveal';
-import { Users, Plus, Search, User, X, Trash2, Pencil, Phone, RefreshCw, Save, ArrowDownRight, ArrowUpRight, Clock, CheckCircle2, CreditCard, ShoppingBag, Truck, Smartphone, Download } from 'lucide-react';
+import { Users, Plus, Search, User, X, Trash2, Pencil, Phone, RefreshCw, Save, ArrowDownRight, ArrowUpRight, Clock, CheckCircle2, CreditCard, ShoppingBag, Truck, Smartphone, Download, Calendar, Hash } from 'lucide-react';
 import { storageService } from '../utils/storageService';
 import { showToast } from '../components/Toast';
 import { formatBs, formatUsd, formatCop } from '../utils/calculatorUtils';
@@ -772,53 +772,72 @@ function CustomerDetailSheet({ customer, isOpen, isAdmin, onClose, onAjustar, on
         // v1.2.0: surface tokens + shadow-tone-lg en el bottom sheet.
         <div className="fixed inset-0 z-50 bg-surface-900/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
             <div
-                className="fixed bottom-0 sm:bottom-auto sm:top-1/2 left-0 sm:left-1/2 right-0 sm:right-auto sm:-translate-x-1/2 sm:-translate-y-1/2 max-w-md w-full mx-auto bg-surface dark:bg-surface-900 rounded-t-3xl sm:rounded-3xl max-h-[85vh] sm:max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-250 shadow-tone-lg"
+                className="fixed bottom-0 sm:bottom-auto sm:top-1/2 left-0 sm:left-1/2 right-0 sm:right-auto sm:-translate-x-1/2 sm:-translate-y-1/2 max-w-md w-full mx-auto bg-surface dark:bg-surface-900 rounded-t-[2.5rem] sm:rounded-[2.5rem] max-h-[85vh] sm:max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-250 shadow-tone-lg border border-slate-200/60 dark:border-slate-800/80"
                 onClick={e => e.stopPropagation()}
             >
-                {/* Close + Drag Handle */}
-                <div className="flex items-center justify-between px-4 pt-3 pb-2">
-                    <div className="w-8 sm:hidden" />
-                    <div className="w-8 h-1 bg-surface-300 dark:bg-surface-700 rounded-full sm:hidden" />
-                    {/* v1.2.0: touch target ≥ 48px + aria-label */}
-                    <button onClick={onClose} aria-label="Cerrar" className="p-2 min-h-[48px] min-w-[48px] flex items-center justify-center text-surface-400 hover:text-surface-600 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 rounded-full transition-colors ml-auto">
+                {/* Header Banner de Vidrio & Close Button */}
+                <div className="relative p-5 pb-4 bg-gradient-to-b from-brand/10 via-surface/50 to-transparent dark:from-brand/15 dark:via-surface-900/50 dark:to-transparent border-b border-slate-200/40 dark:border-slate-800/40">
+                    <div className="w-10 h-1 bg-surface-300 dark:bg-surface-700 rounded-full mx-auto mb-3 sm:hidden" />
+                    
+                    <button 
+                        onClick={onClose} 
+                        aria-label="Cerrar" 
+                        className="absolute right-4 top-4 p-2.5 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 rounded-full transition-all duration-300 hover:rotate-90 shadow-sm cursor-pointer"
+                    >
                         <X size={18} aria-hidden="true" />
                     </button>
-                </div>
 
-                <div className="px-5 pb-6 space-y-5">
-                    {/* Header */}
-                    <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-brand/20 to-emerald-500/10 dark:from-brand/30 dark:to-emerald-500/20 flex items-center justify-center shrink-0 border border-emerald-100 dark:border-slate-700 shadow-sm animate-in fade-in">
-                            <span className="text-2xl font-black text-brand-dark dark:text-brand">
+                    {/* Avatar e Información Principal */}
+                    <div className="flex items-center gap-4 pt-1">
+                        <div className="relative shrink-0">
+                            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand via-brand-dark to-brand-dark text-white font-outfit font-black text-2xl flex items-center justify-center shadow-lg shadow-brand/20 ring-4 ring-brand/15 animate-in zoom-in-95">
                                 {customer.name.charAt(0).toUpperCase()}
-                            </span>
+                            </div>
+                            {customer.deuda === 0 && customer.casheaDeuda === 0 && (
+                                <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 flex items-center justify-center text-white text-[10px] shadow-sm">
+                                    ✓
+                                </span>
+                            )}
                         </div>
-                        <div>
-                            <h3 className="text-lg font-black text-surface-700 dark:text-white capitalize leading-tight">{customer.name}</h3>
-                            <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+
+                        <div className="flex-1 min-w-0">
+                            <h3 className="text-xl font-outfit font-black text-slate-800 dark:text-white capitalize leading-tight truncate">
+                                {customer.name}
+                            </h3>
+                            
+                            <div className="flex flex-wrap items-center gap-1.5 mt-2">
                                 {customer.documentId && (
-                                    <span className="font-mono text-[9px] font-black text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/20 border border-cyan-100/60 dark:border-cyan-900/30 px-2 py-0.5 rounded-md leading-none shrink-0">
-                                        C.I: {customer.documentId}
+                                    <span className="font-mono text-[10px] font-black text-accent bg-accent/10 border border-accent/20 px-2.5 py-0.5 rounded-lg flex items-center gap-1 shrink-0">
+                                        <Hash size={10} className="stroke-[2.5]" />
+                                        <span>C.I: {customer.documentId}</span>
                                     </span>
                                 )}
                                 {customer.phone ? (
-                                    <span className="text-[9px] font-bold text-slate-500 dark:text-slate-355 flex items-center gap-0.5 bg-slate-50 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-800/50 px-1.5 py-0.5 rounded-md leading-none shrink-0">
-                                        <Phone size={9} aria-hidden="true" /> {customer.phone}
+                                    <span className="font-mono text-[10px] font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 px-2.5 py-0.5 rounded-lg flex items-center gap-1 shrink-0">
+                                        <Phone size={10} className="text-slate-400" />
+                                        <span>{customer.phone}</span>
                                     </span>
                                 ) : (
                                     <button
                                         onClick={onEdit}
-                                        className="text-[9px] font-black text-emerald-800 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/50 px-2 py-1 rounded-md leading-none flex items-center gap-1 hover:bg-emerald-200/80 dark:hover:bg-emerald-900/50 transition-all shrink-0 active:scale-95 shadow-sm"
+                                        className="text-[10px] font-black text-brand-dark dark:text-brand bg-brand/10 hover:bg-brand/20 border border-brand/20 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-all shrink-0 active:scale-95 shadow-sm cursor-pointer"
                                     >
-                                        <Phone size={9} aria-hidden="true" /> Añadir Teléfono
+                                        <Phone size={10} /> Añadir Teléfono
                                     </button>
                                 )}
                             </div>
+
                             {createdDate && (
-                                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1.5">Cliente desde {createdDate}</p>
+                                <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-2 flex items-center gap-1">
+                                    <Calendar size={11} className="text-slate-400" />
+                                    <span>Cliente desde {createdDate}</span>
+                                </p>
                             )}
                         </div>
                     </div>
+                </div>
+
+                <div className="px-5 py-5 space-y-5">
 
                     {/* Saldo */}
                     <div className="flex flex-col gap-2 w-full">
