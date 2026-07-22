@@ -591,90 +591,99 @@ export default function CustomersView({ triggerHaptic, rates, isActive }) {
 
 // ─── Sub-componente: Tarjeta Compacta ───────────────────────
 function CustomerCard({ customer, bcvRate, tasaCop, copEnabled, copPrimary, onClick, onDelete }) {
+    const isAlDia = customer.deuda === 0 && customer.casheaDeuda === 0 && customer.favor === 0;
+
     return (
-        // v1.2.0: surface tokens + shadow-tone-sm (warm shadow) en vez de shadow-sm.
-        <article className="reveal bg-white dark:bg-surface-900 rounded-2xl px-4 py-3 border border-slate-200 dark:border-slate-700 shadow-sm transition-all active:scale-[0.98] flex items-center gap-2 relative">
+        <article className="reveal bg-white dark:bg-surface-900 rounded-2xl p-3.5 sm:p-4 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-brand/30 dark:hover:border-brand/40 transition-all duration-200 active:scale-[0.99] flex items-center gap-3 relative group">
             <div
                 onClick={onClick}
-                className="flex-1 min-w-0 flex items-center gap-3 cursor-pointer"
+                className="flex-1 min-w-0 flex items-center gap-3.5 cursor-pointer"
             >
-                <div className="w-11 h-11 rounded-full bg-brand-light dark:bg-slate-700 flex items-center justify-center shrink-0">
-                    <span className="text-lg font-black text-brand-dark dark:text-white">
+                {/* Avatar Pro */}
+                <div className="relative shrink-0">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brand via-brand-dark to-brand-dark text-white font-outfit font-black text-lg flex items-center justify-center shadow-md shadow-brand/15 ring-2 ring-brand/10 group-hover:scale-105 transition-transform duration-200">
                         {customer.name.charAt(0).toUpperCase()}
-                    </span>
+                    </div>
+                    {isAlDia && (
+                        <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 flex items-center justify-center text-white text-[8px] font-black shadow-xs">
+                            ✓
+                        </span>
+                    )}
                 </div>
+
+                {/* Info Cliente */}
                 <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-slate-800 dark:text-white text-sm truncate capitalize">
+                    <h3 className="font-outfit font-bold text-slate-800 dark:text-white text-base truncate capitalize leading-tight group-hover:text-brand transition-colors">
                         {customer.name}
                     </h3>
-                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                         {customer.code && (
-                            <span className="font-mono text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800/40 border border-slate-200/55 dark:border-slate-800/50 px-1.5 py-0.5 rounded-md leading-none shrink-0">
+                            <span className="font-mono text-[9px] font-bold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 px-1.5 py-0.5 rounded-md shrink-0">
                                 {customer.code}
                             </span>
                         )}
                         {customer.documentId && (
-                            <span className="font-mono text-[9px] font-black text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/20 border border-cyan-100 dark:border-cyan-900/30 px-1.5 py-0.5 rounded-md leading-none shrink-0">
-                                C.I: {customer.documentId}
+                            <span className="font-mono text-[10px] font-black text-accent bg-accent/10 border border-accent/20 px-2 py-0.5 rounded-md flex items-center gap-0.5 shrink-0">
+                                <Hash size={9} className="stroke-[2.5]" />
+                                <span>{customer.documentId}</span>
                             </span>
                         )}
                         {customer.phone && (
-                            <span className="text-[9px] font-bold text-slate-500 dark:text-slate-300 flex items-center gap-0.5 bg-slate-50 dark:bg-slate-800/40 border border-slate-200/55 dark:border-slate-800/50 px-1.5 py-0.5 rounded-md leading-none shrink-0">
-                                <Phone size={9} aria-hidden="true" /> {customer.phone}
+                            <span className="font-mono text-[10px] text-slate-500 dark:text-slate-400 bg-slate-100/70 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50 px-2 py-0.5 rounded-md flex items-center gap-1 shrink-0">
+                                <Phone size={9} className="text-slate-400" />
+                                <span>{customer.phone}</span>
                             </span>
                         )}
                     </div>
                 </div>
+
+                {/* Estado Financiero */}
                 <div className="text-right shrink-0">
                     {customer.deuda > 0 || customer.casheaDeuda > 0 ? (
-                        <>
+                        <div className="bg-red-500/[0.06] dark:bg-red-500/[0.12] border border-red-200/80 dark:border-red-900/40 px-3 py-1.5 rounded-xl flex flex-col items-end">
                             {customer.deuda > 0 && (
                                 <>
-                                    <p className={`text-sm font-black ${copEnabled && copPrimary ? 'text-amber-600 dark:text-amber-400' : 'text-red-500'} leading-tight`}>
+                                    <p className={`text-sm font-outfit font-black ${copEnabled && copPrimary ? 'text-amber-600 dark:text-amber-400' : 'text-red-500'} leading-none`}>
                                         {copEnabled && copPrimary && tasaCop > 0
                                             ? `-${formatCop(customer.deuda * tasaCop)} COP`
                                             : `-$${formatUsd(customer.deuda)}`}
                                     </p>
-                                    {copEnabled && copPrimary && <p className="text-[10px] font-bold text-red-600 dark:text-red-400">-${formatUsd(customer.deuda)}</p>}
-                                    {bcvRate > 0 && <p className="text-[10px] font-bold text-red-600 dark:text-red-400">-{formatBs(customer.deuda * bcvRate)} Bs</p>}
-                                    {copEnabled && !copPrimary && tasaCop > 0 && <p className="text-[10px] font-bold text-red-600 dark:text-red-400">-{formatCop(customer.deuda * tasaCop)} COP</p>}
+                                    {bcvRate > 0 && <p className="text-[10px] font-bold text-red-600/80 dark:text-red-400/80 mt-0.5 leading-none">-{formatBs(customer.deuda * bcvRate)} Bs</p>}
                                 </>
                             )}
                             {customer.casheaDeuda > 0 && (
-                                <div className="text-[10px] font-black text-purple-500 dark:text-purple-400 flex items-center justify-end gap-1 mt-0.5">
-                                    <CasheaIcon size={12} />
+                                <div className="text-[10px] font-black text-purple-600 dark:text-purple-400 flex items-center gap-1 mt-1 leading-none">
+                                    <CasheaIcon size={11} />
                                     <span>-${formatUsd(customer.casheaDeuda)}</span>
                                 </div>
                             )}
-                        </>
+                        </div>
                     ) : customer.favor > 0 ? (
-                        <>
-                            <p className={`text-sm font-black ${copEnabled && copPrimary ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-500'} leading-tight`}>
+                        <div className="bg-emerald-500/[0.06] dark:bg-emerald-500/[0.12] border border-emerald-200/80 dark:border-emerald-900/40 px-3 py-1.5 rounded-xl flex flex-col items-end">
+                            <p className={`text-sm font-outfit font-black ${copEnabled && copPrimary ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'} leading-none`}>
                                 {copEnabled && copPrimary && tasaCop > 0
                                     ? `+${formatCop(customer.favor * tasaCop)} COP`
                                     : `+$${formatUsd(customer.favor)}`}
                             </p>
-                            {copEnabled && copPrimary && <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">+${formatUsd(customer.favor)}</p>}
-                            {bcvRate > 0 && <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">+{formatBs(customer.favor * bcvRate)} Bs</p>}
-                            {copEnabled && !copPrimary && tasaCop > 0 && <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">+{formatCop(customer.favor * tasaCop)} COP</p>}
-                        </>
+                            {bcvRate > 0 && <p className="text-[10px] font-bold text-emerald-600/80 dark:text-emerald-400/80 mt-0.5 leading-none">+{formatBs(customer.favor * bcvRate)} Bs</p>}
+                        </div>
                     ) : (
-                        // v1.2.0: badge-success class para "Al día".
-                        <span className="badge badge-success !text-xs">
-                            <CheckCircle2 size={12} aria-hidden="true" /> Al día
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/70 dark:border-emerald-900/50 text-emerald-600 dark:text-emerald-400 font-bold text-xs shadow-2xs">
+                            <CheckCircle2 size={13} className="text-emerald-500" aria-hidden="true" />
+                            <span>Al día</span>
                         </span>
                     )}
                 </div>
             </div>
+
             {onDelete && (
-                // v1.2.0: touch target ≥ 48px (a11y WCAG AA).
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
                         onDelete();
                     }}
                     aria-label="Eliminar contacto"
-                    className="p-2 min-h-[48px] min-w-[48px] flex items-center justify-center shrink-0 text-surface-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors active:scale-95 z-10"
+                    className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center shrink-0 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl transition-all active:scale-95 z-10 cursor-pointer"
                 >
                     <Trash2 size={16} aria-hidden="true" />
                 </button>
