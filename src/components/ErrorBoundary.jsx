@@ -49,7 +49,7 @@ class ErrorBoundary extends React.Component {
     this.setState({ clearing: true, clearMsg: 'Borrando datos críticos...' });
     try {
       // Usar localforage estático
-      localforage.config({ name: 'BodegaApp', storeName: 'bodega_app_data' });
+      localforage.config({ name: 'ElSpotPOSApp', storeName: 'el_spot_app_data' });
       await localforage.removeItem('bodega_products_v1');
       await localforage.removeItem('bodega_sales_v1');
       // También purgar de localStorage por si estaban ahí como fallback.

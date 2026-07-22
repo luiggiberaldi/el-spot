@@ -1,9 +1,9 @@
 import localforage from 'localforage';
 import { queueCloudSync } from '../hooks/useCloudSync';
 localforage.config({
-    name: 'BodegaApp',
-    storeName: 'bodega_app_data',
-    description: 'Almacenamiento local optimizado para PWA de Bodega'
+    name: 'ElSpotPOSApp',
+    storeName: 'el_spot_app_data',
+    description: 'Almacenamiento local optimizado para El Spot POS'
 });
 
 /**

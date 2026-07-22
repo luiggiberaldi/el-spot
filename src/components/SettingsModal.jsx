@@ -117,7 +117,7 @@ export default function SettingsModal({ isOpen, onClose, products, onImport, tri
 
                 // Bypass storageService completely to prevent app_storage_update events from firing.
                 // If events fire, ProductContext updates state and triggers its auto-save, which might overwrite our imported data before reload finishes.
-                const lf = localforage.createInstance({ name: 'BodegaApp', storeName: 'bodega_app_data' });
+                const lf = localforage.createInstance({ name: 'ElSpotPOSApp', storeName: 'el_spot_app_data' });
 
                 if (json.data.bodega_products_v1) {
                     await lf.setItem('bodega_products_v1', typeof json.data.bodega_products_v1 === 'string' ? JSON.parse(json.data.bodega_products_v1) : json.data.bodega_products_v1);

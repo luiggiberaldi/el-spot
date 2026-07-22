@@ -206,7 +206,7 @@ class PrinterSerial {
 
     async testPrint() {
         const w = this._getWidth();
-        const businessName = localStorage.getItem('business_name') || 'Mi Bodega';
+        const businessName = 'EL SPOT';
         const chunks = [
             CMD.INIT,
             CMD.ALIGN_CENTER,
@@ -227,7 +227,7 @@ class PrinterSerial {
 
     async printTicket(sale, rate) {
         const w = this._getWidth();
-        const businessName = localStorage.getItem('business_name') || 'Mi Bodega';
+        const businessName = 'EL SPOT';
         const businessRif  = localStorage.getItem('business_rif')  || '';
         const d = new Date(sale.timestamp);
         const dateStr = d.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -340,7 +340,7 @@ class PrinterSerial {
 
     async printDailyClose(cierre, rate, correlativo) {
         const w = this._getWidth();
-        const businessName = localStorage.getItem('business_name') || 'Mi Bodega';
+        const businessName = 'EL SPOT';
         const businessRif  = localStorage.getItem('business_rif')  || '';
         const d = new Date(cierre.cierreId);
         const dateStr = d.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });

@@ -129,6 +129,8 @@ export default function App() {
       root.setAttribute('data-theme', 'light');
     }
     localStorage.setItem('theme', theme);
+    // Garantizar nombre permanente EL SPOT
+    localStorage.setItem('business_name', 'EL SPOT');
 
     // Apply saved UI scale
     const savedScale = parseInt(localStorage.getItem('ui_scale'));

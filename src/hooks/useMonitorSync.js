@@ -4,7 +4,7 @@ import { runWithoutEco } from '../utils/syncFlags';
 import localforage from 'localforage';
 
 // Configurar localforage a nivel de módulo
-localforage.config({ name: 'BodegaApp', storeName: 'bodega_app_data' });
+localforage.config({ name: 'ElSpotPOSApp', storeName: 'el_spot_app_data' });
 
 let monitorSubscription = null;
 

@@ -404,7 +404,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
         
         try {
             const { default: localforage } = await import('localforage');
-            localforage.config({ name: 'BodegaApp', storeName: 'bodega_app_data' });
+            localforage.config({ name: 'ElSpotPOSApp', storeName: 'el_spot_app_data' });
             await localforage.clear();
         } catch (e) {
             console.warn(e);

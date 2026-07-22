@@ -167,7 +167,7 @@ async function _applyFromCloud(docId, collection, payload) {
             window.dispatchEvent(new CustomEvent('app_storage_update', { detail: { key: docId } }));
         } else {
             // Colección 'store' → IndexedDB directo, sin pasar por storageService.setItem
-            const lf = localforage.createInstance({ name: 'BodegaApp', storeName: 'bodega_app_data' });
+            const lf = localforage.createInstance({ name: 'ElSpotPOSApp', storeName: 'el_spot_app_data' });
             await lf.setItem(docId, payload);
 
             // Notificar a los componentes React que lean este store
@@ -242,7 +242,7 @@ export function useCloudSync(deviceId) {
                 
                 if (backupImported) {
                     console.log('[CloudSync] Detectado backup importado localmente. Subiendo datos locales a la nube...');
-                    const lf = localforage.createInstance({ name: 'BodegaApp', storeName: 'bodega_app_data' });
+                    const lf = localforage.createInstance({ name: 'ElSpotPOSApp', storeName: 'el_spot_app_data' });
                     const criticalKeys = ['bodega_sales_v1', 'bodega_products_v1', 'bodega_customers_v1', 'bodega_accounts_v2'];
                     for (const key of criticalKeys) {
                         const localValue = await lf.getItem(key);
@@ -280,7 +280,7 @@ export function useCloudSync(deviceId) {
                 // Solo si cambiaron desde el último push (mismo hash-guard que forcePushLocalData,
                 // para no re-subir todo en cada arranque/reconexión sin necesidad).
                 try {
-                    const lf = localforage.createInstance({ name: 'BodegaApp', storeName: 'bodega_app_data' });
+                    const lf = localforage.createInstance({ name: 'ElSpotPOSApp', storeName: 'el_spot_app_data' });
                     const criticalKeys = ['bodega_sales_v1', 'bodega_products_v1', 'bodega_customers_v1', 'bodega_accounts_v2'];
                     for (const key of criticalKeys) {
                         const localValue = await lf.getItem(key);
@@ -329,7 +329,7 @@ export function useCloudSync(deviceId) {
         const forcePushLocalData = async () => {
             if (isSyncingFromCloud || !deviceId) return;
             try {
-                const lf = localforage.createInstance({ name: 'BodegaApp', storeName: 'bodega_app_data' });
+                const lf = localforage.createInstance({ name: 'ElSpotPOSApp', storeName: 'el_spot_app_data' });
                 const criticalKeys = ['bodega_sales_v1', 'bodega_products_v1', 'bodega_customers_v1', 'bodega_accounts_v2'];
                 for (const key of criticalKeys) {
                     const localValue = await lf.getItem(key);
