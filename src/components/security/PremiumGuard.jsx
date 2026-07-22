@@ -97,17 +97,11 @@ export default function PremiumGuard({ children, featureName = "Esta función", 
         }
     };
 
-    const openWhatsApp = () => {
-        const message = `Hola! Quiero adquirir una licencia Premium para PreciosAlDía Bodega. Mi ID de instalación es: ${deviceId}`;
-        const url = `https://wa.me/584124051793?text=${encodeURIComponent(message)}`;
-        window.open(url, '_blank');
-    };
-
     // --- Config por variante ---
     let title, message, Icon, iconColor, benefits;
 
     if (isShop) {
-        title = <span>PreciosAlDía <span className="text-brand dark:text-brand font-black">Business</span></span>;
+        title = <span>El Spot <span className="text-brand dark:text-brand font-black">POS</span></span>;
         message = "Optimiza las ventas, el inventario y las cuentas de tu negocio.";
         Icon = Store;
         iconColor = "text-brand dark:text-brand animate-pulse";
@@ -117,12 +111,12 @@ export default function PremiumGuard({ children, featureName = "Esta función", 
                 <BenefitItem icon={<Package size={15} className="text-brand" />} text="Control de Inventario y Alertas de Stock" />
                 <BenefitItem icon={<Users size={15} className="text-brand" />} text="Registro de Clientes y Cuentas por Cobrar" />
                 <BenefitItem icon={<FileText size={15} className="text-brand" />} text="Arqueos de Caja y Reportes en PDF" />
-                <BenefitItem icon={<Share2 size={15} className="text-brand" />} text="Envío de Recibos Digitales por WhatsApp" />
+                <BenefitItem icon={<Share2 size={15} className="text-brand" />} text="Envío de Recibos Digitales" />
                 <BenefitItem icon={<Cloud size={15} className="text-brand" />} text="Sincronización y Respaldo en la Nube" />
             </>
         );
     } else {
-        title = <span>PreciosAlDía <span className="text-brand dark:text-brand font-black">Premium</span></span>;
+        title = <span>El Spot <span className="text-brand dark:text-brand font-black">Premium</span></span>;
         message = <span>Se requiere una suscripción activa para usar <strong>{featureName}</strong>.</span>;
         Icon = Lock;
         iconColor = "text-brand";
@@ -169,15 +163,6 @@ export default function PremiumGuard({ children, featureName = "Esta función", 
                 <div className="benefits-list space-y-1 mb-3 text-left relative z-10 px-1">
                     {benefits}
                 </div>
-
-                {/* CTA: Solicitar Licencia */}
-                <button
-                    onClick={openWhatsApp}
-                    className="w-full bg-brand hover:bg-brand-dark text-white dark:text-slate-950 font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 mb-2 transition-all shadow-lg shadow-brand/20 hover:-translate-y-0.5 active:scale-95 text-sm"
-                >
-                    <Send size={16} className="fill-white dark:fill-slate-950" />
-                    <span>Solicitar Licencia</span>
-                </button>
 
                 {/* CTA: Probar gratis 3 días */}
                 <button

@@ -3,39 +3,40 @@
 
 <head>
   <meta charset="UTF-8" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
 
   <meta name="viewport"
     content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-visual" />
-  <!-- v1.2.0: theme-color cian de marca #01696f (antes emerald #10B981) -->
-  <meta name="theme-color" content="#01696f" />
+  <!-- Naranja Industrial El Spot POS -->
+  <meta name="theme-color" content="#e65100" />
   <meta name="color-scheme" content="light dark" />
   <meta name="description"
-    content="Sistema de gestión de inventario y punto de venta para bodegas y negocios en Venezuela. Precios actualizados con tasas BCV en tiempo real." />
+    content="El Spot - Sistema de punto de venta e inventario para artículos electrónicos y multirubro. Conversión bimoneda y gestión inteligente." />
 
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="Precios Al Día — Bodegas" />
+  <meta property="og:title" content="El Spot — POS Electrónica & Multirubro" />
   <meta property="og:description"
-    content="Gestión de inventario, punto de venta y precios actualizados con tasas BCV en tiempo real para bodegas y negocios en Venezuela." />
+    content="Gestión de inventario, punto de venta y precios bimoneda en tiempo real para negocios y artículos electrónicos." />
   <meta property="og:image" content="/pwa-512x512.png" />
   <meta property="og:locale" content="es_VE" />
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Precios Al Día — Bodegas" />
+  <meta name="twitter:title" content="El Spot — POS Electrónica & Multirubro" />
   <meta name="twitter:description"
-    content="Gestión de inventario, punto de venta y precios actualizados con tasas BCV en tiempo real." />
+    content="Gestión de inventario y punto de venta bimoneda para artículos electrónicos y comercio en general." />
   <meta name="twitter:image" content="/pwa-512x512.png" />
 
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="PreciosAlDía" />
+  <meta name="apple-mobile-web-app-title" content="El Spot" />
   <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
   <link rel="manifest" href="/manifest.webmanifest" />
 
-  <title>Precios Al Día | Bodegas</title>
+  <title>El Spot | POS Electrónica & Multirubro</title>
 
   <!-- v1.2.0: Fonts del design system — Instrument Serif (display) + Work Sans (body) + JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -57,7 +58,7 @@
         if (t === 'dark') document.documentElement.classList.add('dark');
         // Actualizar theme-color meta según tema
         var meta = document.querySelector('meta[name="theme-color"]');
-        if (meta) meta.setAttribute('content', t === 'dark' ? '#1a1917' : '#01696f');
+        if (meta) meta.setAttribute('content', t === 'dark' ? '#1a1917' : '#e65100');
       } catch (e) { /* no-op: localStorage puede estar bloqueado */ }
     })();
   </script>

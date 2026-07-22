@@ -52,13 +52,24 @@ export async function generateTicketPDF(sale, bcvRate) {
     //  LOGO
     // ════════════════════════════════════
     try {
-        const img = new Image();
-        img.src = './logo.png';
-        await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
-        const logoW = 50;
-        const logoH = 12; // ~4:1 aspect ratio matching original
-        doc.addImage(img, 'PNG', CX - logoW / 2, y, logoW, logoH);
-        y += logoH + 4;
+        let img = null;
+        for (const src of ['./logo.png', '/logo.png', 'logo.png', 'public/logo.png']) {
+            try {
+                const tempImg = new Image();
+                tempImg.src = src;
+                await new Promise((res, rej) => { tempImg.onload = res; tempImg.onerror = rej; });
+                img = tempImg;
+                break;
+            } catch (_) {}
+        }
+        if (img) {
+            const logoW = is80 ? 54 : 42;
+            const logoH = is80 ? 14 : 11;
+            doc.addImage(img, 'PNG', CX - logoW / 2, y, logoW, logoH);
+            y += logoH + 4;
+        } else {
+            y += 2;
+        }
     } catch (_) { y += 2; }
 
     dash(y); y += 5;

@@ -31,9 +31,9 @@ export default function DashboardStats({
                         </div>
                     </div>
                     <div className="relative z-10 text-right">
-                        <button className="text-[10px] font-bold bg-white/20 hover:bg-white/30 transition-colors px-3 py-1.5 rounded-lg active:scale-95" onClick={() => window.open(`https://wa.me/584124051793?text=Hola! Quiero adquirir la licencia Premium de PreciosAlDía Bodega. Mi ID de instalación es: ${deviceId || 'N/A'}`.replace(/\s+/g, '%20'), '_blank')}>
-                            ADQUIRIR
-                        </button>
+                        <span className="text-[10px] font-bold bg-white/20 px-3 py-1.5 rounded-lg">
+                            DEMO
+                        </span>
                     </div>
                 </div>
             )}

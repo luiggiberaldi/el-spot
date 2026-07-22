@@ -136,9 +136,9 @@ export default function App() {
       root.style.zoom = `${savedScale}%`;
     }
 
-    // Update theme-color meta: cian #01696f (light) / carbón #1a1917 (dark)
+    // Update theme-color meta: Naranja Industrial #e65100 (light) / carbón #1a1917 (dark)
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', theme === 'dark' ? '#1a1917' : '#01696f');
+    if (meta) meta.setAttribute('content', theme === 'dark' ? '#1a1917' : '#e65100');
   }, [theme]);
 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
@@ -253,19 +253,10 @@ export default function App() {
             <div className="flex items-center gap-2">
               <Clock size={16} className="text-white animate-pulse shrink-0" />
               <div className="text-left">
-                <p className="text-[11px] font-black leading-tight">Suscripción por pagar</p>
-                <p className="text-[9px] text-white/90 leading-tight">Le quedan {monthlyGraceDaysLeft} {monthlyGraceDaysLeft === 1 ? 'día' : 'días'} de gracia antes de la suspensión.</p>
+                <p className="text-[11px] font-black leading-tight">Suscripción pendiente</p>
+                <p className="text-[9px] text-white/90 leading-tight">Le quedan {monthlyGraceDaysLeft} {monthlyGraceDaysLeft === 1 ? 'día' : 'días'} de gracia.</p>
               </div>
             </div>
-            <button
-              onClick={() => {
-                const msg = `Hola! Necesito registrar el pago de mi mensualidad de PreciosAlDía Bodega. ID: ${deviceId}`;
-                window.open(`https://wa.me/584124051793?text=${encodeURIComponent(msg)}`, '_blank');
-              }}
-              className="px-2.5 py-1 bg-white text-amber-600 font-bold rounded-lg text-[9px] active:scale-95 transition-transform whitespace-nowrap shadow-sm hover:bg-slate-50"
-            >
-              Registrar Pago
-            </button>
           </div>
         </div>
       )}
@@ -285,19 +276,10 @@ export default function App() {
               {demoExpiredMsg}
             </p>
             <button
-              onClick={() => {
-                const msg = `Hola! Quiero adquirir la licencia Premium de PreciosAlDía. Acabo de terminar mi prueba gratuita.`;
-                window.open(`https://wa.me/584124051793?text=${encodeURIComponent(msg)}`, '_blank');
-              }}
-              className="w-full py-3 bg-brand text-white font-bold rounded-xl shadow-lg shadow-brand/20 active:scale-95 transition-transform text-sm mb-2"
-            >
-              Solicitar Licencia
-            </button>
-            <button
               onClick={dismissExpiredMsg}
-              className="w-full py-2.5 text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors"
+              className="w-full py-3 bg-brand text-white font-bold rounded-xl shadow-lg shadow-brand/20 active:scale-95 transition-transform text-sm"
             >
-              Continuar con versión gratuita
+              Continuar
             </button>
           </div>
         </div>
@@ -389,11 +371,7 @@ export default function App() {
             </div>
           )}
         </Suspense>
-        {activeTab === 'inicio' && (
-          <Suspense fallback={null}>
-            <AIAssistantWidget />
-          </Suspense>
-        )}
+
       </main>
 
       </ProductProvider>

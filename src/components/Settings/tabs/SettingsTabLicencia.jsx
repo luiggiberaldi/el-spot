@@ -4,7 +4,7 @@ import { SectionCard } from '../../SettingsShared';
 
 export default function SettingsTabLicencia({ deviceId, triggerHaptic }) {
     const [idCopied, setIdCopied] = useState(false);
-    const [license, setLicense] = useState(null);
+    const [license, setLicense] = useState({ type: 'permanent', isActive: true });
 
     useEffect(() => {
         const loadLicense = () => {
@@ -16,7 +16,7 @@ export default function SettingsTabLicencia({ deviceId, triggerHaptic }) {
                     console.error(e);
                 }
             } else {
-                setLicense(null);
+                setLicense({ type: 'permanent', isActive: true });
             }
         };
 
@@ -68,7 +68,7 @@ export default function SettingsTabLicencia({ deviceId, triggerHaptic }) {
                         <div>
                             <h4 className="text-sm font-black text-rose-800 dark:text-rose-400">Sin Licencia Activa</h4>
                             <p className="text-xs text-rose-700 dark:text-rose-500 leading-normal mt-1">
-                                Este dispositivo no cuenta con una licencia activa de PreciosAlDía Bodega. Algunas herramientas premium como el control de inventario y estadísticas avanzadas pueden no estar disponibles.
+                                Este dispositivo no cuenta con una licencia activa de El Spot POS. Algunas herramientas premium como el control de inventario y estadísticas avanzadas pueden no estar disponibles.
                             </p>
                         </div>
                     </div>
@@ -92,7 +92,7 @@ export default function SettingsTabLicencia({ deviceId, triggerHaptic }) {
                         <div>
                             <h4 className="text-sm font-black text-emerald-800 dark:text-emerald-400">Licencia de por Vida</h4>
                             <p className="text-xs text-emerald-700 dark:text-emerald-500 leading-normal mt-1">
-                                Disfrutas de acceso ilimitado a todas las herramientas premium del sistema PreciosAlDía Bodega sin fecha de vencimiento.
+                                Disfrutas de acceso ilimitado a todas las herramientas premium del sistema El Spot POS sin fecha de vencimiento.
                             </p>
                         </div>
                     </div>
@@ -140,7 +140,7 @@ export default function SettingsTabLicencia({ deviceId, triggerHaptic }) {
                         <div>
                             <h4 className="text-sm font-black text-brand-dark dark:text-brand">Suscripción Mensual Activa</h4>
                             <p className="text-xs text-slate-600 dark:text-slate-400 leading-normal mt-1">
-                                Tu suscripción mensual está al día. Gracias por confiar en PreciosAlDía Bodega.
+                                Tu suscripción mensual está al día. Gracias por confiar en El Spot POS.
                             </p>
                         </div>
                     </div>
@@ -196,29 +196,6 @@ export default function SettingsTabLicencia({ deviceId, triggerHaptic }) {
                         </div>
 
                         {renderLicenseDetails()}
-
-                        {(!license || license.type !== 'permanent') && (
-                            <div className="mt-2 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
-                                <div className="p-3.5 bg-brand-light/20 dark:bg-surface-800/5 border border-brand/10 rounded-2xl flex flex-col gap-2">
-                                    <div className="flex justify-between items-center">
-                                        <h4 className="text-xs font-black text-slate-800 dark:text-white">Adquirir Licencia Premium</h4>
-                                        <span className="text-[10px] bg-emerald-500 text-white font-black px-2 py-0.5 rounded-lg">$50 / Pago Único</span>
-                                    </div>
-                                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                                        Obtén tu licencia permanente por <strong>$50</strong>. Válido para <strong>solo 1 equipo (Caja)</strong> con el <strong>Modo Supervisor (Monitoreo en Vivo)</strong> incluido para tu celular.
-                                    </p>
-                                    <button 
-                                        onClick={() => {
-                                            triggerHaptic?.();
-                                            window.open(`https://wa.me/584124051793?text=Hola! Quiero adquirir la licencia de $50 (1 equipo + modo supervisor). Mi ID es: ${deviceId || 'N/A'}`.replace(/\s+/g, '%20'), '_blank');
-                                        }}
-                                        className="w-full mt-1 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black rounded-xl transition-all shadow-sm shadow-emerald-500/20 active:scale-[0.97] text-center"
-                                    >
-                                        Solicitar por WhatsApp
-                                    </button>
-                                </div>
-                            </div>
-                        )}
                     </div>
                 </SectionCard>
             </div>

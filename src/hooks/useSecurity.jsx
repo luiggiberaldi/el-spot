@@ -8,7 +8,7 @@ import { useDemoCountdown } from './useDemoCountdown';
 import { LICENSE_POLICY } from '../utils/securityConstants';
 
 const APP_VERSION = '1.0.0';
-const PRODUCT_ID = 'bodega';
+const PRODUCT_ID = 'el-spot';
 
 const DEMO_DURATION_MS = 72 * 60 * 60 * 1000; // 72 horas (3 dias)
 
@@ -47,8 +47,8 @@ async function _fetchRemoteLicense(currentDeviceId) {
 // por sesión de app, sin importar cuántos componentes consuman el estado.
 function useSecurityState() {
     const [deviceId, setDeviceId] = useState('');
-    const [isPremium, setIsPremium] = useState(false);
-    const [loading, setLoading] = useState(true);
+    const [isPremium, setIsPremium] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [isDemo, setIsDemo] = useState(false);
     const [demoExpires, setDemoExpires] = useState(null);
     // FIX 3: demoUsed como estado, leido desde IndexedDB
@@ -61,50 +61,11 @@ function useSecurityState() {
     const [monthlyGraceDaysLeft, setMonthlyGraceDaysLeft] = useState(0);
 
     const applyLicenseState = useCallback((type, isActive, expiresAtVal, createdAt) => {
-        if (!isActive || type === 'revoked' || type === 'registered') {
-            setIsPremium(false);
-            setIsDemo(false);
-            setIsMonthlyGracePeriod(false);
-            setMonthlyGraceDaysLeft(0);
-            return { isPremium: false, isDemo: false, isGrace: false, graceDays: 0 };
-        }
-
-        const expiresAt = expiresAtVal ? new Date(expiresAtVal).getTime() : null;
-        let isPrem = false;
-        let isDem = false;
-        let isGrace = false;
-        let graceDays = 0;
-
-        if (type === 'demo7' || type === 'demo3') {
-            if (expiresAt && Date.now() < expiresAt) {
-                isPrem = true;
-                isDem = true;
-            }
-        } else if (type === 'monthly') {
-            if (expiresAt) {
-                const gracePeriodEnd = expiresAt + 5 * 24 * 60 * 60 * 1000;
-                if (Date.now() < expiresAt) {
-                    isPrem = true;
-                } else if (Date.now() < gracePeriodEnd) {
-                    isPrem = true;
-                    isGrace = true;
-                    const diffTime = gracePeriodEnd - Date.now();
-                    graceDays = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-                }
-            } else {
-                isPrem = true;
-            }
-        } else if (type === 'permanent') {
-            isPrem = true;
-        }
-
-        setIsPremium(isPrem);
-        setIsDemo(isDem);
-        setIsMonthlyGracePeriod(isGrace);
-        setMonthlyGraceDaysLeft(graceDays);
-        if (expiresAt && isDem) setDemoExpires(expiresAt);
-
-        return { isPremium: isPrem, isDemo: isDem, isGrace, graceDays };
+        setIsPremium(true);
+        setIsDemo(false);
+        setIsMonthlyGracePeriod(false);
+        setMonthlyGraceDaysLeft(0);
+        return { isPremium: true, isDemo: false, isGrace: false, graceDays: 0 };
     }, []);
 
     // Demo countdown hook
@@ -155,196 +116,22 @@ function useSecurityState() {
     });
 
     // HOOK-040: checkLicense memoizado para evitar recreate en cada render.
-    // SEC-001/SEC-007: Solo aceptar tokens con firma RSA válida.
     const checkLicense = useCallback(async (currentDeviceId) => {
-        // SEC-001/SEC-007: Solo aceptar tokens con firma RSA válida.
-        // Si el token almacenado es legacy (XOR, sin '.') se elimina y se cae
-        // al flujo de validación contra el servidor.
-        const rawStored = localStorage.getItem('pda_premium_token');
-        let tokenObj = null;
-
-        if (rawStored) {
-            if (rawStored.includes('.')) {
-                const { valid, payload } = await verifyLicenseToken(rawStored);
-                if (valid) tokenObj = payload;
-            } else {
-                // SEC-001: Token legacy XOR — rechazar y limpiar.
-                if (import.meta.env?.DEV) {
-                    console.warn('[Security] Token legacy XOR detectado y rechazado (SEC-001).');
-                }
-                localStorage.removeItem('pda_premium_token');
-            }
-        }
-            if (!tokenObj) {
-            // Fallback: verificar si existe licencia activa en Supabase (ej: reactivada remotamente).
-            // Aquí confiamos en la fila del servidor, no en un token local minteado.
-            let remoteLicense = null;
-            let netError = false;
-            try {
-                const { data, error } = await _fetchRemoteLicense(currentDeviceId);
-                if (error) {
-                    netError = true;
-                } else {
-                    remoteLicense = data;
-                }
-            } catch (e) {
-                netError = true;
-                if (import.meta.env?.DEV) {
-                    console.warn('[Security] Sin red al validar licencia remota:', e?.message ?? e);
-                }
-            }
-
-            if (remoteLicense && remoteLicense.is_active === true) {
-                const { type, is_active, expires_at, created_at } = remoteLicense;
-                const { isPremium: isPrem } = applyLicenseState(type, is_active, expires_at, created_at);
-
-                if (isPrem) {
-                    // Guardar en cache offline si es válida
-                    localStorage.setItem('pda_license_cache', JSON.stringify({
-                        type,
-                        isActive: true,
-                        expiresAt: expires_at ? new Date(expires_at).getTime() : null,
-                        createdAt: created_at,
-                        deviceId: currentDeviceId,
-                        updatedAt: Date.now()
-                    }));
-                } else {
-                    localStorage.removeItem('pda_license_cache');
-                    setDemoExpiredMsg("Tu suscripción mensual ha expirado y el período de gracia de 5 días ha finalizado. Por favor, regulariza tu pago.");
-                }
-
-                setLoading(false);
-                return;
-            } else if (remoteLicense && remoteLicense.is_active === false) {
-                // Si está explícitamente inactiva en Supabase, limpiar caché
-                localStorage.removeItem('pda_license_cache');
-                setIsPremium(false);
-                setIsDemo(false);
-                setIsMonthlyGracePeriod(false);
-                setLoading(false);
-                return;
-            }
-
-            // Si hay error de red o no hay respuesta del servidor, usar caché offline
-            if (netError || !remoteLicense) {
-                const cached = localStorage.getItem('pda_license_cache');
-                if (cached) {
-                    try {
-                        const cacheObj = JSON.parse(cached);
-                        if (cacheObj.deviceId === currentDeviceId && cacheObj.isActive) {
-                            const { isPremium: isPrem } = applyLicenseState(cacheObj.type, cacheObj.isActive, cacheObj.expiresAt, cacheObj.createdAt);
-                            if (isPrem) {
-                                setLoading(false);
-                                return;
-                            }
-                        }
-                    } catch (err) {
-                        // Cache corrupto
-                    }
-                }
-            }
-
-            setIsPremium(false);
-            setLoading(false);
-            return;
-        }
-
-        let isPremiumConfirmed = false;
-
-        try {
-            if (tokenObj && tokenObj.deviceId === currentDeviceId) {
-                const isTimeLimited = tokenObj.type === 'demo7' || tokenObj.type === 'demo3' || tokenObj.isDemo;
-                // Verificar estado remoto antes de confiar en el token local.
-                let revokedRemotely = false;
-                try {
-                    const { data: remoteLicense } = await _fetchRemoteLicense(currentDeviceId);
- 
-                    if (remoteLicense && remoteLicense.is_active === false) {
-                        revokedRemotely = true;
-                    }
-                } catch (e) {
-                    if (import.meta.env?.DEV) {
-                        console.warn('[Security] Sin red al verificar revocación:', e?.message ?? e);
-                    }
-                }
-
-                if (revokedRemotely) {
-                    localStorage.removeItem('pda_premium_token');
-                    setIsPremium(false);
-                    setIsDemo(false);
-                    setDemoExpiredMsg("Tu licencia ha sido desactivada por el administrador.");
-                    setLoading(false);
-                    return;
-                }
-
-                if (isTimeLimited) {
-                    if (Date.now() < tokenObj.expires) {
-                        setIsPremium(true);
-                        setIsDemo(true);
-                        setDemoExpires(tokenObj.expires);
-                        isPremiumConfirmed = true;
-                    } else {
-                        if (import.meta.env?.DEV) console.warn('[Security] Demo expirada.');
-                        localStorage.removeItem('pda_premium_token');
-                        setIsPremium(false);
-                        setIsDemo(false);
-                        setDemoExpiredMsg("Tu licencia temporal ha finalizado. Esperamos que hayas disfrutado la experiencia completa.");
-                    }
-                } else {
-                    setIsPremium(true);
-                    setIsDemo(false);
-                    isPremiumConfirmed = true;
-                }
-            } else {
-                setIsPremium(false);
-            }
-        } catch (e) {
-            if (import.meta.env?.DEV) {
-                console.warn('[Security] Token no parseable:', e?.message ?? e);
-            }
-            setIsPremium(false);
-        }
-
-        // FIX 5: Guardar backup en sessionStorage si licencia valida.
-        // SEC-007: ya no usamos XOR para ofuscar; almacenamos un flag simple.
-        if (isPremiumConfirmed) {
-            try {
-                sessionStorage.setItem(
-                    '_pda_s',
-                    JSON.stringify({ v: 1, deviceId: currentDeviceId, ts: Date.now() })
-                );
-            } catch { }
-        }
-
-        // Migracion silenciosa: asegurar registro en Supabase via RPC seguro.
-        if (isPremiumConfirmed) {
-            const migrateToSupabase = async () => {
-                try {
-                    const bName = localStorage.getItem('business_name') || localStorage.getItem('restaurant_name') || '';
-                    const mEmail = localStorage.getItem('marketing_email') || '';
-                    const clientName = mEmail ? `${bName} | ${mEmail}` : bName;
-                    await supabase.rpc('auto_register_device', {
-                        p_device_id: currentDeviceId,
-                        p_product_id: PRODUCT_ID,
-                        p_client_name: clientName
-                    });
-                    await supabase.rpc('heartbeat_device', {
-                        p_device_id: currentDeviceId,
-                        p_product_id: PRODUCT_ID,
-                        p_client_name: clientName
-                    });
-                } catch (e) {
-                    if (import.meta.env?.DEV) {
-                        console.warn('[Security] Migración silenciosa falló:', e?.message ?? e);
-                    }
-                }
-            };
-
-            migrateToSupabase();
-        }
-
+        setIsPremium(true);
+        setIsDemo(false);
+        setIsMonthlyGracePeriod(false);
+        setMonthlyGraceDaysLeft(0);
+        setDemoExpiredMsg(null);
+        localStorage.setItem('pda_license_cache', JSON.stringify({
+            type: 'permanent',
+            isActive: true,
+            expiresAt: null,
+            deviceId: currentDeviceId,
+            updatedAt: Date.now()
+        }));
         setLoading(false);
-    }, [setDemoExpiredMsg]);
+        return;
+    }, []);
 
     useEffect(() => {
         const initDeviceId = async () => {

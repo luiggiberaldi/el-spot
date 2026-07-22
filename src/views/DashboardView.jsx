@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { processVoidSale } from '../utils/voidSaleProcessor';
 import { storageService } from '../utils/storageService';
 import { showToast } from '../components/Toast';
-import { BarChart3, TrendingUp, Package, AlertTriangle, ShoppingCart, Store, Users, Settings, Wallet } from 'lucide-react';
+import { BarChart3, TrendingUp, Package, AlertTriangle, ShoppingCart, Store, Users, Settings, Wallet, LogOut } from 'lucide-react';
 import { formatBs, formatCop } from '../utils/calculatorUtils';
 import DashboardStats from '../components/Dashboard/DashboardStats';
 import DashboardPaymentBreakdown from '../components/Dashboard/DashboardPaymentBreakdown';
@@ -73,7 +73,10 @@ export default function DashboardView({ rates, triggerHaptic, onNavigate, theme,
     const { notifyCierrePendiente, requestPermission } = useNotifications();
     const { deviceId } = useSecurity();
     const isAdmin = true;
-    const isCajero = useAuthStore(s => s.requireLogin && s.usuarioActivo?.rol === 'CAJERO');
+    const requireLogin = useAuthStore(s => s.requireLogin);
+    const usuarioActivo = useAuthStore(s => s.usuarioActivo);
+    const logout = useAuthStore(s => s.logout);
+    const isCajero = requireLogin && usuarioActivo?.rol === 'CAJERO';
     const { log: auditLog } = useAudit();
     const { products, setProducts, isLoadingProducts, effectiveRate: bcvRate, copEnabled, copPrimary, tasaCop } = useProductContext();
     const { loadCart } = useCart();
@@ -96,12 +99,31 @@ export default function DashboardView({ rates, triggerHaptic, onNavigate, theme,
     const [recycleOffer, setRecycleOffer] = useState(null);
     const [pullDistance, setPullDistance] = useState(0);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isScrolled, setIsScrolled] = useState(false);
     const [selectedChartDate, setSelectedChartDate] = useState(null);
     const [showTopDeudas, setShowTopDeudas] = useState(false);
     const [showCierreSummary, setShowCierreSummary] = useState(false);
     const [cierreSummaryData, setCierreSummaryData] = useState(null);
     const touchStartY = useRef(0);
     const scrollRef = useRef(null);
+
+    // Escuchar el scroll del contenedor <main> abuelo
+    useEffect(() => {
+        const mainEl = document.querySelector('main');
+        const handleScroll = () => {
+            if (mainEl) {
+                setIsScrolled(mainEl.scrollTop > 10);
+            }
+        };
+        if (mainEl) {
+            mainEl.addEventListener('scroll', handleScroll);
+        }
+        return () => {
+            if (mainEl) {
+                mainEl.removeEventListener('scroll', handleScroll);
+            }
+        };
+    }, []);
     // v1.2.0: reveal-on-scroll para cards de stats y secciones principales.
     const revealRef = useReveal();
     // Combina scrollRef (pull-to-refresh) + revealRef (IntersectionObserver) en un solo nodo.
@@ -401,7 +423,7 @@ export default function DashboardView({ rates, triggerHaptic, onNavigate, theme,
     return (
         <div
             ref={setRootRef}
-            className="flex flex-col h-full bg-surface-50 dark:bg-surface-950 p-3 sm:p-5 lg:p-6 xl:p-8 overflow-y-auto scrollbar-hide"
+            className="flex flex-col min-h-full bg-surface-50 dark:bg-surface-950 p-3 sm:p-5 lg:p-6 xl:p-8"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
@@ -415,22 +437,91 @@ export default function DashboardView({ rates, triggerHaptic, onNavigate, theme,
                 </div>
             )}
 
-            {/* Header */}
-            <div className="flex md:grid md:grid-cols-3 items-center justify-between mb-4 pt-2">
-                {/* Reloj y fecha en PC */}
-                <div className="hidden md:flex flex-col items-start gap-1">
-                    <span className="text-xl font-display font-bold italic text-slate-800 dark:text-white leading-none">
-                        {timeString}
-                    </span>
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider leading-none">
-                        {formattedDate}
-                    </span>
+            {/* Header / Top Bar adaptativo sticky */}
+            <div className={`sticky top-0 z-30 flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-3 md:mb-5 py-2.5 md:py-3 transition-all duration-200 -mx-3 sm:-mx-5 lg:-mx-6 xl:-mx-8 px-3 sm:px-5 lg:px-6 xl:px-8 bg-surface-50/95 dark:bg-surface-950/95 backdrop-blur-md border-b ${isScrolled ? 'border-slate-200/80 dark:border-slate-800/80 shadow-md' : 'border-slate-100 dark:border-slate-800/60'}`}>
+                {/* Lado Izquierdo: Logo (centrado en móviles, alineado a la izquierda en PC) */}
+                <div className="w-full flex justify-center md:w-auto md:justify-start relative items-center">
+                    {/* Botón de Cerrar Sesión — izquierda absoluta en móvil (oculto en PC) */}
+                    {requireLogin && usuarioActivo && (
+                        <button
+                            data-logout-btn
+                            onPointerDown={(e) => {
+                                e.stopPropagation();
+                                triggerHaptic && triggerHaptic();
+                                logout();
+                            }}
+                            className="absolute left-0 top-1/2 -translate-y-1/2 z-30 md:hidden w-10 h-10 rounded-xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200/50 dark:border-slate-700/50 flex items-center justify-center text-slate-500 dark:text-slate-400 shadow-sm active:scale-90 hover:bg-slate-200/50 dark:hover:bg-slate-800/80 transition-all cursor-pointer"
+                            title={`Cerrar sesión (${usuarioActivo.nombre})`}
+                        >
+                            <LogOut size={16} strokeWidth={2.5} className="text-slate-500 dark:text-slate-350 translate-x-[0.5px]" />
+                        </button>
+                    )}
+
+                    <div className="flex items-center justify-center gap-3">
+                        <img 
+                            src={theme === 'dark' ? './logodark.png' : './logo.png'} 
+                            alt="El Spot" 
+                            className="h-[62px] md:h-[78px] w-auto object-contain drop-shadow-sm" 
+                        />
+                    </div>
+                    {/* Estatus Sync a la derecha absoluta en móvil, relativo normal en PC */}
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 md:relative md:right-auto md:top-auto md:translate-y-0 md:hidden">
+                        <SyncStatus />
+                    </div>
                 </div>
-                <div className="flex flex-col items-start md:items-center justify-center gap-0.5">
-                    <img src={theme === 'dark' ? './logodark.png' : './logo.png'} alt="PreciosAlDía" className="h-14 md:h-[85px] w-auto object-contain drop-shadow-sm" />
+
+                {/* Centro en PC: Menú de Navegación Compacto (Acciones Rápidas) */}
+                <div className="hidden md:flex items-center justify-center gap-2 bg-slate-100/80 dark:bg-slate-900/50 p-1.5 rounded-2xl border border-slate-200/30 dark:border-slate-800/30">
+                    <button 
+                        onClick={() => { if (onNavigate) { triggerHaptic(); onNavigate('ventas'); } }} 
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 font-bold text-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
+                    >
+                        <ShoppingCart size={18} className="text-brand" />
+                        <span>Vender</span>
+                    </button>
+                    <button 
+                        onClick={() => { if (onNavigate) { triggerHaptic(); onNavigate('catalogo'); } }} 
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 font-bold text-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
+                    >
+                        <Store size={18} className="text-brand" />
+                        <span>Inventario</span>
+                    </button>
+                    <button 
+                        onClick={() => { if (onNavigate) { triggerHaptic(); onNavigate('clientes'); } }} 
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 font-bold text-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
+                    >
+                        <Users size={18} className="text-brand" />
+                        <span>Clientes</span>
+                    </button>
+                    <button 
+                        onClick={() => { triggerHaptic(); setShowMonitor(true); }} 
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 font-bold text-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
+                    >
+                        <TrendingUp size={18} className="text-brand" />
+                        <span>Monitor</span>
+                    </button>
+                    <button 
+                        onClick={() => { triggerHaptic(); setIsAddGastoOpen(true); }} 
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 font-bold text-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
+                    >
+                        <Wallet size={18} className="text-red-500" />
+                        <span>Gastos</span>
+                    </button>
                 </div>
-                <div className="flex items-center justify-end gap-2">
+
+                {/* Lado Derecho en PC: SyncStatus y Logout */}
+                <div className="hidden md:flex items-center justify-end gap-3">
                     <SyncStatus />
+                    {requireLogin && usuarioActivo && (
+                        <button
+                            onClick={() => { triggerHaptic(); logout(); }}
+                            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold text-xs transition-all active:scale-95 cursor-pointer"
+                            title={`Cerrar sesión (${usuarioActivo.nombre})`}
+                        >
+                            <LogOut size={16} />
+                            <span>Salir</span>
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -438,28 +529,28 @@ export default function DashboardView({ rates, triggerHaptic, onNavigate, theme,
             <div className="grid grid-cols-4 lg:grid-cols-6 gap-3 mb-5">
                 <button 
                     onClick={() => { if (onNavigate) { triggerHaptic(); onNavigate('ventas'); } }} 
-                    className="bg-[#01696f] hover:bg-[#00575d] dark:bg-[#1ce2ee] dark:hover:bg-[#0bc2cd] text-white dark:text-slate-950 rounded-2xl p-3 flex flex-col items-center justify-center gap-2 shadow-tone-sm hover:shadow-primary-tone hover:scale-[1.02] active:scale-95 transition-all"
+                    className="bg-brand hover:bg-brand-dark text-white dark:text-slate-950 rounded-2xl p-3 flex flex-col items-center justify-center gap-2 shadow-tone-sm hover:shadow-primary-tone hover:scale-[1.02] active:scale-95 transition-all"
                 >
                     <ShoppingCart size={22} />
                     <span className="text-xs font-bold">Vender</span>
                 </button>
                 <button 
                     onClick={() => { if (onNavigate) { triggerHaptic(); onNavigate('catalogo'); } }} 
-                    className="bg-[#01696f] hover:bg-[#00575d] dark:bg-[#1ce2ee] dark:hover:bg-[#0bc2cd] text-white dark:text-slate-950 rounded-2xl p-3 flex flex-col items-center justify-center gap-2 shadow-tone-sm hover:scale-[1.02] active:scale-95 transition-all"
+                    className="bg-brand hover:bg-brand-dark text-white dark:text-slate-950 rounded-2xl p-3 flex flex-col items-center justify-center gap-2 shadow-tone-sm hover:scale-[1.02] active:scale-95 transition-all"
                 >
                     <Store size={22} />
                     <span className="text-xs font-bold">Inventario</span>
                 </button>
                 <button 
                     onClick={() => { if (onNavigate) { triggerHaptic(); onNavigate('clientes'); } }} 
-                    className="bg-[#01696f] hover:bg-[#00575d] dark:bg-[#1ce2ee] dark:hover:bg-[#0bc2cd] text-white dark:text-slate-950 rounded-2xl p-3 flex flex-col items-center justify-center gap-2 shadow-tone-sm hover:scale-[1.02] active:scale-95 transition-all"
+                    className="bg-brand hover:bg-brand-dark text-white dark:text-slate-950 rounded-2xl p-3 flex flex-col items-center justify-center gap-2 shadow-tone-sm hover:scale-[1.02] active:scale-95 transition-all"
                 >
                     <Users size={22} />
                     <span className="text-xs font-bold">Clientes</span>
                 </button>
                 <button 
                     onClick={() => { triggerHaptic(); setShowMonitor(true); }} 
-                    className="bg-[#01696f] hover:bg-[#00575d] dark:bg-[#1ce2ee] dark:hover:bg-[#0bc2cd] text-white dark:text-slate-950 rounded-2xl p-3 flex flex-col items-center justify-center gap-2 shadow-tone-sm hover:scale-[1.02] active:scale-95 transition-all"
+                    className="bg-brand hover:bg-brand-dark text-white dark:text-slate-950 rounded-2xl p-3 flex flex-col items-center justify-center gap-2 shadow-tone-sm hover:scale-[1.02] active:scale-95 transition-all"
                 >
                     <TrendingUp size={22} />
                     <span className="text-xs font-bold">Monitor</span>

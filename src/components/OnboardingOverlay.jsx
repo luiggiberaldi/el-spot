@@ -36,8 +36,8 @@ const STEPS = [
         bg: 'bg-brand-light dark:bg-surface-700/40',
         title: 'Inventario',
         headline: 'Tu inventario de productos',
-        descriptionFree: 'PreciosAlDía Free incluye uso ilimitado y gratis para siempre. Guarda hasta 50 productos, convierte precios y consulta la tasa del día al instante.',
-        descriptionPremium: 'Con PreciosAlDía Premium puedes gestionar un inventario ilimitado, cobrar con POS y compartir tu inventario.',
+        descriptionFree: 'El Spot POS incluye uso ilimitado. Guarda tus productos, convierte precios y consulta la tasa del día al instante.',
+        descriptionPremium: 'Con El Spot POS Premium puedes gestionar un inventario ilimitado, cobrar con POS y compartir tu inventario.',
         tipPremium: '💡 Comparte tu inventario con otros usando un código de 6 dígitos.',
         tipFree: '👑 Activa tu licencia para desbloquear todas las funciones.',
     },
@@ -48,7 +48,7 @@ const STEPS = [
         title: 'Clientes',
         headline: 'Gestiona tus clientes',
         descriptionPremium: 'Registra a tus clientes frecuentes, lleva control de fiados y pagos parciales. Todo offline y seguro.',
-        descriptionFree: 'Con PreciosAlDía Premium puedes gestionar tu cartera de clientes y control de deudas.',
+        descriptionFree: 'Con El Spot POS Premium puedes gestionar tu cartera de clientes y control de deudas.',
         tipPremium: '💡 Toca un cliente para ver su historial completo de fiados.',
         tipFree: '👑 Activa tu licencia para gestionar clientes.',
     },
@@ -124,13 +124,13 @@ export default function OnboardingOverlay({ isPremium = false }) {
                             <div className="relative mx-auto mb-5 animate-slide-up">
                                 <img
                                     src="./logo.png"
-                                    alt="PreciosAlDía Bodega"
+                                    alt="El Spot POS"
                                     className="w-44 h-auto mx-auto drop-shadow-lg"
                                 />
                                 <div className="absolute inset-0 bg-brand/15 rounded-full blur-2xl -z-10 scale-150" />
                             </div>
                             <p className="text-xs font-bold text-brand uppercase tracking-[0.2em] mb-5 animate-fade-in" style={{ animationDelay: '60ms' }}>
-                                Tu bodega inteligente
+                                POS Electrónica & Multirubro
                             </p>
 
                             <p className="text-sm text-surface-500 dark:text-surface-400 leading-relaxed mb-6 max-w-[260px] mx-auto animate-fade-in" style={{ animationDelay: '120ms' }}>

@@ -92,14 +92,17 @@ export async function generateDailyClosePDF({
     const BG_CARD = [248, 249, 250];
     const BORDER_CARD = [233, 236, 239];
 
-    // Precargar la imagen del logo en base64 o local
+    // Precargar la imagen del logo
     let imgLogo = null;
-    try {
-        const img = new Image();
-        img.src = './logo.png';
-        await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
-        imgLogo = img;
-    } catch (_) {}
+    for (const src of ['./logo.png', '/logo.png', 'logo.png', 'public/logo.png']) {
+        try {
+            const img = new Image();
+            img.src = src;
+            await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+            imgLogo = img;
+            break;
+        } catch (_) {}
+    }
 
     // =========================================================================
     //  OPCIÓN A: DESCARGAR PDF (TAMAÑO CARTA DETALLADO PREMIUM)

@@ -16,11 +16,11 @@
 :root {
   /* ═══ OKLCH puros (para CSS custom: color-mix, gradients, shadows) ═══ */
 
-  /* ── Primary (H=192: Cian de marca) ── */
-  --primary:           oklch(0.50 0.085 192);  /* #01696f */
-  --primary-hover:     oklch(0.44 0.090 192);  /* #00575d */
-  --primary-soft:      oklch(0.94 0.035 192);  /* #e6f4f5 */
-  --primary-contrast:  oklch(0.99 0.005 192);  /* #fdfdfd */
+  /* ── Primary (H=45: Naranja Industrial El Spot) ── */
+  --primary:           oklch(0.55 0.20 45);   /* #e65100 Naranja Industrial */
+  --primary-hover:     oklch(0.48 0.21 45);   /* #c63f00 Naranja Hover */
+  --primary-soft:      oklch(0.96 0.03 45);   /* #fff3e0 Naranja Soft */
+  --primary-contrast:  oklch(0.99 0.005 45);  /* #ffffff */
 
   /* ── Background & Surfaces (H=85: Oliva / Cream cálido) ── */
   --bg:                oklch(0.985 0.010 85);  /* #fbfaf7 */
@@ -38,27 +38,26 @@
   --border-strong:     oklch(0.80 0.025 85);   /* #cbc6b9 */
 
   /* ── Status / Alertas ── */
-  --accent:            oklch(0.62 0.110 55);   /* #c16729 naranja/óxido */
+  --accent:            oklch(0.60 0.16 240);   /* #0284c7 Azul Cobalto Tech */
   --success:           oklch(0.62 0.130 150);  /* #24a870 verde menta */
   --warning:           oklch(0.74 0.140 75);   /* #df9d1a amarillo oro */
   --danger:            oklch(0.55 0.180 27);   /* rojo cálido */
 
   /* ═══ RGB derivados (para Tailwind rgb(var() / <alpha>)) ═══ */
 
-  /* Primary (H=192) — reemplaza el azul del v1.1.0 */
-  --color-primary-50:  230 244 245;   /* #e6f4f5 primary-soft */
-  --color-primary-100: 200 230 233;
-  --color-primary-200: 165 215 218;
-  --color-primary-300: 120 195 200;
-  --color-primary-400: 70 170 178;
-  --color-primary-500: 1 105 111;     /* #01696f primary */
-  --color-primary-600: 0 87 93;       /* #00575d primary-hover */
-  --color-primary-700: 0 73 78;
-  --color-primary-800: 5 60 65;
-  --color-primary-900: 7 50 54;
+  /* Primary (H=45 Naranja Industrial) */
+  --color-primary-50:  255 243 224;   /* #fff3e0 primary-soft */
+  --color-primary-100: 255 224 178;
+  --color-primary-200: 255 204 128;
+  --color-primary-300: 255 183 77;
+  --color-primary-400: 255 152 0;
+  --color-primary-500: 230 81 0;      /* #e65100 primary */
+  --color-primary-600: 198 63 0;      /* #c63f00 primary-hover */
+  --color-primary-700: 165 48 0;
+  --color-primary-800: 130 35 0;
+  --color-primary-900: 95 25 0;
 
-  /* Surface (H=85 oliva/cream) — reemplaza slate (gris cool H=220) */
-  /* Los 565 text-slate-400, 293 bg-slate-800, etc. ahora renderizan cálido */
+  /* Surface (H=85 oliva/cream) */
   --color-surface-50:  251 250 247;   /* #fbfaf7 bg */
   --color-surface-100: 245 243 238;   /* #f5f3ee surface */
   --color-surface-200: 237 234 226;   /* #edeae2 surface-2 */
@@ -95,13 +94,13 @@
   --color-danger-600: 175 50 30;
   --color-danger-900: 95 28 18;
 
-  /* Accent (H=55 naranja/óxido) — nuevo, para tasas y estados especiales */
-  --color-accent-50:  250 235 220;
-  --color-accent-100: 245 220 195;
-  --color-accent-400: 210 130 60;
-  --color-accent-500: 193 103 41;     /* #c16729 */
-  --color-accent-600: 170 85 30;
-  --color-accent-900: 95 50 20;
+  /* Accent (H=240 Azul Cobalto Tech) */
+  --color-accent-50:  240 249 255;
+  --color-accent-100: 224 242 254;
+  --color-accent-400: 56 189 248;
+  --color-accent-500: 2 132 199;     /* #0284c7 */
+  --color-accent-600: 3 105 161;
+  --color-accent-900: 12 74 110;
 
   /* Brand legacy (compat) */
   --color-brand: var(--color-primary-500);
@@ -131,11 +130,11 @@
   --radius-xl: 28px;
   --radius-full: 999px;
 
-  /* ═══ Sombras tone-matched (marrón cálido, no negro) ═══ */
+  /* ═══ Sombras tone-matched (marrón cálido / naranja) ═══ */
   --shadow-sm:       0 2px 8px oklch(0.28 0.02 60 / 0.04);
   --shadow-md:       0 6px 16px oklch(0.28 0.02 60 / 0.06);
   --shadow-lg:       0 16px 32px oklch(0.28 0.02 60 / 0.09);
-  --shadow-primary:  0 8px 24px oklch(0.50 0.085 192 / 0.20);
+  --shadow-primary:  0 8px 24px oklch(0.55 0.20 45 / 0.20);
 
   /* ═══ Transiciones ═══ */
   --transition: 200ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -153,10 +152,12 @@
 [data-theme="dark"],
 .dark {
   /* Primary brillante sobre fondos oscuros */
-  --primary:           oklch(0.72 0.105 192);  /* #1ce2ee */
-  --primary-hover:     oklch(0.68 0.100 192);
-  --primary-soft:      oklch(0.25 0.040 192);
+  --primary:           oklch(0.75 0.18 45);    /* #ff9800 */
+  --primary-hover:     oklch(0.70 0.18 45);    /* #f57c00 */
+  --primary-soft:      oklch(0.28 0.08 45);    /* #3e2723 */
   --primary-contrast:  oklch(0.15 0.010 85);
+
+  --accent:            oklch(0.75 0.15 240);   /* #38bdf8 Azul Eléctrico Dark */
 
   /* Fondos carbón cálido (no negro puro) */
   --bg:                oklch(0.165 0.010 85);  /* #1a1917 */
@@ -184,14 +185,17 @@
   --color-surface-900: 250 249 246;
   --color-surface-950: 252 251 248;
 
-  --color-primary-500: 28 226 238;     /* #1ce2ee cian brillante dark */
-  --color-primary-600: 20 200 210;
+  --color-primary-500: 255 152 0;     /* #ff9800 naranja brillante dark */
+  --color-primary-600: 245 124 0;     /* #f57c00 */
+
+  --color-accent-500: 56 189 248;     /* #38bdf8 azul eléctrico dark */
+  --color-accent-600: 2 132 199;
 
   /* Sombras dark más profundas */
   --shadow-sm: 0 2px 8px oklch(0 0 0 / 0.30);
   --shadow-md: 0 6px 16px oklch(0 0 0 / 0.40);
   --shadow-lg: 0 16px 32px oklch(0 0 0 / 0.50);
-  --shadow-primary: 0 8px 24px oklch(0.72 0.105 192 / 0.25);
+  --shadow-primary: 0 8px 24px oklch(0.75 0.18 45 / 0.25);
 }
 
 /* ═══ prefers-reduced-motion: desactiva animaciones ═══ */

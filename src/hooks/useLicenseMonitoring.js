@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { supabase } from '../core/supabaseClient';
 
-const PRODUCT_ID = 'bodega';
+const PRODUCT_ID = 'el-spot';
 
 // Module scope: cache subscriptions when multiple hooks are mounted in parallel
 const activeSubscriptions = new Map(); // deviceId -> { channel, count, callbacks: Set<function> }

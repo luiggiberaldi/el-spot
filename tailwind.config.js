@@ -1,10 +1,8 @@
 /** @type {import('tailwindcss').Config} */
 // tailwind.config.js
 //
-// v1.2.0: Design system "Precios al Día" (OKLCH + Instrument Serif/Work Sans).
+// Design system El Spot POS (Naranja Industrial H=45 & Azul Cobalto H=240).
 // Los colores se derivan de tokens.css (vars RGB separadas por espacios).
-// slate-* ahora renderiza warm cream/oliva (H=85) en vez de gris cool (H=220).
-// brand-* ahora renderiza cian/turquesa (H=192) en vez de azul.
 
 export default {
   content: [
@@ -16,13 +14,13 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Brand: cian/turquesa H=192 (antes azul)
+        // Brand: Naranja Industrial H=45 (#e65100 / #ff9800)
         brand: {
           light: 'rgb(var(--color-primary-50) / <alpha-value>)',
           DEFAULT: 'rgb(var(--color-primary-500) / <alpha-value>)',
           dark: 'rgb(var(--color-primary-600) / <alpha-value>)',
         },
-        // Accent: naranja/óxido H=55 (nuevo, para tasas y estados especiales)
+        // Accent: Azul Cobalto Tech H=240 (#0284c7)
         accent: {
           50: 'rgb(var(--color-accent-50) / <alpha-value>)',
           100: 'rgb(var(--color-accent-100) / <alpha-value>)',
