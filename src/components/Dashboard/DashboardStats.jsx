@@ -3,6 +3,7 @@ import { TrendingUp, Package, ShoppingBag, ArrowUpRight, Users, ChevronDown, Che
 import { formatBs, formatCop } from '../../utils/calculatorUtils';
 import AnimatedCounter from '../AnimatedCounter';
 import CasheaIcon from '../CasheaIcon';
+import { useProductContext } from '../../context/ProductContext';
 
 export default function DashboardStats({
     isDemo, demoTimeLeft, deviceId,
@@ -15,6 +16,8 @@ export default function DashboardStats({
     copEnabled, copPrimary, tasaCop,
     onTasaClick,
 }) {
+    const { rateName } = useProductContext();
+
     return (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
             {/* Licencia Demo */}
@@ -178,7 +181,7 @@ export default function DashboardStats({
                     </div>
                 </div>
                 <p className="text-2xl font-outfit font-semibold text-slate-800 dark:text-white leading-none">{formatBs(bcvRate)} <span className="text-xs font-bold text-slate-400">Bs/$</span></p>
-                <p className="text-[11px] text-slate-400 mt-0.5">Tasa BCV</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">{rateName || 'Tasa BCV'}</p>
                 {copEnabled && tasaCop > 0 && (
                     <>
                         <div className="border-t border-slate-100 dark:border-slate-800 my-2"></div>

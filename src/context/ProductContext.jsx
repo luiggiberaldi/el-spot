@@ -117,6 +117,13 @@ export function ProductProvider({ children, rates, rateDiscrepancyWarning }) {
         if (rateMode === 'manual') return parseFloat(customRate) > 0 ? parseFloat(customRate) : (rates?.bcv?.price || 1);
         return rates?.bcv?.price || 1; // 'bcv' (default)
     })();
+
+    const rateName = (() => {
+        if (rateMode === 'euro') return 'Tasa Euro';
+        if (rateMode === 'usdt') return 'Tasa Paralelo (USDT)';
+        if (rateMode === 'manual') return 'Tasa Personalizada';
+        return 'Tasa BCV';
+    })();
     
     // Calcula el COP efectivo. rates.autoCopRate es calculado en useRates basado en TRM y la Brecha USDT/BCV.
     const tasaCop = autoCopEnabled && rates?.autoCopRate?.price 
@@ -358,6 +365,7 @@ export function ProductProvider({ children, rates, rateDiscrepancyWarning }) {
         setStreetRate,
         rateMode,
         setRateMode,
+        rateName,
         useAutoRate,
         setUseAutoRate,
         customRate,
@@ -382,6 +390,8 @@ export function ProductProvider({ children, rates, rateDiscrepancyWarning }) {
         categories,
         isLoadingProducts,
         streetRate,
+        rateMode,
+        rateName,
         useAutoRate,
         customRate,
         effectiveRate,
