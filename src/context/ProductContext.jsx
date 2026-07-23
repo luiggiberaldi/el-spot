@@ -6,7 +6,7 @@ import { BODEGA_CATEGORIES } from '../config/categories';
 // explícitamente para que el cambio se propague a `sync_documents` (colección 'local').
 import { pushLocalSync, pushCloudSync } from '../hooks/useCloudSync';
 
-const ProductContext = createContext();
+export const ProductContext = createContext();
 
 const normalizeCategories = (cats) => {
     const list = Array.isArray(cats) ? cats : [];
