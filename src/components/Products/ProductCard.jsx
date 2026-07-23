@@ -373,12 +373,12 @@ ${showSecondary ? `[PRECIO SECUNDARIO]
 
                         {/* Fila Inferior: Reposición y Ganancia Real */}
                         {usdtRateVal > 0 && (
-                            <div className="pt-1.5 border-t border-slate-200/60 dark:border-slate-700/50 flex items-center justify-between text-[11px] gap-1">
-                                <span className="font-bold text-slate-600 dark:text-slate-300 truncate">
+                            <div className="pt-1.5 border-t border-slate-200/60 dark:border-slate-700/50 flex items-center justify-between text-[11px] gap-1 flex-wrap">
+                                <span className="font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
                                     💡 Reposición: <strong className="text-slate-800 dark:text-slate-100">${realUsdtVal.toFixed(2)} USDT</strong>
                                 </span>
                                 {costUsd > 0 && (
-                                    <span className={`font-black shrink-0 ${
+                                    <span className={`font-black whitespace-nowrap ${
                                         realProfitUsd >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'
                                     }`}>
                                         {realProfitUsd >= 0 ? '+' : ''}${realProfitUsd.toFixed(2)}
