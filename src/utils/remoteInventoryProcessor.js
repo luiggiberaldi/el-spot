@@ -77,7 +77,7 @@ export async function applyInventoryCommand(payload) {
             const validationError = validateProductData(data);
             if (validationError) return { success: false, error: validationError };
             const normalized = normalizeProduct(data);
-            normalized.id = data.id || crypto.randomUUID();
+            normalized.id = data.id || productId || crypto.randomUUID();
             if (products.some(p => p.id === normalized.id)) {
                 return { success: false, error: 'Ya existe un producto con ese ID' };
             }
@@ -97,7 +97,11 @@ export async function applyInventoryCommand(payload) {
             const normalized = normalizeProduct(data);
             normalized.id = productId;
             if (normalized.image === undefined) normalized.image = existing.image;
-            normalized.stock = existing.stock;
+            if (data.stock !== undefined && data.stock !== null && data.stock !== '') {
+                normalized.stock = Number(data.stock) || 0;
+            } else {
+                normalized.stock = existing.stock;
+            }
             const conflict = findBarcodeConflict(normalized, products, productId);
             if (conflict) return { success: false, error: conflict };
             const updated = products.map(p => p.id === productId ? { ...existing, ...normalized } : p);

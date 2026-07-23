@@ -91,11 +91,12 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                     list.unshift({
                         id: change.productId,
                         name: change.data.name || 'Nuevo Producto',
-                        priceUsd: change.data.priceUsd || 0,
-                        costPrice: change.data.costUsd || 0,
+                        priceUsd: change.data.priceUsd || change.data.priceUsdt || 0,
+                        costUsd: change.data.costUsd || 0,
                         stock: change.data.stock || 0,
                         category: change.data.category || 'varios',
                         barcode: change.data.barcode || '',
+                        ...change.data,
                         isDraft: true
                     });
                 }
@@ -143,6 +144,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
     const handleRemoteSubmit = async (action, productId, data) => {
         triggerHaptic?.();
         const productName = data.name || 'Producto';
+        const payloadData = { id: productId, ...data };
         const existingIdx = pendingChanges.findIndex(c => c.productId === productId && (c.action === 'add' || c.action === 'edit'));
         
         let next = [...pendingChanges];
@@ -150,7 +152,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
             id: crypto.randomUUID(),
             action,
             productId,
-            data,
+            data: payloadData,
             productName,
             timestamp: new Date().toISOString()
         };
