@@ -15,7 +15,41 @@ import {
 } from 'lucide-react';
 import { formatBs, formatCop } from '../utils/calculatorUtils';
 import { getLocalISODate } from '../utils/dateHelpers';
-import { getPaymentLabel, toTitleCase } from '../config/paymentMethods';
+
+const toTitleCase = (str) => {
+    if (!str) return '';
+    return String(str).charAt(0).toUpperCase() + String(str).slice(1).toLowerCase();
+};
+
+const getPaymentLabel = (methodId) => {
+    const labels = {
+        efectivo_bs: 'Efectivo Bs',
+        pago_movil: 'Pago Móvil',
+        punto_venta: 'Punto de Venta',
+        efectivo_usd: 'Efectivo $',
+        efectivo_cop: 'Efectivo COP',
+        transferencia_cop: 'Transferencia COP',
+        fiado: 'Crédito / Fiado',
+        cashea: 'Cashea',
+    };
+    return labels[methodId] || methodId || 'Otro';
+};
+
+// Helper: icon por método de pago
+const PAYMENT_METHOD_ICONS = {
+    efectivo_bs: Banknote,
+    pago_movil: Smartphone,
+    punto_venta: CreditCard,
+    efectivo_usd: DollarSign,
+    efectivo_cop: Coins,
+    transferencia_cop: CreditCard,
+    fiado: Clock,
+    cashea: Clock,
+};
+
+function getMethodIcon(methodId) {
+    return PAYMENT_METHOD_ICONS[methodId] || Wallet;
+}
 
 const PENDING_KEY = 'pda_pending_inventory_changes_v1';
 
