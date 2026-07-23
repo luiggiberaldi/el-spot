@@ -47,25 +47,33 @@ export function useCheckoutCalculations({
     const safeRate = effectiveRate > 0 ? effectiveRate : 0;
     const safeTasaCop = tasaCop > 0 ? tasaCop : 0;
 
+    // Tasa efectiva real del carrito en Bs/$ (considera productos a tasa BCV y a tasa general)
+    const effectiveCartRate = useMemo(() => {
+        if (cartTotalUsd > 0 && cartTotalBs > 0) {
+            return divR(cartTotalBs, cartTotalUsd);
+        }
+        return safeRate;
+    }, [cartTotalUsd, cartTotalBs, safeRate]);
+
     const totalPaidUsd = useMemo(() => {
         return sumR(paymentMethods.map(m => {
             const val = CurrencyService.safeParse(barValues[m.id]);
             if (m.currency === 'USD') return round2(val);
             if (m.currency === 'COP') return safeTasaCop > 0 ? divR(val, safeTasaCop) : 0;
-            return safeRate > 0 ? divR(val, safeRate) : 0;
+            return effectiveCartRate > 0 ? divR(val, effectiveCartRate) : 0;
         }));
-    }, [barValues, paymentMethods, effectiveRate, tasaCop, safeRate, safeTasaCop]);
+    }, [barValues, paymentMethods, effectiveCartRate, safeTasaCop]);
 
     const totalPaidBs = useMemo(() => {
         return sumR(paymentMethods.map(m => {
             const val = CurrencyService.safeParse(barValues[m.id]);
             if (m.currency === 'BS') return round2(val);
-            if (m.currency === 'COP') return safeTasaCop > 0 && safeRate > 0
-                ? mulR(divR(val, safeTasaCop), safeRate)
+            if (m.currency === 'COP') return safeTasaCop > 0 && effectiveCartRate > 0
+                ? mulR(divR(val, safeTasaCop), effectiveCartRate)
                 : 0;
-            return safeRate > 0 ? mulR(val, safeRate) : 0;
+            return effectiveCartRate > 0 ? mulR(val, effectiveCartRate) : 0;
         }));
-    }, [barValues, paymentMethods, effectiveRate, tasaCop, safeRate, safeTasaCop]);
+    }, [barValues, paymentMethods, effectiveCartRate, safeTasaCop]);
 
     // Monto que Cashea cubre (virtual, se agrega como pago al confirmar)
     const casheaAmountUsd = useMemo(() => {
@@ -76,11 +84,11 @@ export function useCheckoutCalculations({
     const totalPaidWithCasheaUsd = round2(totalPaidUsd + casheaAmountUsd);
 
     const remainingUsd = Math.max(0, subR(cartTotalUsd, totalPaidWithCasheaUsd));
-    const remainingBs = Math.max(0, subR(cartTotalBs, totalPaidBs + mulR(casheaAmountUsd, safeRate)));
+    const remainingBs = Math.max(0, subR(cartTotalBs, totalPaidBs + mulR(casheaAmountUsd, effectiveCartRate)));
     const changeUsd = Math.max(0, subR(totalPaidWithCasheaUsd, cartTotalUsd));
-    const changeBs = Math.max(0, subR(totalPaidBs + mulR(casheaAmountUsd, safeRate), cartTotalBs));
+    const changeBs = Math.max(0, subR(totalPaidBs + mulR(casheaAmountUsd, effectiveCartRate), cartTotalBs));
     // FIN-023: umbral centralizado en securityConstants (antes `0.009` hardcodeado).
-    const isPaid = remainingUsd < FINANCIAL_EPSILON.PAYMENT_ZERO;
+    const isPaid = remainingUsd < FINANCIAL_EPSILON.PAYMENT_ZERO || remainingBs < FINANCIAL_EPSILON.PAYMENT_ZERO;
 
     const PAYMENT_TOLERANCE = 0.01;
     const casheaConfirmReady = !casheaActive || isPaid || totalPaidUsd >= round2(cartTotalUsd - casheaAmountUsd) - PAYMENT_TOLERANCE;
@@ -126,10 +134,10 @@ export function useCheckoutCalculations({
                     amountInputCurrency: m.currency,
                     amountUsd: m.currency === 'USD' ? amount
                         : m.currency === 'COP' ? (safeTasaCop > 0 ? divR(amount, safeTasaCop) : 0)
-                        : (safeRate > 0 ? divR(amount, safeRate) : 0),
+                        : (effectiveCartRate > 0 ? divR(amount, effectiveCartRate) : 0),
                     amountBs: m.currency === 'BS' ? amount
-                        : m.currency === 'COP' ? (safeTasaCop > 0 && safeRate > 0 ? mulR(divR(amount, safeTasaCop), safeRate) : 0)
-                        : (safeRate > 0 ? mulR(amount, safeRate) : 0),
+                        : m.currency === 'COP' ? (safeTasaCop > 0 && effectiveCartRate > 0 ? mulR(divR(amount, safeTasaCop), effectiveCartRate) : 0)
+                        : (effectiveCartRate > 0 ? mulR(amount, effectiveCartRate) : 0),
                 };
             });
 
@@ -143,7 +151,7 @@ export function useCheckoutCalculations({
                 amountInput: casheaAmountUsd,
                 amountInputCurrency: 'USD',
                 amountUsd: casheaAmountUsd,
-                amountBs: mulR(casheaAmountUsd, safeRate),
+                amountBs: mulR(casheaAmountUsd, effectiveCartRate),
                 isCashea: true,
                 casheaPercent: 100 - casheaPercent,
             });
@@ -155,7 +163,7 @@ export function useCheckoutCalculations({
             changeUsdGiven: Math.min(defaultUsdChange, changeUsd),
             changeBsGiven: Math.min(defaultBsChange, changeBs),
         });
-    }, [barValues, paymentMethods, onConfirmSale, changeUsdGiven, changeBsGiven, changeUsd, changeBs, safeRate, safeTasaCop, casheaActive, casheaAmountUsd, casheaPercent]);
+    }, [barValues, paymentMethods, onConfirmSale, changeUsdGiven, changeBsGiven, changeUsd, changeBs, effectiveCartRate, safeTasaCop, casheaActive, casheaAmountUsd, casheaPercent]);
 
     // ── Detección inteligente de errores de entrada ───────────────────────────
     const _detectWarning = useCallback(() => {
@@ -270,6 +278,7 @@ export function useCheckoutCalculations({
         confirmWarning,
         dismissWarning,
         safeRate,
+        effectiveCartRate,
         safeTasaCop,
         // FIN-009 / FIN-033: exponer errores de tasa para que la UI bloquee el cobro.
         rateError,

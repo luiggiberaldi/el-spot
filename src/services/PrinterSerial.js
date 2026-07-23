@@ -274,6 +274,15 @@ class PrinterSerial {
                 chunks.push(encode(twoCol(nameShort, lineTotal, w) + '\n'));
                 // Price per unit line (indented)
                 chunks.push(encode(`  @ ${fmtUsd(item.priceUsd)}/u\n`));
+                if (item.hasWarranty) {
+                    const daysStr = item.warrantyDays ? `${item.warrantyDays} dias` : 'Si';
+                    chunks.push(encode(`  [Garantia: ${daysStr}]\n`));
+                }
+                if (item._priceMode === 'bcv') {
+                    chunks.push(encode(`  [Precio BCV]\n`));
+                } else if (item._priceMode === 'usdt') {
+                    chunks.push(encode(`  [Precio USDT]\n`));
+                }
             }
         }
         chunks.push(encode(line(w)));

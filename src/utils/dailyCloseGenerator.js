@@ -82,15 +82,16 @@ export async function generateDailyClosePDF({
     }
 
     // Colores del tema de impresión premium
-    const INK = [33, 37, 41];
-    const BODY = [73, 80, 87];
-    const MUTED = [134, 142, 150];
-    const GREEN = [16, 124, 65];
-    const RED = [220, 53, 69];
-    const BLUE = [1, 105, 111]; // Tono brand "Precios Al Día"
-    const RULE = [222, 226, 230];
-    const BG_CARD = [248, 249, 250];
-    const BORDER_CARD = [233, 236, 239];
+    const INK = [15, 23, 42];        // Slate 900 (Negro Obsidiana)
+    const BODY = [51, 65, 85];       // Slate 700
+    const MUTED = [100, 116, 139];   // Slate 500
+    const GREEN = [16, 185, 129];    // Emerald 500 (Éxito / Dinero)
+    const RED = [225, 29, 72];       // Rose 600
+    const BLUE = [15, 23, 42];       // Brand Primary El Spot (Negro Obsidiana)
+    const AMBER = [217, 119, 6];     // Brand Accent El Spot (Ámbar)
+    const RULE = [226, 232, 240];    // Slate 200
+    const BG_CARD = [248, 250, 252]; // Slate 50
+    const BORDER_CARD = [226, 232, 240];
 
     // Precargar la imagen del logo
     let imgLogo = null;
@@ -121,7 +122,7 @@ export async function generateDailyClosePDF({
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(8);
             doc.setTextColor(...MUTED);
-            doc.text(`Precios Al Día Bodega · Reporte de Cierre de Caja · Página ${pNum}`, WIDTH / 2, HEIGHT - 10, { align: 'center' });
+            doc.text(`El Spot Concept Store · Reporte de Cierre de Caja · Página ${pNum}`, WIDTH / 2, HEIGHT - 10, { align: 'center' });
         };
 
         // Helper para controlar saltos de página
@@ -137,32 +138,36 @@ export async function generateDailyClosePDF({
 
         // Helper para dibujar la cabecera corporativa limpia en cada página
         const drawHeader = () => {
-            // Fondo de cabecera limpio
-            doc.setFillColor(255, 255, 255);
-            doc.rect(M, y, RIGHT - M, 24, 'F');
+            let computedLogoW = 40;
 
-            // Logo
+            // Logo al doble de tamaño con relación de aspecto natural
             if (imgLogo) {
-                const logoW = 38;
-                const logoH = 9;
-                doc.addImage(imgLogo, 'PNG', M, y + 4, logoW, logoH);
+                const rawW = imgLogo.naturalWidth || imgLogo.width || 200;
+                const rawH = imgLogo.naturalHeight || imgLogo.height || 100;
+                const aspectRatio = rawW / rawH;
+
+                const maxW = 65; // Doble del tamaño anterior
+                const maxH = 26; // Doble del tamaño anterior
+                let logoW = maxW;
+                let logoH = logoW / aspectRatio;
+                if (logoH > maxH) {
+                    logoH = maxH;
+                    logoW = logoH * aspectRatio;
+                }
+                computedLogoW = logoW;
+                doc.addImage(imgLogo, 'PNG', M, y, logoW, logoH);
             } else {
                 doc.setFont('helvetica', 'bold');
-                doc.setFontSize(14);
+                doc.setFontSize(16);
                 doc.setTextColor(...BLUE);
-                doc.text('Precios Al Día', M, y + 9);
+                doc.text('El Spot', M, y + 12);
             }
 
-            // Título y Subtítulo
+            // Título Principal (Centrado en la hoja)
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(14);
+            doc.setFontSize(12);
             doc.setTextColor(...BLUE);
-            doc.text('PRECIOS AL DÍA BODEGA', M + 45, y + 8);
-
-            doc.setFontSize(8.5);
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor(...BODY);
-            doc.text('REPORTE DETALLADO DE CIERRE DE CAJA', M + 45, y + 13);
+            doc.text('REPORTE DETALLADO DE CIERRE DE CAJA', WIDTH / 2, y + 15, { align: 'center' });
 
             // Metadatos
             doc.setFont('helvetica', 'bold');
@@ -175,7 +180,7 @@ export async function generateDailyClosePDF({
             doc.text(`Generado: ${now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' })}`, RIGHT, y + 16, { align: 'right' });
 
             // Línea divisoria decorativa
-            y += 20;
+            y += 28;
             doc.setDrawColor(...BLUE);
             doc.setLineWidth(0.6);
             doc.line(M, y, RIGHT, y);
@@ -269,8 +274,8 @@ export async function generateDailyClosePDF({
         if (totalAutoconsumoUsd > 0) {
             opsRows.push(['Retiros Inventario (*)', `$${formatUsd(totalAutoconsumoUsd)}`]);
         }
-        opsRows.push(['Ganancia Estimada USD', fmtUsd(bcvRate > 0 ? divR(todayProfit, bcvRate) : 0)]);
-        opsRows.push(['Ganancia Estimada Bs', `Bs ${formatBs(todayProfit)}`]);
+        opsRows.push(['Ganancia Real USDT', `$${formatUsd(todayProfit)} USDT`]);
+        opsRows.push(['Equivalente Bs (ref)', `Bs ${formatBs(mulR(todayProfit, bcvRate))}`]);
 
         const opsH = 10 + (opsRows.length * 4.5);
         contentY = drawCard(M, leftY, colW, opsH, 'Resumen de Operaciones');
@@ -340,23 +345,39 @@ export async function generateDailyClosePDF({
             rightY += reH + 4;
         }
 
-        // Tarjeta Pagos por Método
-        const paymentEntries = Object.entries(paymentBreakdown);
+        // Tarjeta Pagos por Método (agrupado por moneda)
+        const paymentEntries = Object.entries(paymentBreakdown).filter(([, d]) => d.total > 0);
         if (paymentEntries.length > 0) {
-            const payH = 10 + (paymentEntries.length * 4.5);
+            const sortedEntries = [
+                ...paymentEntries.filter(([m, d]) => d.currency === 'USD' && m !== 'cashea' && m !== 'fiado'),
+                ...paymentEntries.filter(([m, d]) => (d.currency === 'BS' || (!d.currency && m.includes('bs'))) && m !== 'cashea' && m !== 'fiado'),
+                ...paymentEntries.filter(([, d]) => d.currency === 'COP'),
+                ...paymentEntries.filter(([m, d]) => d.currency === 'FIADO' || m === 'cashea' || m === 'fiado')
+            ];
+            const payH = 10 + (sortedEntries.length * 4.5);
             contentY = drawCard(colR_X, rightY, colW, payH, 'Ingresos por Método');
-            paymentEntries.forEach(([methodId, data]) => {
+            sortedEntries.forEach(([methodId, data]) => {
                 const label = toTitleCase(getPaymentLabel(methodId, data.label));
-                const val = data.currency === 'USD'
+                const currTag = data.currency === 'USD' ? '[USD]' : data.currency === 'COP' ? '[COP]' : (data.currency === 'FIADO' || methodId === 'cashea' || methodId === 'fiado') ? '[FIADO]' : '[BS]';
+                const val = data.currency === 'USD' || data.currency === 'FIADO' || methodId === 'cashea' || methodId === 'fiado'
                     ? fmtUsd(data.total)
                     : data.currency === 'COP'
                     ? `${data.total.toLocaleString('es-CO')} COP`
                     : `Bs ${formatBs(data.total)}`;
 
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(6.5);
+                if (data.currency === 'USD') doc.setTextColor(...GREEN);
+                else if (data.currency === 'COP') doc.setTextColor(...AMBER);
+                else if (data.currency === 'FIADO' || methodId === 'cashea' || methodId === 'fiado') doc.setTextColor(147, 51, 234);
+                else doc.setTextColor(6, 182, 212);
+                doc.text(currTag, colR_X + 4, contentY);
+
                 doc.setFont('helvetica', 'normal');
                 doc.setFontSize(7.5);
                 doc.setTextColor(...BODY);
-                doc.text(label, colR_X + 4, contentY);
+                doc.text(label, colR_X + 15, contentY);
+
                 doc.setFont('helvetica', 'bold');
                 doc.setTextColor(...INK);
                 doc.text(val, colR_X + colW - 4, contentY, { align: 'right' });
@@ -711,11 +732,22 @@ export async function generateDailyClosePDF({
         return yy + 5;
     };
 
-    // Logo
+    // Logo con proporción de aspecto natural
     try {
         if (imgLogo) {
-            const logoW = is80 ? 46 : 38;
-            const logoH = is80 ? 11 : 9;
+            const rawW = imgLogo.naturalWidth || imgLogo.width || 200;
+            const rawH = imgLogo.naturalHeight || imgLogo.height || 100;
+            const aspectRatio = rawW / rawH;
+
+            const maxW = is80 ? 44 : 36;
+            const maxH = is80 ? 18 : 15;
+            let logoW = maxW;
+            let logoH = logoW / aspectRatio;
+            if (logoH > maxH) {
+                logoH = maxH;
+                logoW = logoH * aspectRatio;
+            }
+
             doc.addImage(imgLogo, 'PNG', HEADER_CX - logoW / 2, y, logoW, logoH);
             y += logoH + 3;
         } else {
@@ -775,8 +807,8 @@ export async function generateDailyClosePDF({
         ['Artículos vendidos', `${todayItemsSold}`],
         [`Ingresos brutos (${usdLabel})`, fmtUsd(todayTotalUsd)],
         ['Ingresos brutos (Bs)', `Bs ${formatBs(todayTotalBs)}`],
-        [`Ganancia estimada (${usdLabel})`, fmtUsd(bcvRate > 0 ? divR(todayProfit, bcvRate) : 0)],
-        ['Ganancia estimada (Bs)', `Bs ${formatBs(todayProfit)}`],
+        ['Ganancia Real USDT', `$${formatUsd(todayProfit)} USDT`],
+        ['Equivalente Bs (ref)', `Bs ${formatBs(mulR(todayProfit, bcvRate))}`],
         ['Tasa oficial BCV', `Bs ${formatBs(bcvRate)}`],
     ];
 
@@ -878,22 +910,40 @@ export async function generateDailyClosePDF({
         dash(y); y += 6;
     }
 
-    // Desglose por método de pago
+    // Desglose por método de pago (agrupado por moneda)
     if (paymentRows > 0) {
         y = sectionTitle('INGRESOS POR MÉTODO', y);
 
-        Object.entries(paymentBreakdown).forEach(([methodId, data]) => {
+        const paymentEntries = Object.entries(paymentBreakdown).filter(([, d]) => d.total > 0);
+        const sortedEntries = [
+            ...paymentEntries.filter(([m, d]) => d.currency === 'USD' && m !== 'cashea' && m !== 'fiado'),
+            ...paymentEntries.filter(([m, d]) => (d.currency === 'BS' || (!d.currency && m.includes('bs'))) && m !== 'cashea' && m !== 'fiado'),
+            ...paymentEntries.filter(([, d]) => d.currency === 'COP'),
+            ...paymentEntries.filter(([m, d]) => d.currency === 'FIADO' || m === 'cashea' || m === 'fiado')
+        ];
+
+        sortedEntries.forEach(([methodId, data]) => {
             const label = toTitleCase(getPaymentLabel(methodId, data.label));
-            const val = data.currency === 'USD'
+            const currTag = data.currency === 'USD' ? '[USD]' : data.currency === 'COP' ? '[COP]' : (data.currency === 'FIADO' || methodId === 'cashea' || methodId === 'fiado') ? '[FIADO]' : '[BS]';
+            const val = data.currency === 'USD' || data.currency === 'FIADO' || methodId === 'cashea' || methodId === 'fiado'
                 ? fmtUsd(data.total)
                 : data.currency === 'COP'
                 ? `${data.total.toLocaleString('es-CO')} COP`
                 : `Bs ${formatBs(data.total)}`;
 
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(fBody - 1);
+            if (data.currency === 'USD') doc.setTextColor(...GREEN);
+            else if (data.currency === 'COP') doc.setTextColor(...AMBER);
+            else if (data.currency === 'FIADO' || methodId === 'cashea' || methodId === 'fiado') doc.setTextColor(147, 51, 234);
+            else doc.setTextColor(6, 182, 212);
+            doc.text(currTag, M, y);
+
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(fBody);
             doc.setTextColor(...BODY);
-            doc.text(label, M, y);
+            doc.text(label, M + 12, y);
+
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(...INK);
             doc.text(val, VALUE_RIGHT, y, { align: 'right' });
@@ -983,7 +1033,7 @@ export async function generateDailyClosePDF({
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(fBody + 1);
     doc.setTextColor(...INK);
-    doc.text('Precios Al Día', HEADER_CX, y, { align: 'center' });
+    doc.text('El Spot Concept Store', HEADER_CX, y, { align: 'center' });
     y += 4.5;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(fMuted);

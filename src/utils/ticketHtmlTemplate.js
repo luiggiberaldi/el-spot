@@ -22,7 +22,9 @@ export function buildTicketHtml(sale, bcvRate, paperConfig, settings) {
     } = paperConfig;
 
     const receiptCurrencyMode = localStorage.getItem('receipt_currency_mode') || 'bs';
-    const rate = sale.rate || bcvRate || 1;
+    // El ticket refleja todo a Tasa BCV Oficial
+    const rate = sale.bcvRate || bcvRate || sale.rate || 1;
+    const ticketBs = mulR(sale.totalUsd || 0, rate);
     const isCop = sale.copEnabled && sale.tasaCop > 0;
     // FIN-024: formatUsd en vez de parseFloat(v).toFixed(2).
     const fmtUsd = (v) => isCop ? `USD ${formatUsd(v)}` : `$${formatUsd(v)}`;
@@ -37,12 +39,12 @@ export function buildTicketHtml(sale, bcvRate, paperConfig, settings) {
         // FIN-024: formatUsd para qty peso, sin toFixed.
         const qty = item.isWeight ? formatUsd(item.qty) : String(item.qty);
         const unit = item.isWeight ? 'Kg' : 'u';
-        // FIN-024: mulR en vez de multiplicación raw.
+        const itemRate = rate;
         const itemExactBs = item.exactBs ?? (item.isCashAdvance && item.currency === 'BS' ? (item.montoEfectivo + item.montoComision) : null);
-        const sub = itemExactBs != null ? (rate > 0 ? divR(itemExactBs, rate) : item.priceUsd) : mulR(item.priceUsd, item.qty);
-        const subBs = itemExactBs != null ? mulR(itemExactBs, item.qty) : mulR(sub, rate);
+        const sub = itemExactBs != null ? (itemRate > 0 ? divR(itemExactBs, itemRate) : item.priceUsd) : mulR(item.priceUsd, item.qty);
+        const subBs = itemExactBs != null ? mulR(itemExactBs, item.qty) : mulR(sub, itemRate);
         const name = escapeHtml(item.name);
-        const priceBs = itemExactBs != null ? itemExactBs : item.priceUsd * rate;
+        const priceBs = itemExactBs != null ? itemExactBs : item.priceUsd * itemRate;
 
         let totalStr = '';
         let unitPriceStr = '';
@@ -54,16 +56,28 @@ export function buildTicketHtml(sale, bcvRate, paperConfig, settings) {
             totalStr = 'Bs ' + formatBs(subBs);
             unitPriceStr = `Bs ${formatBs(priceBs)}`;
         } else {
-            totalStr = fmtUsd(sub);
+            totalStr = `${fmtUsd(sub)}<br/><span style="font-size:10px;color:#555;font-weight:normal;">Bs ${formatBs(subBs)}</span>`;
             unitPriceStr = isCop
                 ? 'USD ' + formatUsd(item.priceUsd) + ' (' + formatCop(item.priceCop || Math.round(item.priceUsd * sale.tasaCop)) + ' COP)'
-                : `$${formatUsd(item.priceUsd)}`;
+                : `$${formatUsd(item.priceUsd)} (Bs ${formatBs(priceBs)})`;
         }
+
+        const warrantyText = item.hasWarranty
+            ? `<div style="font-size:${fTiny || '9px'};color:#047857;font-weight:bold;margin-top:1px;">🛡️ Garantía: ${item.warrantyDays ? `${item.warrantyDays} días` : 'Sí'}</div>`
+            : '';
+
+        const priceModeText = item._priceMode === 'bcv'
+            ? `<div style="font-size:${fTiny || '9px'};color:#1d4ed8;font-weight:bold;margin-top:1px;">🏛️ Precio BCV</div>`
+            : (item._priceMode === 'usdt'
+                ? `<div style="font-size:${fTiny || '9px'};color:#047857;font-weight:bold;margin-top:1px;">💵 Precio USDT</div>`
+                : '');
 
         return `
             <tr>
                 <td colspan="2" style="text-align:left;font-size:${fBase};font-weight:bold;padding:6px 0 1px 0;line-height:1.25;word-break:break-word;">
                     ${name}
+                    ${warrantyText}
+                    ${priceModeText}
                 </td>
             </tr>
             <tr>
@@ -154,12 +168,12 @@ export function buildTicketHtml(sale, bcvRate, paperConfig, settings) {
     if (receiptCurrencyMode === 'usd') {
         totalBlockHtml = `<div class="total-usd">${fmtUsd(sale.totalUsd || 0)}</div>`;
     } else if (receiptCurrencyMode === 'bs') {
-        totalBlockHtml = `<div class="total-usd">Bs ${formatBs(sale.totalBs || 0)}</div>`;
+        totalBlockHtml = `<div class="total-usd">Bs ${formatBs(ticketBs)}</div>`;
     } else {
         totalBlockHtml = `
         <div class="total-usd">${fmtUsd(sale.totalUsd || 0)}</div>
         ${isCop ? `<div class="total-bs" style="font-size:${is80 ? '16px' : '13px'};">COP ${formatCop(sale.totalCop || mulR(sale.totalUsd, sale.tasaCop))}</div>` : ''}
-        <div class="total-bs" style="margin-bottom:4px">Bs ${formatBs(sale.totalBs || 0)}</div>`;
+        <div class="total-bs" style="margin-bottom:4px">Bs ${formatBs(ticketBs)}</div>`;
     }
 
     return `<!DOCTYPE html>

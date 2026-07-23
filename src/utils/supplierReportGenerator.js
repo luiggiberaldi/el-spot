@@ -17,20 +17,19 @@ export async function generateSupplierHistoryPDF({
     let y = 15;
     let pageNum = 1;
 
-    // Colores del tema de impresión premium (Coordinado con el branding de Precios Al Día)
-    const INK = [33, 37, 41];
-    const BODY = [73, 80, 87];
-    const MUTED = [134, 142, 150];
-    const GREEN = [16, 124, 65];
-    const RED = [180, 40, 50];
-    const BLUE = [1, 105, 111]; // Tono brand "Precios Al Día"
-    const RULE = [222, 226, 230];
+    const INK = [15, 23, 42];
+    const BODY = [51, 65, 85];
+    const MUTED = [100, 116, 139];
+    const GREEN = [16, 185, 129];
+    const RED = [225, 29, 72];
+    const BLUE = [15, 23, 42];
+    const RULE = [226, 232, 240];
 
     const addFooter = (pNum) => {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8);
         doc.setTextColor(...MUTED);
-        doc.text(`Precios Al Día Bodega · Estado de Cuenta Individual · Página ${pNum}`, WIDTH / 2, HEIGHT - 10, { align: 'center' });
+        doc.text(`El Spot Concept Store · Estado de Cuenta Individual · Página ${pNum}`, WIDTH / 2, HEIGHT - 10, { align: 'center' });
     };
 
     const checkPageBreak = (neededHeight) => {
@@ -245,19 +244,19 @@ export async function generateGlobalSuppliersPDF({
     let y = 15;
     let pageNum = 1;
 
-    const INK = [33, 37, 41];
-    const BODY = [73, 80, 87];
-    const MUTED = [134, 142, 150];
-    const GREEN = [16, 124, 65];
-    const RED = [180, 40, 50];
-    const BLUE = [1, 105, 111];
-    const RULE = [222, 226, 230];
+    const INK = [15, 23, 42];
+    const BODY = [51, 65, 85];
+    const MUTED = [100, 116, 139];
+    const GREEN = [16, 185, 129];
+    const RED = [225, 29, 72];
+    const BLUE = [15, 23, 42];
+    const RULE = [226, 232, 240];
 
     const addFooter = (pNum) => {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8);
         doc.setTextColor(...MUTED);
-        doc.text(`Precios Al Día Bodega · Reporte General de Proveedores · Página ${pNum}`, WIDTH / 2, HEIGHT - 10, { align: 'center' });
+        doc.text(`El Spot Concept Store · Reporte General de Proveedores · Página ${pNum}`, WIDTH / 2, HEIGHT - 10, { align: 'center' });
     };
 
     const checkPageBreak = (neededHeight) => {

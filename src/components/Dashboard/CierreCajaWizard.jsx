@@ -249,23 +249,23 @@ export default function CierreCajaWizard({
                                 <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/30 rounded-xl p-3">
                                     <div className="flex items-center gap-1.5 mb-1">
                                         <TrendingUp size={14} className="text-emerald-500" />
-                                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">Ganancia</span>
+                                        <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Ganancia Real USDT</span>
                                     </div>
                                     <p className={`text-lg font-black ${todayProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
                                         {copEnabled && copPrimary && tasaCop > 0
-                                            ? `${todayProfit >= 0 ? '+' : ''}${formatCop((bcvRate > 0 ? todayProfit / bcvRate : 0) * tasaCop)} COP`
-                                            : `${todayProfit >= 0 ? '+' : ''}${fmtUsdAmt(bcvRate > 0 ? todayProfit / bcvRate : 0)}`}
+                                            ? `${todayProfit >= 0 ? '+' : ''}${formatCop(todayProfit * tasaCop)} COP`
+                                            : `${todayProfit >= 0 ? '+' : ''}${fmtUsdAmt(todayProfit)} USDT`}
                                     </p>
                                     {copActive && (
                                         copPrimary
                                             ? <p className="text-[11px] font-bold text-emerald-500/70">
-                                                {todayProfit >= 0 ? '+' : ''}{fmtUsdAmt(bcvRate > 0 ? todayProfit / bcvRate : 0)}
+                                                {todayProfit >= 0 ? '+' : ''}${fmtUsdAmt(todayProfit)} USDT
                                               </p>
                                             : <p className="text-[11px] font-bold text-emerald-500/70">
-                                                {todayProfit >= 0 ? '+' : ''}{formatCop((bcvRate > 0 ? todayProfit / bcvRate : 0) * tasaCop)} COP
+                                                {todayProfit >= 0 ? '+' : ''}${formatCop(todayProfit * tasaCop)} COP
                                               </p>
                                     )}
-                                    <p className="text-[11px] font-bold text-emerald-500/70">{formatBs(todayProfit)} Bs</p>
+                                    <p className="text-[10px] font-bold text-emerald-600/70 dark:text-emerald-400/70">Utilidad de reposición ($ 1:1 USDT · Bs ÷ Tasa)</p>
                                 </div>
                                 <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800/30 rounded-xl p-3">
                                     <div className="flex items-center gap-1.5 mb-1">
@@ -286,30 +286,103 @@ export default function CierreCajaWizard({
                                 </div>
                             </div>
 
-                            {/* Desglose por metodo de pago */}
-                            {paymentEntries.length > 0 && (
-                                <div>
-                                    <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2 pl-1">Desglose por metodo</h4>
-                                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700/50 divide-y divide-slate-100 dark:divide-slate-700/50">
-                                        {paymentEntries.map(([methodId, data]) => {
-                                            const IconComp = getPaymentIcon(methodId);
-                                            return (
-                                                <div key={methodId} className="flex items-center justify-between px-4 py-3">
-                                                    <div className="flex items-center gap-2.5">
-                                                        <div className="w-8 h-8 bg-white dark:bg-slate-700 rounded-lg flex items-center justify-center shadow-sm">
-                                                            {IconComp ? <IconComp size={16} className="text-slate-600 dark:text-slate-300" /> : <DollarSign size={16} className="text-slate-600 dark:text-slate-300" />}
-                                                        </div>
-                                                        <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{toTitleCase(getPaymentLabel(methodId, data.label))}</span>
-                                                    </div>
-                                                    <span className="text-sm font-black text-slate-800 dark:text-white font-mono">
-                                                        {getCurrencyDisplay(methodId, data)}
+                            {/* Desglose por método de pago agrupado por moneda con código de colores */}
+                            {paymentEntries.length > 0 && (() => {
+                                const usdGroup = paymentEntries.filter(([m, d]) => d.currency === 'USD' && m !== 'cashea' && m !== 'fiado');
+                                const bsGroup = paymentEntries.filter(([m, d]) => (d.currency === 'BS' || (!d.currency && m.includes('bs'))) && m !== 'cashea' && m !== 'fiado');
+                                const copGroup = paymentEntries.filter(([, d]) => d.currency === 'COP');
+                                const fiadoGroup = paymentEntries.filter(([m, d]) => d.currency === 'FIADO' || m === 'cashea' || m === 'fiado');
+
+                                const groups = [
+                                    {
+                                        id: 'usd',
+                                        title: 'Divisas USD ($)',
+                                        badge: 'USD',
+                                        items: usdGroup,
+                                        totalDisplay: `$${usdGroup.reduce((sum, [, d]) => sum + d.total, 0).toFixed(2)}`,
+                                        bgClass: 'bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/40',
+                                        headerClass: 'text-emerald-700 dark:text-emerald-400 bg-emerald-100/70 dark:bg-emerald-900/40',
+                                        iconColor: 'text-emerald-600 dark:text-emerald-400',
+                                        badgeClass: 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300'
+                                    },
+                                    {
+                                        id: 'bs',
+                                        title: 'Bolívares (Bs)',
+                                        badge: 'Bs',
+                                        items: bsGroup,
+                                        totalDisplay: `${formatBs(bsGroup.reduce((sum, [, d]) => sum + d.total, 0))} Bs`,
+                                        bgClass: 'bg-cyan-50/70 dark:bg-cyan-950/20 border-cyan-200 dark:border-cyan-800/40',
+                                        headerClass: 'text-cyan-700 dark:text-cyan-400 bg-cyan-100/70 dark:bg-cyan-900/40',
+                                        iconColor: 'text-cyan-600 dark:text-cyan-400',
+                                        badgeClass: 'bg-cyan-100 dark:bg-cyan-900/50 text-cyan-700 dark:text-cyan-300'
+                                    },
+                                    {
+                                        id: 'cop',
+                                        title: 'Pesos Colombianos (COP)',
+                                        badge: 'COP',
+                                        items: copGroup,
+                                        totalDisplay: `${fmtCop(copGroup.reduce((sum, [, d]) => sum + d.total, 0))} COP`,
+                                        bgClass: 'bg-amber-50/70 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800/40',
+                                        headerClass: 'text-amber-700 dark:text-amber-400 bg-amber-100/70 dark:bg-amber-900/40',
+                                        iconColor: 'text-amber-600 dark:text-amber-400',
+                                        badgeClass: 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300'
+                                    },
+                                    {
+                                        id: 'fiado',
+                                        title: 'Cuentas por Cobrar',
+                                        badge: 'Fiado',
+                                        items: fiadoGroup,
+                                        totalDisplay: `$${fiadoGroup.reduce((sum, [, d]) => sum + d.total, 0).toFixed(2)}`,
+                                        bgClass: 'bg-purple-50/70 dark:bg-purple-950/20 border-purple-200 dark:border-purple-800/40',
+                                        headerClass: 'text-purple-700 dark:text-purple-400 bg-purple-100/70 dark:bg-purple-900/40',
+                                        iconColor: 'text-purple-600 dark:text-purple-400',
+                                        badgeClass: 'bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300'
+                                    }
+                                ];
+
+                                return (
+                                    <div className="space-y-3">
+                                        <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest pl-1">Ingresos por Moneda</h4>
+                                        {groups.filter(g => g.items.length > 0).map(group => (
+                                            <div key={group.id} className={`rounded-xl border ${group.bgClass} overflow-hidden shadow-xs`}>
+                                                <div className="flex items-center justify-between px-3.5 py-2 border-b border-inherit">
+                                                    <span className={`text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${group.headerClass}`}>
+                                                        {group.title}
+                                                    </span>
+                                                    <span className="text-xs font-black font-mono text-slate-800 dark:text-white">
+                                                        {group.totalDisplay}
                                                     </span>
                                                 </div>
-                                            );
-                                        })}
+                                                <div className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                                                    {group.items.map(([methodId, data]) => {
+                                                        const IconComp = getPaymentIcon(methodId);
+                                                        return (
+                                                            <div key={methodId} className="flex items-center justify-between px-3.5 py-2.5">
+                                                                <div className="flex items-center gap-2.5">
+                                                                    <div className="w-7 h-7 bg-white dark:bg-slate-800 rounded-lg flex items-center justify-center shadow-xs shrink-0">
+                                                                        {IconComp ? <IconComp size={15} className={group.iconColor} /> : <DollarSign size={15} className={group.iconColor} />}
+                                                                    </div>
+                                                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                                                                        {toTitleCase(getPaymentLabel(methodId, data.label))}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex items-center gap-2 font-mono">
+                                                                    <span className="text-xs font-black text-slate-800 dark:text-white">
+                                                                        {getCurrencyDisplay(methodId, data)}
+                                                                    </span>
+                                                                    <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${group.badgeClass}`}>
+                                                                        {group.badge}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                </div>
-                            )}
+                                );
+                            })()}
 
                             {/* Top productos */}
                             {todayTopProducts.length > 0 && (

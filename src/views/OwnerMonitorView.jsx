@@ -1195,6 +1195,12 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                                         }`}>
                                                             {isAgotado ? 'Agotado' : isBajo ? 'Bajo Stock' : 'Disponible'}
                                                         </span>
+                                                        {p.hasWarranty && (p.warrantyDays > 0 || p.warrantyDays === null) && (
+                                                            <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 flex items-center gap-1">
+                                                                <ShieldCheck size={9} />
+                                                                {p.warrantyDays ? `${p.warrantyDays}d Garantía` : 'Garantía'}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <div className="flex items-center gap-3 text-[10px] text-slate-400 mt-1 font-medium">
                                                         {p.barcode && (

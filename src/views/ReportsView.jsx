@@ -87,6 +87,8 @@ export default function ReportsView({ rates, triggerHaptic, onNavigate, isActive
         return getDateRange(selectedRange);
     }, [selectedRange, customFrom, customTo]);
 
+    const usdtRate = rates?.usdt?.price || rates?.bcv?.price || bcvRate || 1;
+
     const {
         salesForStats,
         salesForCashFlow,
@@ -102,7 +104,7 @@ export default function ReportsView({ rates, triggerHaptic, onNavigate, isActive
         expensesList,
         expensesUsd,
         expensesBs
-    } = useMemo(() => calculateReportsData(allSales, from, to, bcvRate, products), [allSales, from, to, bcvRate, products]);
+    } = useMemo(() => calculateReportsData(allSales, from, to, bcvRate, products, usdtRate), [allSales, from, to, bcvRate, products, usdtRate]);
 
     const groupedClosings = useMemo(() => {
         if (activeTab === 'history') {

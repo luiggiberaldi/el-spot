@@ -9,7 +9,7 @@ import { getLocalISODate } from '../utils/dateHelpers';
  * FIN-013: weekData ya NO excluye VENTA_FIADA (criterio unificado con todayTotalUsd).
  * FIN-019: totalDeudas y topProducts usan sumR/mulR en vez de reduce/multiplicación raw.
  */
-export function useDashboardMetrics(sales, customers, products, bcvRate) {
+export function useDashboardMetrics(sales, customers, products, bcvRate, usdtRate) {
     const today = getLocalISODate();
 
     // Memoize sales with pre-calculated local dates to avoid parsing new Date inside nested loops
@@ -82,8 +82,8 @@ export function useDashboardMetrics(sales, customers, products, bcvRate) {
     const todayGastosUsd = useMemo(() => sumR(todayGastos.map(s => Math.abs(s.totalUsd || 0))), [todayGastos]);
 
     const todayProfit = useMemo(() =>
-        FinancialEngine.calculateAggregateProfit(todaySales, bcvRate, products),
-        [todaySales, bcvRate, products]
+        FinancialEngine.calculateAggregateRealProfitUsd(todaySales, usdtRate || bcvRate, products),
+        [todaySales, bcvRate, usdtRate, products]
     );
 
     // Últimas ventas (por defecto todas ordenadas por fecha más reciente, o filtradas por el día seleccionado en la gráfica)

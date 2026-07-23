@@ -31,7 +31,11 @@ const INITIAL_STATE = {
     packagingType: 'suelto',
     stockInLotes: '',
     granelUnit: 'kg',
+    hasWarranty: false,
+    warrantyDays: '',
     isFormShaking: false,
+    price2Usd: '',
+    price2Bs: '',
 };
 
 function reducer(state, action) {
@@ -75,13 +79,17 @@ export function useProductForm() {
     const setPackagingType = useCallback((v) => dispatch({ type: 'SET', field: 'packagingType', value: v }), []);
     const setStockInLotes = useCallback((v) => dispatch({ type: 'SET', field: 'stockInLotes', value: v }), []);
     const setGranelUnit = useCallback((v) => dispatch({ type: 'SET', field: 'granelUnit', value: v }), []);
+    const setHasWarranty = useCallback((v) => dispatch({ type: 'SET', field: 'hasWarranty', value: v }), []);
+    const setWarrantyDays = useCallback((v) => dispatch({ type: 'SET', field: 'warrantyDays', value: v }), []);
     const setIsFormShaking = useCallback((v) => dispatch({ type: 'SET', field: 'isFormShaking', value: v }), []);
+    const setPrice2Usd = useCallback((v) => dispatch({ type: 'SET', field: 'price2Usd', value: v }), []);
+    const setPrice2Bs = useCallback((v) => dispatch({ type: 'SET', field: 'price2Bs', value: v }), []);
 
     const resetForm = useCallback(() => {
         dispatch({ type: 'RESET' });
     }, []);
 
-    const populateForm = useCallback((product, effectiveRate) => {
+    const populateForm = useCallback((product, effectiveRate, bcvRate) => {
         // HOOK-029: usar PATCH para actualizar todos los campos en una sola
         // dispatch (un único re-render en vez de 17).
         const currentPriceUsd = product.priceUsdt || 0;
@@ -89,6 +97,8 @@ export function useProductForm() {
         const currentCostBs = product.costBs || (product.costUsd ? product.costUsd * effectiveRate : 0);
 
         const u = product.unit || 'unidad';
+        // Siempre calcular price2Bs con bcvRate (tasa BCV oficial)
+        const rateForPrice2 = bcvRate || effectiveRate;
 
         const patch = {
             editingId: product.id,
@@ -106,6 +116,10 @@ export function useProductForm() {
             category: product.category || 'otros',
             lowStockAlert: product.lowStockAlert ?? 5,
             image: product.image,
+            hasWarranty: product.hasWarranty || false,
+            warrantyDays: product.warrantyDays ? product.warrantyDays.toString() : '',
+            price2Usd: product.price2Usd ? product.price2Usd.toString() : '',
+            price2Bs: product.price2Usd ? (product.price2Usd * rateForPrice2).toFixed(2) : '',
         };
 
         // Derive packagingType from legacy unit
@@ -154,7 +168,11 @@ export function useProductForm() {
         packagingType: state.packagingType, setPackagingType,
         stockInLotes: state.stockInLotes, setStockInLotes,
         granelUnit: state.granelUnit, setGranelUnit,
+        hasWarranty: state.hasWarranty, setHasWarranty,
+        warrantyDays: state.warrantyDays, setWarrantyDays,
         isFormShaking: state.isFormShaking, setIsFormShaking,
+        price2Usd: state.price2Usd, setPrice2Usd,
+        price2Bs: state.price2Bs, setPrice2Bs,
         resetForm,
         populateForm,
         // Exponer para tests / devtools.

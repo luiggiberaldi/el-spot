@@ -14,61 +14,61 @@
  */
 
 :root {
-  /* ═══ OKLCH puros (para CSS custom: color-mix, gradients, shadows) ═══ */
+  /* ═══ OKLCH puros (Sistema Obsidian Velvet & Amber Gold) ═══ */
 
-  /* ── Primary (H=45: Naranja Industrial El Spot) ── */
-  --primary:           oklch(0.55 0.20 45);   /* #e65100 Naranja Industrial */
-  --primary-hover:     oklch(0.48 0.21 45);   /* #c63f00 Naranja Hover */
-  --primary-soft:      oklch(0.96 0.03 45);   /* #fff3e0 Naranja Soft */
-  --primary-contrast:  oklch(0.99 0.005 45);  /* #ffffff */
+  /* ── Primary (Negro Obsidiana Mate) ── */
+  --primary:           oklch(0.20 0.01 260);   /* #18181b Obsidian Matte */
+  --primary-hover:     oklch(0.12 0.01 260);   /* #09090b Obsidian Deep */
+  --primary-soft:      oklch(0.97 0.03 85);    /* #fef3c7 Amber Soft */
+  --primary-contrast:  oklch(1.00 0.00 0);     /* #ffffff Pure White */
 
-  /* ── Background & Surfaces (H=85: Oliva / Cream cálido) ── */
-  --bg:                oklch(0.985 0.010 85);  /* #fbfaf7 */
-  --surface:           oklch(0.965 0.014 85);  /* #f5f3ee */
-  --surface-2:         oklch(0.935 0.022 85);  /* #edeae2 */
-  --surface-3:         oklch(0.91 0.018 85);   /* hover de filas */
+  /* ── Background & Surfaces (Fondo Blanco Nítido) ── */
+  --bg:                oklch(1.00 0.00 0);     /* #ffffff Crisp White */
+  --surface:           oklch(0.98 0.00 0);     /* #fafafa Porcelain */
+  --surface-2:         oklch(0.96 0.00 0);     /* #f4f4f5 Cool Surface */
+  --surface-3:         oklch(0.93 0.00 0);     /* hover de filas */
 
-  /* ── Text (H=60: Marrón carbón cálido) ── */
-  --text:              oklch(0.28 0.020 60);   /* #2c2924 */
-  --text-muted:        oklch(0.50 0.020 60);   /* #605c56 */
-  --text-faint:        oklch(0.68 0.015 60);   /* #8d8881 */
+  /* ── Text (Carbón Absoluto de Alto Contraste) ── */
+  --text:              oklch(0.14 0.01 260);   /* #09090b Dark Charcoal */
+  --text-muted:        oklch(0.45 0.01 260);   /* #52525b Slate Muted */
+  --text-faint:        oklch(0.65 0.01 260);   /* #a1a1aa Zinc Faint */
 
   /* ── Borders ── */
-  --border:            oklch(0.89 0.018 85);   /* #e2dfd7 */
-  --border-strong:     oklch(0.80 0.025 85);   /* #cbc6b9 */
+  --border:            oklch(0.92 0.00 0);     /* #e4e4e7 Border Light */
+  --border-strong:     oklch(0.85 0.00 0);     /* #d4d4d8 Border Strong */
 
   /* ── Status / Alertas ── */
-  --accent:            oklch(0.60 0.16 240);   /* #0284c7 Azul Cobalto Tech */
-  --success:           oklch(0.62 0.130 150);  /* #24a870 verde menta */
-  --warning:           oklch(0.74 0.140 75);   /* #df9d1a amarillo oro */
-  --danger:            oklch(0.55 0.180 27);   /* rojo cálido */
+  --accent:            oklch(0.65 0.18 75);    /* #d97706 Ámbar Miel */
+  --success:           oklch(0.62 0.15 150);   /* #10b981 Verde Esmeralda */
+  --warning:           oklch(0.72 0.17 80);    /* #f59e0b Oro Miel */
+  --danger:            oklch(0.55 0.18 27);    /* #ef4444 Rojo Cálido */
 
   /* ═══ RGB derivados (para Tailwind rgb(var() / <alpha>)) ═══ */
 
-  /* Primary (H=45 Naranja Industrial) */
-  --color-primary-50:  255 243 224;   /* #fff3e0 primary-soft */
-  --color-primary-100: 255 224 178;
-  --color-primary-200: 255 204 128;
-  --color-primary-300: 255 183 77;
-  --color-primary-400: 255 152 0;
-  --color-primary-500: 230 81 0;      /* #e65100 primary */
-  --color-primary-600: 198 63 0;      /* #c63f00 primary-hover */
-  --color-primary-700: 165 48 0;
-  --color-primary-800: 130 35 0;
-  --color-primary-900: 95 25 0;
+  /* Primary (Negro Obsidiana Mate) */
+  --color-primary-50:  250 250 250;
+  --color-primary-100: 244 244 245;
+  --color-primary-200: 228 228 231;
+  --color-primary-300: 212 212 216;
+  --color-primary-400: 161 161 170;
+  --color-primary-500: 24 24 27;       /* #18181b primary */
+  --color-primary-600: 9 9 11;        /* #09090b primary-hover */
+  --color-primary-700: 5 5 7;
+  --color-primary-800: 3 3 5;
+  --color-primary-900: 0 0 0;
 
-  /* Surface (H=85 oliva/cream) */
-  --color-surface-50:  251 250 247;   /* #fbfaf7 bg */
-  --color-surface-100: 245 243 238;   /* #f5f3ee surface */
-  --color-surface-200: 237 234 226;   /* #edeae2 surface-2 */
-  --color-surface-300: 226 223 215;   /* #e2dfd7 border */
-  --color-surface-400: 141 136 129;   /* #8d8881 text-faint */
-  --color-surface-500: 96 92 86;      /* #605c56 text-muted */
-  --color-surface-600: 60 57 53;      /* #3c3935 */
-  --color-surface-700: 44 41 36;      /* #2c2924 text */
-  --color-surface-800: 30 28 25;      /* #1e1c19 */
-  --color-surface-900: 26 25 23;      /* #1a1917 bg dark */
-  --color-surface-950: 18 17 15;      /* #12110f */
+  /* Surface (Blanco & Porcelana) */
+  --color-surface-50:  255 255 255;   /* #ffffff bg */
+  --color-surface-100: 250 250 250;   /* #fafafa surface */
+  --color-surface-200: 244 244 245;   /* #f4f4f5 surface-2 */
+  --color-surface-300: 228 228 231;   /* #e4e4e7 border */
+  --color-surface-400: 161 161 170;   /* #a1a1aa text-faint */
+  --color-surface-500: 82 82 91;      /* #52525b text-muted */
+  --color-surface-600: 63 63 70;
+  --color-surface-700: 39 39 42;      /* #27272a text */
+  --color-surface-800: 24 24 27;
+  --color-surface-900: 9 9 11;       /* #09090b bg dark */
+  --color-surface-950: 0 0 0;
 
   /* Success (H=150 verde menta) */
   --color-success-50:  230 247 238;

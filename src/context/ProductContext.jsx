@@ -83,6 +83,18 @@ export function ProductProvider({ children, rates, rateDiscrepancyWarning }) {
         }
     };
 
+    // BCV MARGIN SURCHARGE LOGIC (% por defecto de la tienda en Bs)
+    const [bcvMarginPctState, setBcvMarginPctState] = useState(() => {
+        const saved = localStorage.getItem('bodega_bcv_margin_pct');
+        return saved && parseFloat(saved) >= 0 ? saved : '49';
+    });
+    const setBcvMarginPct = useCallback((val) => {
+        setBcvMarginPctState(val);
+        localStorage.setItem('bodega_bcv_margin_pct', val);
+        pushLocalSync('bodega_bcv_margin_pct', val);
+    }, []);
+    const bcvMarginPct = parseFloat(bcvMarginPctState) >= 0 ? parseFloat(bcvMarginPctState) : 49;
+
     // AUTO COP LOGIC
     const [copEnabled, setCopEnabled] = useState(() => {
         return localStorage.getItem('cop_enabled') === 'true';
@@ -371,6 +383,9 @@ export function ProductProvider({ children, rates, rateDiscrepancyWarning }) {
         customRate,
         setCustomRate,
         effectiveRate,
+        bcvMarginPct,
+        bcvMarginPctState,
+        setBcvMarginPct,
         rates,
         rateDiscrepancyWarning,
         copEnabled,
@@ -395,6 +410,8 @@ export function ProductProvider({ children, rates, rateDiscrepancyWarning }) {
         useAutoRate,
         customRate,
         effectiveRate,
+        bcvMarginPct,
+        bcvMarginPctState,
         rates,
         rateDiscrepancyWarning,
         copEnabled,

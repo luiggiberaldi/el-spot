@@ -14,10 +14,8 @@ import { useProductContext } from '../context/ProductContext';
 import ShareInventoryModal from '../components/ShareInventoryModal';
 import { useAudit } from '../hooks/useAudit';
 import SettingsTabNegocio from '../components/Settings/tabs/SettingsTabNegocio';
-import SettingsTabVentas from '../components/Settings/tabs/SettingsTabVentas';
 import SettingsTabUsuarios from '../components/Settings/tabs/SettingsTabUsuarios';
 import SettingsTabSistema from '../components/Settings/tabs/SettingsTabSistema';
-import SettingsTabLicencia from '../components/Settings/tabs/SettingsTabLicencia';
 import { useCloudBackup } from '../hooks/useCloudBackup';
 import { useDataImportExport } from '../hooks/useDataImportExport';
 import { useAuthStore } from '../hooks/store/useAuthStore';
@@ -26,12 +24,9 @@ import WalletView from './WalletView';
 
 // ───────────────────────────────────────────────────── Tab Config
 const TABS = [
-    { id: 'negocio', label: 'Negocio', icon: Store },
-    { id: 'ventas', label: 'Ventas', icon: CreditCard },
-    // { id: 'cuentas', label: 'Cuentas', icon: Coins }, // Ocultado por solicitud del usuario
-    { id: 'usuarios', label: 'Usuarios', icon: Users },
-    { id: 'licencia', label: 'Licencia', icon: Key },
-    { id: 'sistema', label: 'Sistema', icon: Database },
+    { id: 'negocio', label: 'Negocio y Operación', icon: Store },
+    { id: 'usuarios', label: 'Usuarios y Seguridad', icon: Users },
+    { id: 'sistema', label: 'Sistema y Respaldos', icon: Database },
 ];
 
 export default function SettingsView({ onClose, theme, toggleTheme, triggerHaptic, isTab = false, rates }) {
@@ -44,7 +39,9 @@ export default function SettingsView({ onClose, theme, toggleTheme, triggerHapti
         tasaCopManual, setTasaCopManual,
         copPrimary, setCopPrimary,
         tasaCop: calculatedTasaCop,
-        effectiveRate
+        effectiveRate,
+        bcvMarginPctState,
+        setBcvMarginPct
     } = useProductContext();
 
     const { requireLogin, setRequireLogin, usuarioActivo } = useAuthStore();
@@ -309,6 +306,10 @@ export default function SettingsView({ onClose, theme, toggleTheme, triggerHapti
                                 copPrimary={copPrimary} setCopPrimary={setCopPrimary}
                                 calculatedTasaCop={calculatedTasaCop}
                                 effectiveRate={effectiveRate}
+                                allowNegativeStock={allowNegativeStock}
+                                setAllowNegativeStock={setAllowNegativeStock}
+                                bcvMarginPctState={bcvMarginPctState}
+                                setBcvMarginPct={setBcvMarginPct}
                                 handleSaveBusinessData={handleSaveBusinessData}
                                 forceHeartbeat={forceHeartbeat}
                                 showToast={showToast}
@@ -316,17 +317,7 @@ export default function SettingsView({ onClose, theme, toggleTheme, triggerHapti
                             />
                         )}
 
-                        {/* ═══ TAB: VENTAS ═══ */}
-                        {activeTab === 'ventas' && (
-                            <SettingsTabVentas
-                                allowNegativeStock={allowNegativeStock} setAllowNegativeStock={setAllowNegativeStock}
-                                forceHeartbeat={forceHeartbeat}
-                                showToast={showToast}
-                                triggerHaptic={triggerHaptic}
-                            />
-                        )}
-
-                        {/* ═══ TAB: USUARIOS ═══ */}
+                        {/* ═══ TAB: USUARIOS Y SEGURIDAD ═══ */}
                         {activeTab === 'usuarios' && (
                             <SettingsTabUsuarios
                                 requireLogin={requireLogin}
@@ -349,14 +340,6 @@ export default function SettingsView({ onClose, theme, toggleTheme, triggerHapti
                                 handleImportClick={handleImportClick}
                                 setIsShareOpen={setIsShareOpen}
                                 setShowDeleteConfirm={setShowDeleteConfirm}
-                                triggerHaptic={triggerHaptic}
-                            />
-                        )}
-
-                        {/* ═══ TAB: LICENCIA ═══ */}
-                        {activeTab === 'licencia' && (
-                            <SettingsTabLicencia
-                                deviceId={deviceId}
                                 triggerHaptic={triggerHaptic}
                             />
                         )}

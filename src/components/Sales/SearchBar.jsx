@@ -1,5 +1,5 @@
 import { forwardRef } from 'react';
-import { Search, Mic, Package, X, Box } from 'lucide-react';
+import { Search, Mic, Package, X, Box, ShieldCheck } from 'lucide-react';
 import { BODEGA_CATEGORIES, CATEGORY_ICONS, CATEGORY_COLORS } from '../../config/categories';
 import { formatCop, getCop, getUsd } from '../../utils/calculatorUtils';
 
@@ -115,6 +115,12 @@ const SearchBar = forwardRef(function SearchBar({
                                                 {catInfo.label}
                                             </span>
                                         )}
+                                        {p.hasWarranty && (
+                                             <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                                 <ShieldCheck size={10} />
+                                                 {p.warrantyDays ? `${p.warrantyDays}d` : 'Garantía'}
+                                             </span>
+                                         )}
                                         <span className={`text-[10px] font-medium flex items-center gap-1
                                             ${isOutOfStock ? 'text-red-500' : isLowStock ? 'text-amber-500' : 'text-slate-400'}`}>
                                             {isLowStock && !isOutOfStock && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />}

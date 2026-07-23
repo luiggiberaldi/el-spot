@@ -698,7 +698,7 @@ function buildCustomerStatementWhatsAppUrl(customer, sales, bcvRate) {
         ? customer.name.trim().toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
         : '';
         
-    let msg = `*ESTADO DE CUENTA - PRECIOS AL DÍA*\n`;
+    let msg = `*ESTADO DE CUENTA - EL SPOT*\n`;
     msg += `----------------------------------\n`;
     msg += `*Cliente:* ${formattedName}\n`;
     if (customer.documentId) msg += `*C.I:* ${customer.documentId}\n`;
@@ -1244,7 +1244,7 @@ export function TransactionDetailModal({ sale, bcvRate, tasaCop, copEnabled, cop
 
     const handleShare = () => {
         const useCop = copEnabled && copPrimary && tasaCop > 0;
-        let text = `*COMPROBANTE | PRECIOS AL DIA*\n`;
+        let text = `*COMPROBANTE | EL SPOT*\n`;
         text += `Orden: #${sale.id.substring(0, 6).toUpperCase()}\n`;
         text += `Fecha: ${d.toLocaleString('es-VE')}\n`;
         text += `================================\n`;

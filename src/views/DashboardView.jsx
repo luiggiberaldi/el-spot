@@ -145,6 +145,8 @@ export default function DashboardView({ rates, triggerHaptic, onNavigate, theme,
     const dateString = currentTime.toLocaleDateString('es-VE', { weekday: 'long', day: 'numeric', month: 'long' });
     const formattedDate = dateString.charAt(0).toUpperCase() + dateString.slice(1);
 
+    const usdtRate = rates?.usdt?.price || rates?.bcv?.price || bcvRate || 1;
+
     // Metrics
     const {
         today, todaySales, todayCashFlow, todayApertura,
@@ -152,7 +154,7 @@ export default function DashboardView({ rates, triggerHaptic, onNavigate, theme,
         todayExpenses, todayExpensesUsd, todayGastos, todayGastosUsd, todayProfit,
         getRecentSales, weekData, lowStockProducts,
         totalDeudas, topProducts, paymentBreakdown, todayTopProducts,
-    } = useDashboardMetrics(sales, customers, products, bcvRate);
+    } = useDashboardMetrics(sales, customers, products, bcvRate, usdtRate);
 
     // Gastos Internos
     const {
@@ -437,8 +439,8 @@ export default function DashboardView({ rates, triggerHaptic, onNavigate, theme,
                 </div>
             )}
 
-            {/* Header / Top Bar adaptativo sticky */}
-            <div className={`sticky top-0 z-30 flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-3 md:mb-5 py-2.5 md:py-3 transition-all duration-200 -mx-3 sm:-mx-5 lg:-mx-6 xl:-mx-8 px-3 sm:px-5 lg:px-6 xl:px-8 bg-surface-50/95 dark:bg-surface-950/95 backdrop-blur-md border-b ${isScrolled ? 'border-slate-200/80 dark:border-slate-800/80 shadow-md' : 'border-slate-100 dark:border-slate-800/60'}`}>
+            {/* Header / Top Bar adaptativo sticky — Fondo Negro, Bordes Redondeados en PC & logo-header-negro.png */}
+            <div className={`sticky top-0 z-30 flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-3 md:mb-6 py-2.5 md:py-3 transition-all duration-200 -mx-3 sm:-mx-5 md:mx-0 px-3 sm:px-5 md:px-6 bg-black backdrop-blur-md md:rounded-3xl border-b md:border ${isScrolled ? 'border-zinc-800 shadow-2xl shadow-black/50' : 'border-zinc-900/90 shadow-lg shadow-black/20'}`}>
                 {/* Lado Izquierdo: Logo (centrado en móviles, alineado a la izquierda en PC) */}
                 <div className="w-full flex justify-center md:w-auto md:justify-start relative items-center">
                     {/* Botón de Cerrar Sesión — izquierda absoluta en móvil (oculto en PC) */}
@@ -450,72 +452,72 @@ export default function DashboardView({ rates, triggerHaptic, onNavigate, theme,
                                 triggerHaptic && triggerHaptic();
                                 logout();
                             }}
-                            className="absolute left-0 top-1/2 -translate-y-1/2 z-30 md:hidden w-10 h-10 rounded-xl bg-slate-100/70 dark:bg-slate-800/60 border border-slate-200/50 dark:border-slate-700/50 flex items-center justify-center text-slate-500 dark:text-slate-400 shadow-sm active:scale-90 hover:bg-slate-200/50 dark:hover:bg-slate-800/80 transition-all cursor-pointer"
+                            className="absolute left-0 top-1/2 -translate-y-1/2 z-30 md:hidden w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-300 shadow-sm active:scale-90 hover:bg-zinc-800 hover:text-white transition-all cursor-pointer"
                             title={`Cerrar sesión (${usuarioActivo.nombre})`}
                         >
-                            <LogOut size={16} strokeWidth={2.5} className="text-slate-500 dark:text-slate-350 translate-x-[0.5px]" />
+                            <LogOut size={16} strokeWidth={2.5} className="text-zinc-300 translate-x-[0.5px]" />
                         </button>
                     )}
 
                     <div className="flex items-center justify-center gap-3">
                         <img 
-                            src={theme === 'dark' ? './logodark.png' : './logo.png'} 
+                            src="./logo-header-negro.png" 
                             alt="El Spot" 
                             className="h-[62px] md:h-[78px] w-auto object-contain drop-shadow-sm" 
                         />
                     </div>
                     {/* Estatus Sync a la derecha absoluta en móvil, relativo normal en PC */}
                     <div className="absolute right-0 top-1/2 -translate-y-1/2 md:relative md:right-auto md:top-auto md:translate-y-0 md:hidden">
-                        <SyncStatus />
+                        <SyncStatus variant="dark" />
                     </div>
                 </div>
 
-                {/* Centro en PC: Menú de Navegación Compacto (Acciones Rápidas) */}
-                <div className="hidden md:flex items-center justify-center gap-2 bg-slate-100/80 dark:bg-slate-900/50 p-1.5 rounded-2xl border border-slate-200/30 dark:border-slate-800/30">
+                {/* Centro en PC: Menú de Navegación Compacto — v1.4.0 High Contrast Obsidian */}
+                <div className="hidden md:flex items-center justify-center gap-1.5 bg-zinc-900/90 p-1.5 rounded-2xl border border-zinc-700/80 shadow-lg shadow-black/40 backdrop-blur-md">
                     <button 
                         onClick={() => { if (onNavigate) { triggerHaptic(); onNavigate('ventas'); } }} 
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 font-bold text-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-white font-extrabold text-sm hover:bg-zinc-800 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
                     >
-                        <ShoppingCart size={18} className="text-brand" />
+                        <ShoppingCart size={18} className="text-amber-400" />
                         <span>Vender</span>
                     </button>
                     <button 
                         onClick={() => { if (onNavigate) { triggerHaptic(); onNavigate('catalogo'); } }} 
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 font-bold text-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-white font-extrabold text-sm hover:bg-zinc-800 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
                     >
-                        <Store size={18} className="text-brand" />
+                        <Store size={18} className="text-amber-400" />
                         <span>Inventario</span>
                     </button>
                     <button 
                         onClick={() => { if (onNavigate) { triggerHaptic(); onNavigate('clientes'); } }} 
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 font-bold text-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-white font-extrabold text-sm hover:bg-zinc-800 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
                     >
-                        <Users size={18} className="text-brand" />
+                        <Users size={18} className="text-amber-400" />
                         <span>Clientes</span>
                     </button>
                     <button 
                         onClick={() => { triggerHaptic(); setShowMonitor(true); }} 
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 font-bold text-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-white font-extrabold text-sm hover:bg-zinc-800 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
                     >
-                        <TrendingUp size={18} className="text-brand" />
+                        <TrendingUp size={18} className="text-amber-400" />
                         <span>Monitor</span>
                     </button>
                     <button 
                         onClick={() => { triggerHaptic(); setIsAddGastoOpen(true); }} 
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 font-bold text-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-rose-300 hover:text-white font-extrabold text-sm hover:bg-rose-950/60 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
                     >
-                        <Wallet size={18} className="text-red-500" />
+                        <Wallet size={18} className="text-rose-400" />
                         <span>Gastos</span>
                     </button>
                 </div>
 
                 {/* Lado Derecho en PC: SyncStatus y Logout */}
                 <div className="hidden md:flex items-center justify-end gap-3">
-                    <SyncStatus />
+                    <SyncStatus variant="dark" />
                     {requireLogin && usuarioActivo && (
                         <button
                             onClick={() => { triggerHaptic(); logout(); }}
-                            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold text-xs transition-all active:scale-95 cursor-pointer"
+                            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-zinc-900/90 text-zinc-200 border border-zinc-700 hover:border-red-500/50 hover:bg-red-950/50 hover:text-red-300 font-bold text-xs transition-all active:scale-95 cursor-pointer shadow-sm"
                             title={`Cerrar sesión (${usuarioActivo.nombre})`}
                         >
                             <LogOut size={16} />
@@ -525,44 +527,7 @@ export default function DashboardView({ rates, triggerHaptic, onNavigate, theme,
                 </div>
             </div>
 
-            {/* Acciones Rápidas — v1.2.0: shadow-tone-sm tone-matched */}
-            <div className="grid grid-cols-4 lg:grid-cols-6 gap-3 mb-5">
-                <button 
-                    onClick={() => { if (onNavigate) { triggerHaptic(); onNavigate('ventas'); } }} 
-                    className="bg-brand hover:bg-brand-dark text-white dark:text-slate-950 rounded-2xl p-3 flex flex-col items-center justify-center gap-2 shadow-tone-sm hover:shadow-primary-tone hover:scale-[1.02] active:scale-95 transition-all"
-                >
-                    <ShoppingCart size={22} />
-                    <span className="text-xs font-bold">Vender</span>
-                </button>
-                <button 
-                    onClick={() => { if (onNavigate) { triggerHaptic(); onNavigate('catalogo'); } }} 
-                    className="bg-brand hover:bg-brand-dark text-white dark:text-slate-950 rounded-2xl p-3 flex flex-col items-center justify-center gap-2 shadow-tone-sm hover:scale-[1.02] active:scale-95 transition-all"
-                >
-                    <Store size={22} />
-                    <span className="text-xs font-bold">Inventario</span>
-                </button>
-                <button 
-                    onClick={() => { if (onNavigate) { triggerHaptic(); onNavigate('clientes'); } }} 
-                    className="bg-brand hover:bg-brand-dark text-white dark:text-slate-950 rounded-2xl p-3 flex flex-col items-center justify-center gap-2 shadow-tone-sm hover:scale-[1.02] active:scale-95 transition-all"
-                >
-                    <Users size={22} />
-                    <span className="text-xs font-bold">Clientes</span>
-                </button>
-                <button 
-                    onClick={() => { triggerHaptic(); setShowMonitor(true); }} 
-                    className="bg-brand hover:bg-brand-dark text-white dark:text-slate-950 rounded-2xl p-3 flex flex-col items-center justify-center gap-2 shadow-tone-sm hover:scale-[1.02] active:scale-95 transition-all"
-                >
-                    <TrendingUp size={22} />
-                    <span className="text-xs font-bold">Monitor</span>
-                </button>
-                <button 
-                    onClick={() => { triggerHaptic(); setIsAddGastoOpen(true); }} 
-                    className="bg-red-500 hover:bg-red-600 dark:bg-red-500 dark:hover:bg-red-600 text-white rounded-2xl p-3 flex flex-col items-center justify-center gap-2 shadow-tone-sm hover:scale-[1.02] active:scale-95 transition-all"
-                >
-                    <Wallet size={22} />
-                    <span className="text-xs font-bold">Gastos</span>
-                </button>
-            </div>
+
 
             {/* ── CAJERO: vista simplificada — v1.2.0: reveal + shadow-tone-sm + font-display en totales ── */}
             {isCajero ? (

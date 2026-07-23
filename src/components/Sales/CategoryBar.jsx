@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { Package, Calculator, ChevronDown, Clock, HelpCircle, Trash2, X, DollarSign } from 'lucide-react';
+import { Package, Calculator, ChevronDown, Clock, HelpCircle, Trash2, X, DollarSign, ShieldCheck, Landmark } from 'lucide-react';
 import { BODEGA_CATEGORIES, CATEGORY_ICONS, CATEGORY_COLORS } from '../../config/categories';
-import { formatCop, formatBs, getCop, getUsd } from '../../utils/calculatorUtils';
+import { formatCop, formatBs, formatUsd, getCop, getUsd } from '../../utils/calculatorUtils';
 
 const PAGE_SIZE = 30;
 
@@ -18,6 +18,7 @@ export default function CategoryBar({
     copPrimary,
     tasaCop,
     effectiveRate,
+    bcvRate,
     categories = [],
     // Nuevos props:
     onClearCart,
@@ -221,36 +222,72 @@ export default function CategoryBar({
                                     disabled={isDisabled}
                                     className={`relative bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-2.5 flex flex-col text-left transition-all active:scale-95 hover:border-brand/40 hover:shadow-md ${isDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
                                 >
+                                    {/* Badge de precio dual — esquina superior izquierda */}
+                                    {p.price2Usd && p.price2Usd > 0 ? (
+                                        <span className="absolute top-2 left-2 bg-blue-600 text-white rounded-md px-1.5 py-0.5 text-[9px] font-black leading-none shadow-sm z-10 uppercase tracking-wider flex items-center gap-0.5">
+                                            <Landmark size={9} /> BCV
+                                        </span>
+                                    ) : null}
+
                                     {/* Badge de stock — esquina superior derecha */}
-                                    <span className={`absolute top-1.5 right-1.5 border rounded px-1 py-0.5 text-[8px] font-black leading-none
+                                    <span className={`absolute top-2 right-2 border-2 rounded-md px-1.5 py-0.5 text-[9px] font-black leading-none z-10 shadow-xs uppercase tracking-wider
                                         ${isOut
-                                            ? 'bg-red-50 text-red-700 border-red-100 dark:bg-red-950/20 dark:text-red-400 dark:border-red-900/50'
-                                            : 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800'
+                                            ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/60 dark:text-red-400 dark:border-red-900'
+                                            : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-400 dark:border-emerald-800'
                                         }`}
                                     >
                                         {isOut ? 'AGOT.' : `${p.stock ?? 0} UNDS`}
                                     </span>
 
                                     {/* Imagen centrada */}
-                                    <div className="w-full aspect-square rounded-lg bg-slate-50 dark:bg-slate-950 flex items-center justify-center mb-2 overflow-hidden">
+                                    <div className="w-full aspect-square rounded-xl bg-slate-50 dark:bg-slate-950 flex items-center justify-center mb-2 overflow-hidden border border-slate-100 dark:border-slate-800/60">
                                         {p.image
                                             ? <img src={p.image} className="w-full h-full object-contain" alt={p.name} />
-                                            : <CatIcon size={22} className="text-slate-300" />
+                                            : <CatIcon size={24} className="text-slate-300" />
                                         }
                                     </div>
 
-                                    {/* Nombre: izquierda, 2 líneas */}
-                                    <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200 leading-tight line-clamp-2 mb-1.5 min-h-[2.4em]">{p.name}</p>
+                                    {/* Nombre: mayor tamaño y contraste */}
+                                    <p className="text-xs sm:text-sm font-black text-slate-900 dark:text-slate-100 leading-tight line-clamp-2 mb-1.5 min-h-[2.4em]">{p.name}</p>
 
-                                    {/* Precio USD: grande */}
-                                    <p className="text-sm font-extrabold text-slate-900 dark:text-white leading-none">
-                                        ${getUsd(p, tasaCop).toFixed(2)}
-                                    </p>
+                                    {/* Precio Principal Divisas */}
+                                    <div className="flex flex-col">
+                                        <p className="text-base sm:text-lg font-black text-amber-600 dark:text-amber-400 leading-none">
+                                            ${getUsd(p, tasaCop).toFixed(2)}
+                                        </p>
+                                    </div>
 
-                                    {/* Precio Bs: pequeño, color brand */}
-                                    <p className="text-[10px] font-bold text-brand dark:text-brand mt-0.5 leading-none">
-                                        Bs {formatBs(getUsd(p, tasaCop) * (effectiveRate || 0))}
-                                    </p>
+                                    {/* Precio BCV Secundario — Contenedor destacado de alto contraste */}
+                                    {p.price2Usd && p.price2Usd > 0 && (
+                                        <div className="mt-2 p-1.5 bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/60 rounded-xl flex items-center justify-between gap-1 select-none">
+                                            <span className="text-[9px] font-black bg-amber-600 text-white px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shrink-0 uppercase tracking-wider">
+                                                <Landmark size={9} /> BCV
+                                            </span>
+                                            <div className="text-right truncate min-w-0">
+                                                <p className="text-xs font-black text-amber-700 dark:text-amber-300 leading-none">
+                                                    ${formatUsd(p.price2Usd)}
+                                                </p>
+                                                <p className="text-[10px] font-black text-amber-900 dark:text-amber-100 leading-none mt-0.5">
+                                                    {formatBs(p.price2Usd * (bcvRate || effectiveRate || 0))} Bs
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Zona de Garantía */}
+                                    <div className="mt-2 pt-1 border-t border-slate-100 dark:border-slate-800 flex items-center">
+                                        {p.hasWarranty ? (
+                                            <span className="font-black text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 px-2 py-1 rounded-lg flex items-center gap-1 text-[10px] w-full">
+                                                <ShieldCheck size={12} className="shrink-0 text-emerald-500" />
+                                                <span className="truncate">Garantía: {p.warrantyDays ? `${p.warrantyDays} días` : 'Sí'}</span>
+                                            </span>
+                                        ) : (
+                                            <span className="font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1 text-[10px]">
+                                                <ShieldCheck size={11} className="shrink-0 opacity-40" />
+                                                <span>Sin garantía</span>
+                                            </span>
+                                        )}
+                                    </div>
                                 </button>
                             );
                         })}

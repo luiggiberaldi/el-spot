@@ -70,6 +70,11 @@ export function buildProductPayload(formData, effectiveRate) {
         finalStock = Math.round(parseFloat(stockInLotes) * parsedUnitsPerPkg);
     }
 
+    // FIN-P2: Segundo precio (Precio BCV), guardado siempre en USD para consistencia financiera.
+    const finalPrice2Usd = formData.price2Usd && CurrencyService.safeParse(formData.price2Usd) > 0
+        ? round2(CurrencyService.safeParse(formData.price2Usd))
+        : null;
+
     return {
         name: formattedName,
         barcode: barcode ? barcode.trim() : null,
@@ -89,5 +94,8 @@ export function buildProductPayload(formData, effectiveRate) {
         stockInLotes: isLote && stockInLotes ? parseInt(stockInLotes) : null,
         category: category,
         lowStockAlert: lowStockAlert ? parseInt(lowStockAlert) : 5,
+        hasWarranty: Boolean(formData.hasWarranty),
+        warrantyDays: formData.hasWarranty && formData.warrantyDays ? parseInt(formData.warrantyDays, 10) : null,
+        price2Usd: finalPrice2Usd,
     };
 }

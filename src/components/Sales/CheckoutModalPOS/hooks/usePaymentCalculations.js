@@ -24,6 +24,7 @@ export const usePaymentCalculations = ({
 }) => {
     const tasaSegura = tasa > 0 ? tasa : 1;
     const safeTasaCop = tasaCop > 0 ? tasaCop : 0;
+    const cartRate = (totalUSD > 0 && totalBS > 0) ? divR(totalBS, totalUSD) : tasaSegura;
 
     // Monto financiado por Cashea
     const casheaAmountUsd = useMemo(() => {
@@ -37,20 +38,20 @@ export const usePaymentCalculations = ({
             const v = val(m.id);
             if (m.tipo === 'DIVISA') return round2(v);
             if (m.tipo === 'COP' && safeTasaCop > 0) return divR(v, safeTasaCop);
-            return tasaSegura > 0 ? divR(v, tasaSegura) : 0;
+            return cartRate > 0 ? divR(v, cartRate) : 0;
         }));
-    }, [pagos, metodosActivos, tasaSegura, safeTasaCop]);
+    }, [pagos, metodosActivos, cartRate, safeTasaCop]);
 
     // Total pagado en BS (para visualización)
     const totalPagadoBS = useMemo(() => {
         return sumR(metodosActivos.map(m => {
             const v = val(m.id);
             if (m.tipo === 'BS') return round2(v);
-            if (m.tipo === 'COP' && safeTasaCop > 0 && tasaSegura > 0)
-                return mulR(divR(v, safeTasaCop), tasaSegura);
-            return tasaSegura > 0 ? mulR(v, tasaSegura) : 0;
+            if (m.tipo === 'COP' && safeTasaCop > 0 && cartRate > 0)
+                return mulR(divR(v, safeTasaCop), cartRate);
+            return cartRate > 0 ? mulR(v, cartRate) : 0;
         }));
-    }, [pagos, metodosActivos, tasaSegura, safeTasaCop]);
+    }, [pagos, metodosActivos, cartRate, safeTasaCop]);
 
     // Saldo a favor
     const pagoSaldoFavorNum = useMemo(() => {
@@ -64,7 +65,7 @@ export const usePaymentCalculations = ({
     }, [totalPagadoUSD, casheaAmountUsd, pagoSaldoFavorNum]);
 
     const faltaPorPagar = Math.max(0, subR(totalUSD, totalPagadoGlobalUSD));
-    const faltaPorPagarBS = Math.max(0, subR(totalBS, totalPagadoBS + mulR(casheaAmountUsd, tasaSegura) + mulR(pagoSaldoFavorNum, tasaSegura)));
+    const faltaPorPagarBS = Math.max(0, subR(totalBS, totalPagadoBS + mulR(casheaAmountUsd, cartRate) + mulR(pagoSaldoFavorNum, cartRate)));
     const cambioUSD = Math.max(0, subR(totalPagadoGlobalUSD, totalUSD));
 
     // IGTF — simplificado (la bodega no usa FinancialController de Listo POS)

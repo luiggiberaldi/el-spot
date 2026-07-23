@@ -146,27 +146,24 @@ export default function DashboardStats({
                         <>
                             <div className="flex items-baseline gap-1">
                                 <span className={`text-3xl font-outfit font-semibold tracking-tight ${todayProfit >= 0 ? 'text-amber-600 dark:text-amber-400' : 'text-red-500'}`}>
-                                    {todayProfit >= 0 ? '+' : ''}{formatCop((bcvRate > 0 ? todayProfit / bcvRate : 0) * tasaCop)} <span className="text-base">COP</span>
+                                    {todayProfit >= 0 ? '+' : ''}{formatCop(todayProfit * tasaCop)} <span className="text-base">COP</span>
                                 </span>
                             </div>
-                            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-0.5">{todayProfit >= 0 ? '+' : ''}${bcvRate > 0 ? (todayProfit / bcvRate).toFixed(2) : '0.00'} · {formatBs(todayProfit)} Bs</p>
+                            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-0.5">{todayProfit >= 0 ? '+' : ''}${todayProfit.toFixed(2)} · {formatBs(todayProfit * (bcvRate || 1))} Bs</p>
                         </>
                     ) : (
                         <>
                             <div className="flex items-baseline gap-1">
                                 <span className={`text-3xl font-outfit font-semibold tracking-tight ${todayProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
-                                    {todayProfit >= 0 ? '+' : ''}${bcvRate > 0 ? (todayProfit / bcvRate).toFixed(2) : '0.00'}
+                                    {todayProfit >= 0 ? '+' : ''}${todayProfit.toFixed(2)} <span className="text-base font-bold">USDT</span>
                                 </span>
                             </div>
                             {copEnabled && tasaCop > 0 && (
-                                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-0.5">{formatCop((bcvRate > 0 ? todayProfit / bcvRate : 0) * tasaCop)} COP · {formatBs(todayProfit)} Bs</p>
-                            )}
-                            {!(copEnabled && tasaCop > 0) && (
-                                <p className="text-sm font-bold text-slate-400 dark:text-slate-500 mt-0.5">{formatBs(todayProfit)} Bs</p>
+                                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-0.5">{formatCop(todayProfit * tasaCop)} COP</p>
                             )}
                         </>
                     )}
-                    <p className="text-[11px] font-medium text-slate-400 mt-1">Ganancia estimada</p>
+                    <p className="text-[11px] font-medium text-slate-400 mt-1">Ganancia Real (Reposición USDT)</p>
                 </div>
             </div>
 
@@ -203,19 +200,19 @@ export default function DashboardStats({
                 {(todayCashFlow.length > 0 || todaySales.length > 0) ? (
                     <button
                         onClick={onDailyClose}
-                        className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-2xl p-4 shadow-lg shadow-red-500/20 active:scale-[0.98] transition-all flex items-center justify-between group"
+                        className="w-full bg-slate-900 hover:bg-black text-white rounded-2xl p-4 border border-slate-800 shadow-xl shadow-slate-900/20 active:scale-[0.98] transition-all flex items-center justify-between group cursor-pointer"
                     >
                         <div className="flex items-center gap-3">
-                            <div className="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                                <LockIcon size={22} />
+                            <div className="w-11 h-11 bg-amber-500/20 border border-amber-500/30 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                                <LockIcon size={22} className="text-amber-400" />
                             </div>
                             <div className="text-left">
-                                <p className="text-sm font-black">Cerrar Caja</p>
-                                <p className="text-[11px] font-medium text-white/70">{copEnabled && copPrimary && tasaCop > 0 ? `${formatCop(todayTotalCop || Math.round(todayTotalUsd * tasaCop))} COP · $${todayTotalUsd.toFixed(2)}` : `$${todayTotalUsd.toFixed(2)}${copEnabled && tasaCop > 0 ? ` · ${formatCop(todayTotalCop || Math.round(todayTotalUsd * tasaCop))} COP` : ''}`} | {todaySales.length} {todaySales.length === 1 ? 'venta' : 'ventas'}</p>
+                                <p className="text-sm font-black text-white">Cerrar Caja</p>
+                                <p className="text-[11px] font-medium text-slate-300">{copEnabled && copPrimary && tasaCop > 0 ? `${formatCop(todayTotalCop || Math.round(todayTotalUsd * tasaCop))} COP · $${todayTotalUsd.toFixed(2)}` : `$${todayTotalUsd.toFixed(2)}${copEnabled && tasaCop > 0 ? ` · ${formatCop(todayTotalCop || Math.round(todayTotalUsd * tasaCop))} COP` : ''}`} | {todaySales.length} {todaySales.length === 1 ? 'venta' : 'ventas'}</p>
                             </div>
                         </div>
-                        <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center group-hover:translate-x-1 transition-transform">
-                            <LockIcon size={16} />
+                        <div className="w-8 h-8 bg-amber-500/20 border border-amber-500/30 rounded-lg flex items-center justify-center group-hover:translate-x-1 transition-transform">
+                            <LockIcon size={16} className="text-amber-400" />
                         </div>
                     </button>
                 ) : (

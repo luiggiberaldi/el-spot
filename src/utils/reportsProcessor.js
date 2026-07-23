@@ -2,7 +2,7 @@ import { FinancialEngine } from '../core/FinancialEngine';
 import { getLocalISODate } from './dateHelpers';
 import { mulR, sumR, round2 } from './dinero';
 
-export function calculateReportsData(allSales, from, to, bcvRate, products) {
+export function calculateReportsData(allSales, from, to, bcvRate, products, usdtRate) {
     // Ventas de Mercancía (para Totales, Profit, Top Productos)
     const salesForStats = allSales.filter(s => {
         if (s.status === 'ANULADA' || (s.tipo !== 'VENTA' && s.tipo !== 'VENTA_FIADA' && s.tipo !== 'VENTA_CASHEA')) return false;
@@ -30,17 +30,17 @@ export function calculateReportsData(allSales, from, to, bcvRate, products) {
     const totalCop = sumR(salesForStats.map(sale => sale.totalCop || 0));
     const totalItems = salesForStats.reduce((s, sale) => s + (sale.items ? sale.items.reduce((is, i) => is + i.qty, 0) : 0), 0);
     
-    // Sumar ganancias de ventas + comisiones por avances de efectivo
-    const profitFromSales = FinancialEngine.calculateAggregateProfit(salesForStats, bcvRate, products);
+    // Sumar ganancias de ventas + comisiones por avances de efectivo en USD
+    const profitFromSales = FinancialEngine.calculateAggregateRealProfitUsd(salesForStats, usdtRate || bcvRate, products);
     const advancesInPeriod = allSales.filter(s => {
         if (s.status === 'ANULADA' || s.tipo !== 'AVANCE_EFECTIVO') return false;
         const dateStr = getLocalISODate(new Date(s.timestamp));
         return dateStr >= from && dateStr <= to;
     });
     const profitFromAdvances = advancesInPeriod.reduce((sum, a) => {
-        const rate = a.rate || bcvRate || 1;
-        const commBs = a.currency === 'BS' ? (a.montoComision || 0) : mulR(a.montoComision || 0, rate);
-        return sum + commBs;
+        const rate = a.usdtRate || a.rate || bcvRate || 1;
+        const commUsd = a.currency === 'BS' ? (rate > 0 ? (a.montoComision || 0) / rate : 0) : (a.montoComision || 0);
+        return sum + commUsd;
     }, 0);
     const profit = round2(profitFromSales + profitFromAdvances);
     

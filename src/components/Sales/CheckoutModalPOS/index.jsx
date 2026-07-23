@@ -269,6 +269,9 @@ export default function CheckoutModalPOS({
                 }
             }
 
+            // Tasa efectiva del carrito (soporta productos BCV, exactBs o tasa de carrito)
+            const cartRate = (cartTotalUsd > 0 && cartTotalBs > 0) ? (cartTotalBs / cartTotalUsd) : (tasaSegura > 0 ? tasaSegura : 1);
+
             // Construir pagos finales en formato que onConfirmSale espera
             const payments = metodosNormalizados
                 .filter(m => val(m.id) > 0)
@@ -284,10 +287,10 @@ export default function CheckoutModalPOS({
                         amountInputCurrency: currency,
                         amountUsd: currency === 'USD' ? amount
                             : currency === 'COP' ? (tasaCop > 0 ? amount / tasaCop : 0)
-                            : (tasaSegura > 0 ? amount / tasaSegura : 0),
+                            : (cartRate > 0 ? round2(amount / cartRate) : 0),
                         amountBs: currency === 'BS' ? amount
-                            : currency === 'COP' ? (tasaCop > 0 && tasaSegura > 0 ? (amount / tasaCop) * tasaSegura : 0)
-                            : (tasaSegura > 0 ? amount * tasaSegura : 0),
+                            : currency === 'COP' ? (tasaCop > 0 && cartRate > 0 ? round2((amount / tasaCop) * cartRate) : 0)
+                            : (cartRate > 0 ? round2(amount * cartRate) : 0),
                         referencia: referencias[m.id] || '',
                     };
                 });

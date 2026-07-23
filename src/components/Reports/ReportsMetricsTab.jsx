@@ -74,7 +74,7 @@ function TransactionRow({ sale: s, bcvRate, isExpanded, onToggle, onVoidSale, on
     const handleShare = (e) => {
         e.stopPropagation();
         const useCop = copEnabled && copPrimary && tasaCop > 0;
-        let text = `*COMPROBANTE | PRECIOS AL DIA*\n`;
+        let text = `*COMPROBANTE | EL SPOT*\n`;
         text += `Orden: #${s.id.substring(0, 6).toUpperCase()}\n`;
         text += `Fecha: ${d.toLocaleString('es-VE')}\n`;
         text += `================================\n`;
@@ -304,8 +304,8 @@ export default function ReportsMetricsTab({
         <>
             {/* Summary Cards — ocultar si onlyHistory */}
             {!onlyHistory && (() => {
-                const netProfitUsd = (bcvRate > 0 ? profit / bcvRate : 0) - expensesUsd;
-                const netProfitBs = profit - expensesBs;
+                const netProfitUsd = profit - expensesUsd;
+                const netProfitBs = (profit * (bcvRate || 1)) - expensesBs;
                 return (
                     <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
                         <StatCard icon={ShoppingBag} label="Ventas" value={salesForStats.length} color="emerald" />

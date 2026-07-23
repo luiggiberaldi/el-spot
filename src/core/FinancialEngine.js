@@ -132,6 +132,89 @@ export class FinancialEngine {
     }
 
     /**
+     * Calculates the true real profit in USD (USDT replacement rate) for a single sale.
+     * If the sale has a frozen `realProfitUsd` snapshot, uses that.
+     * Otherwise converts Bolívares received at `usdtRate` and subtracts total item cost in USD.
+     */
+    static calculateSaleRealProfitUsd(sale, usdtRate, products, productsMap) {
+        if (!sale) return 0;
+        if (sale.realProfitUsd != null && !isNaN(sale.realProfitUsd)) {
+            return round2(sale.realProfitUsd);
+        }
+        if (sale.tipo === 'AVANCE_EFECTIVO') {
+            return round2(sale.montoComision || 0);
+        }
+        if (!sale.items || sale.items.length === 0) return 0;
+
+        const effectiveUsdtRate = sale.usdtRate || usdtRate || sale.bcvRate || sale.rate || 1;
+        const pMap = (productsMap instanceof Map) ? productsMap : _buildProductsMap(products);
+
+        // 1. Total USD earned from payments
+        let realUsdEarned = 0;
+        if (sale.payments && sale.payments.length > 0) {
+            sale.payments.forEach(p => {
+                const pAmt = p.amountUsd || 0;
+                const pBs = p.amountBs || 0;
+                if (p.currency === 'BS' || (pBs > 0 && pAmt === 0)) {
+                    realUsdEarned = sumR(realUsdEarned, effectiveUsdtRate > 0 ? divR(pBs, effectiveUsdtRate) : 0);
+                } else {
+                    realUsdEarned = sumR(realUsdEarned, pAmt);
+                }
+            });
+            // Subtract change given in USD or converted Bs
+            const changeUsd = sale.changeUsd || 0;
+            const changeBs = sale.changeBs || 0;
+            const changeRealUsd = sumR(changeUsd, effectiveUsdtRate > 0 ? divR(changeBs, effectiveUsdtRate) : 0);
+            realUsdEarned = subR(realUsdEarned, changeRealUsd);
+        } else {
+            // Ventas legacy V1 (sin array payments): 1 a 1 para USD/Zelle/Binance, Bs ÷ usdtRate para Bs
+            const method = sale.paymentMethod || 'efectivo_bs';
+            const totalBs = sale.totalBs || 0;
+            const totalUsd = sale.totalUsd || 0;
+            const isUsdMethod = method.includes('usd') || method.includes('zelle') || method.includes('binance');
+            if (isUsdMethod || (totalUsd > 0 && totalBs === 0)) {
+                realUsdEarned = totalUsd; // 1 a 1 directo para USD
+            } else {
+                realUsdEarned = (totalBs > 0 && effectiveUsdtRate > 0) ? divR(totalBs, effectiveUsdtRate) : totalUsd;
+            }
+        }
+
+        // 2. Total Cost in USD
+        let totalCostUsd = 0;
+        sale.items.forEach(item => {
+            if (item.isCashAdvance) return;
+            let cUsd = 0;
+            if (item.costUsd) {
+                cUsd = item.costUsd;
+            } else if (item.costBs && effectiveUsdtRate > 0) {
+                cUsd = divR(item.costBs, effectiveUsdtRate);
+            } else {
+                const p = _lookupProduct(pMap, item);
+                if (p) {
+                    cUsd = p.costUsd || (p.costBs && effectiveUsdtRate > 0 ? divR(p.costBs, effectiveUsdtRate) : 0);
+                    if (item.id && typeof item.id === 'string' && item.id.endsWith('_unit')) {
+                        cUsd = divR(cUsd, (p.unitsPerPackage || 1));
+                    }
+                }
+            }
+            totalCostUsd = sumR(totalCostUsd, mulR(cUsd, item.qty || 1));
+        });
+
+        const discountUsd = sale.discountAmountUsd || 0;
+        return round2(subR(subR(realUsdEarned, totalCostUsd), discountUsd));
+    }
+
+    /**
+     * Aggregates total real profit in USD for an array of sales.
+     */
+    static calculateAggregateRealProfitUsd(salesArray, usdtRate, products) {
+        if (!Array.isArray(salesArray) || salesArray.length === 0) return 0;
+        const pMap = _buildProductsMap(products);
+        const profits = salesArray.map(sale => this.calculateSaleRealProfitUsd(sale, usdtRate, products, pMap));
+        return round2(sumR(profits));
+    }
+
+    /**
      * Aggregates total profit for an array of sales.
      * FIN-011: builds the products Map once for the whole array (was O(K·N·M), now O(N + K·M)).
      */
@@ -417,7 +500,7 @@ export class FinancialEngine {
      * @param {number} copRate - USD to COP Exchange rate
      * @returns {Object} Complete financial summary for the receipt.
      */
-    static buildCartTotals(cartItems, discountData, bcvRate, copRate = 0) {
+    static buildCartTotals(cartItems, discountData, defaultRate, copRate = 0, actualBcvRate = null) {
         // Round each line item BEFORE summing to prevent IEEE 754 drift
         const lineItemsUsd = cartItems.map(item => mulR(item.priceUsd, item.qty));
         const subtotalUsd = sumR(lineItemsUsd);
@@ -426,7 +509,10 @@ export class FinancialEngine {
             if (item.exactBs != null) {
                 return mulR(item.exactBs, item.qty);
             }
-            return mulR(mulR(item.priceUsd, item.qty), bcvRate);
+            const rateForThisItem = (item._priceMode === 'bcv')
+                ? (item._bcvRate || actualBcvRate || defaultRate)
+                : defaultRate;
+            return mulR(mulR(item.priceUsd, item.qty), rateForThisItem);
         });
         const subtotalBs = sumR(lineItemsBs);
 
@@ -443,12 +529,11 @@ export class FinancialEngine {
 
         const totalUsd = round2(Math.max(0, subR(subtotalUsd, discountAmountUsd)));
 
-        const discountAmountBs = mulR(discountAmountUsd, bcvRate);
+        const effectiveCartRateBs = subtotalUsd > 0 ? divR(subtotalBs, subtotalUsd) : (actualBcvRate || defaultRate);
+        const discountAmountBs = mulR(discountAmountUsd, effectiveCartRateBs);
         const totalBs = round2(Math.max(0, subR(subtotalBs, discountAmountBs)));
 
         // FIN-010: totalCop unificado — divR para descuento proporcional, round2 consistente.
-        // Antes: `Math.round(sumR(...) * (1 - discountAmountUsd / subtotalUsd))` mezclaba
-        // raw division + Math.round con el mulR de la rama sin priceCop.
         const allItemsHaveCop = cartItems.every(i => i.priceCop != null && i.priceCop > 0);
         const totalCop = copRate > 0
             ? (allItemsHaveCop

@@ -6,6 +6,7 @@ import { round2, sumR, subR, divR, mulR } from './dinero';
 import { withLock } from './withLock';          // FIN-007: feature detection + fallback.
 import { deepFreeze } from './deepFreeze';      // FIN-008: deep freeze (no solo shallow).
 import { FINANCIAL_EPSILON } from './securityConstants';
+import { FinancialEngine } from '../core/FinancialEngine';
 
 const SALES_KEY = 'bodega_sales_v1';
 const PRODUCTS_KEY = 'bodega_products_v1';
@@ -22,6 +23,8 @@ export async function processSaleTransaction({
     customers,
     products,
     effectiveRate,
+    bcvRate,
+    usdtRate,
     tasaCop,
     copEnabled,
     discountData,
@@ -41,11 +44,12 @@ export async function processSaleTransaction({
         return { success: false, error: 'Datos de pago inválidos' };
     }
 
-    // FIN-022: Validación de tasa y consistencia matemática entre USD y Bs.
+    // FIN-022: Validación de tasa y consistencia matemática entre USD y Bs (soporta productos BCV y exactBs).
     if (!effectiveRate || effectiveRate <= 0) {
         return { success: false, error: 'Tasa de cambio BCV inválida (<= 0). Configura la tasa antes de cobrar.' };
     }
-    const expectedBs = mulR(cartTotalUsd, effectiveRate);
+    const expectedCart = FinancialEngine.buildCartTotals(cart, discountData, effectiveRate, copEnabled ? tasaCop : 0, bcvRate);
+    const expectedBs = expectedCart.totalBs;
     const bsDrift = Math.abs(subR(cartTotalBs, expectedBs));
     if (bsDrift > FINANCIAL_EPSILON.CASH_RECONCILE_TOLERANCE_BS) {
         return { success: false, error: `Inconsistencia USD/Bs: drift de ${round2(bsDrift)} Bs (tasa ${effectiveRate}).` };
@@ -102,7 +106,9 @@ export async function processSaleTransaction({
             montoComision: i.montoComision || null,
             comisionPct: i.comisionPct || null,
             currency: i.currency || null,
-            exactBs: i.exactBs || null
+            exactBs: i.exactBs || null,
+            _priceMode: i._priceMode || null,
+            _bcvRate: i._bcvRate || i.bcvRate || null,
         })),
         cartSubtotalUsd: cartSubtotalUsd,
         discountType:       discountData?.type      || null,
@@ -121,6 +127,8 @@ export async function processSaleTransaction({
             : 0,
         payments:  normalizedPayments,          // ← Con currency + methodLabel
         rate:      effectiveRate,
+        bcvRate:   bcvRate || effectiveRate,
+        usdtRate:  usdtRate || bcvRate || effectiveRate,
         tasaCop:   copEnabled ? tasaCop : 0,
         copEnabled: copEnabled,
         rateSource: useAutoRate ? 'BCV Auto' : 'Manual',
@@ -138,6 +146,10 @@ export async function processSaleTransaction({
         fiadoUsd: fiadoAmountUsd,
         casheaUsd: casheaUsd
     };
+
+    // Snapshot de ganancia real en USDT
+    const effectiveUsdtForSale = sale.usdtRate;
+    sale.realProfitUsd = FinancialEngine.calculateSaleRealProfitUsd(sale, effectiveUsdtForSale, products);
 
     // FIN-008: deepFreeze en lugar de Object.freeze (congela items[] y payments[]).
     deepFreeze(sale);

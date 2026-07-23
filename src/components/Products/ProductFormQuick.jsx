@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Camera, X, AlertTriangle, Package, Tag, Scale, Droplets, ChevronDown, ChevronUp, Barcode, Banknote, CheckCircle, Plus, Search, Link, Sparkles } from 'lucide-react';
+import { Camera, X, AlertTriangle, Package, Tag, Scale, Droplets, ChevronDown, ChevronUp, Barcode, Banknote, CheckCircle, Plus, Search, Link, Sparkles, ShieldCheck, Landmark, Building2, TrendingUp, Store, SlidersHorizontal, Coins, CircleX, DollarSign, Percent, Zap } from 'lucide-react';
 import { useProductContext } from '../../context/ProductContext';
 import CustomSelect from '../CustomSelect';
 import { showToast } from '../Toast';
@@ -33,7 +33,13 @@ export default function ProductFormQuick({
     packagingType, setPackagingType,
     stockInLotes, setStockInLotes,
     granelUnit, setGranelUnit,
+    hasWarranty, setHasWarranty,
+    warrantyDays, setWarrantyDays,
+    price2Usd, handlePrice2UsdChange,
+    price2Bs, handlePrice2BsChange,
     effectiveRate,
+    bcvRate,
+    bcvMarginPct,
     copEnabled,
     copPrimary,
     tasaCop,
@@ -50,8 +56,22 @@ export default function ProductFormQuick({
     const fileInputRef = useRef(null);
     const [showSummary, setShowSummary] = useState(false);
     
-    // Categorías en línea
-    const { setCategories } = useProductContext();
+    // Categorías en línea y % Recargo Tienda
+    const { setCategories, bcvMarginPct: bcvMarginPctFromCtx, rates } = useProductContext();
+    const usdtRate = rates?.usdt?.price || 0;
+    const bcvMarginNum = parseFloat(bcvMarginPct || bcvMarginPctFromCtx || 49);
+    const [customPctVal, setCustomPctVal] = useState("");
+    const [showCustomPct, setShowCustomPct] = useState(false);
+    const [isPrice2Active, setIsPrice2Active] = useState(() => {
+        return price2Usd !== '' && price2Usd !== null && price2Usd !== undefined && (parseFloat(price2Usd) > 0 || parseFloat(price2Bs) > 0);
+    });
+
+    React.useEffect(() => {
+        if (price2Usd !== '' && price2Usd !== null && price2Usd !== undefined && parseFloat(price2Usd) > 0) {
+            setIsPrice2Active(true);
+        }
+    }, [price2Usd]);
+
     const [isAddingCategory, setIsAddingCategory] = useState(false);
     const [newCategoryName, setNewCategoryName] = useState("");
 
@@ -104,47 +124,53 @@ export default function ProductFormQuick({
 
     return (
         <div className="space-y-4">
-            {/* Upload and Smart URL Paste Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 select-none">
-                {/* File Upload Zone */}
-                <div onClick={() => fileInputRef.current?.click()} className="sm:col-span-5 h-28 bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-emerald-500 transition-colors relative overflow-hidden">
-                    {image ? <img src={image} className="w-full h-full object-cover" alt="Product preview" /> : (
+            {/* File Upload Zone — Layout Horizontal Compacto 1:1 */}
+            <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 select-none">
+                {/* Previsualización Cuadrada 1:1 */}
+                <div 
+                    onClick={() => fileInputRef.current?.click()} 
+                    className="w-28 h-28 shrink-0 bg-white dark:bg-slate-900 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-emerald-500 transition-colors relative overflow-hidden group"
+                >
+                    {image ? (
+                        <img src={image} className="w-full h-full object-contain p-1" alt="Product preview" />
+                    ) : (
                         <>
-                            <Camera size={22} className="text-slate-400 mb-1" />
-                            <span className="text-[10px] font-black text-slate-500">Subir foto local</span>
+                            <Camera size={26} className="text-slate-400 group-hover:text-emerald-500 transition-colors mb-1" />
+                            <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider text-center px-1">Subir Foto</span>
                         </>
                     )}
                     <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
-                    {image && <button onClick={(e) => { e.stopPropagation(); setImage(''); }} className="absolute top-2 right-2 p-1 bg-black/50 text-white rounded-full"><X size={12} /></button>}
                 </div>
 
-                {/* Web Image Finder & URL Paste Zone */}
-                <div 
-                    onClick={() => {
-                        if (!name || name.trim().length < 3) {
-                            showToast('Ingresa el nombre del producto (mín. 3 letras) para buscar automáticamente', 'warning');
-                            return;
-                        }
-                        handleAutoSearchImage(name);
-                    }}
-                    className={`sm:col-span-7 h-28 border border-slate-200 dark:border-slate-700 rounded-2xl p-2.5 flex flex-col items-center justify-center cursor-pointer hover:border-amber-500 hover:bg-amber-500/5 transition-all relative overflow-hidden group select-none ${isSearchingImage ? 'bg-amber-500/10' : 'bg-slate-50 dark:bg-slate-800'}`}
-                >
-                    {isSearchingImage ? (
-                        <>
-                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-amber-600 dark:border-amber-400 border-t-transparent mb-1.5" />
-                            <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400">Buscando foto...</span>
-                        </>
-                    ) : (
-                        <>
-                            <Sparkles size={22} className="text-amber-600 dark:text-amber-400 mb-1.5 group-hover:scale-110 transition-transform" />
-                            <span className="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-wider">Auto-buscar foto</span>
-                            <span className="text-[8px] text-slate-500 dark:text-slate-400 mt-1 leading-none text-center">
-                                Busca automáticamente la mejor imagen en tu catálogo local y tiendas
-                            </span>
-                        </>
-                    )}
+                {/* Panel Informativo y Acciones */}
+                <div className="flex-1 min-w-0 flex flex-col justify-center gap-1.5">
+                    <div>
+                        <p className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Foto del Producto</p>
+                        <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 leading-snug mt-0.5">Formato recomendado: PNG, JPG o WEBP (1:1).</p>
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                        <button 
+                            type="button" 
+                            onClick={() => fileInputRef.current?.click()} 
+                            className="px-3 py-2 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 rounded-xl font-black text-xs transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                        >
+                            <Camera size={14} />
+                            <span>{image ? 'Cambiar foto' : 'Subir imagen'}</span>
+                        </button>
+
+                        {image && (
+                            <button 
+                                type="button" 
+                                onClick={() => setImage('')} 
+                                className="px-3 py-2 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/60 hover:bg-red-100 dark:hover:bg-red-900/60 rounded-xl font-black text-xs transition-all active:scale-95 flex items-center gap-1 cursor-pointer"
+                            >
+                                <X size={14} />
+                                <span>Eliminar</span>
+                            </button>
+                        )}
+                    </div>
+                </div>
             </div>
-        </div>
 
             {imageMatches && imageMatches.length > 0 && (
                 <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-150 dark:border-slate-700/50 rounded-2xl p-3 space-y-2 animate-in fade-in slide-in-from-top-1 duration-200 select-none">
@@ -182,7 +208,7 @@ export default function ProductFormQuick({
             <div className="space-y-3">
                 {/* Name */}
                 <div className="relative">
-                    <label className="text-xs font-bold text-slate-400 ml-1 mb-1 block uppercase">Nombre</label>
+                    <label className="text-xs font-black text-slate-600 dark:text-slate-300 ml-1 mb-1.5 block uppercase tracking-wide">Nombre del producto</label>
                     <input 
                         value={name} 
                         onChange={e => setName(e.target.value)} 
@@ -197,7 +223,7 @@ export default function ProductFormQuick({
 
                 {/* Barcode */}
                 <div>
-                    <label className="text-xs font-bold text-slate-400 ml-1 mb-1 block uppercase">Cód. de Barras (Opcional)</label>
+                    <label className="text-xs font-black text-slate-600 dark:text-slate-300 ml-1 mb-1.5 block uppercase tracking-wide">Cód. de Barras <span className="font-medium text-slate-400 normal-case">(Opcional)</span></label>
                     <div className="relative">
                         <input value={barcode} onChange={e => setBarcode(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') e.preventDefault(); }} placeholder="Ej: 7591111222233"
                             className="w-full bg-slate-50 dark:bg-slate-800 p-3.5 pl-10 rounded-xl font-bold text-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/50 text-sm sm:text-base" />
@@ -208,7 +234,7 @@ export default function ProductFormQuick({
                 {/* Category (full width) */}
                 <div>
                     <div className="flex justify-between items-center mb-1">
-                        <label className="text-xs font-bold text-slate-400 ml-1 block uppercase">Categoría</label>
+                        <label className="text-xs font-black text-slate-600 dark:text-slate-300 ml-1 block uppercase tracking-wide">Categoría</label>
                         <button 
                             onClick={() => setIsAddingCategory(!isAddingCategory)}
                             className="text-[10px] font-bold text-emerald-500 hover:text-emerald-600 flex items-center gap-1 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded-md transition-colors"
@@ -246,7 +272,7 @@ export default function ProductFormQuick({
 
                 {/* ─── PACKAGING TYPE CARDS ─── */}
                 <div>
-                    <label className="text-xs font-bold text-slate-400 ml-1 mb-1.5 block uppercase">Tipo de Empaque</label>
+                    <label className="text-xs font-black text-slate-600 dark:text-slate-300 ml-1 mb-1.5 block uppercase tracking-wide">Tipo de Empaque</label>
                     <div className="grid grid-cols-3 gap-2">
                         {PACKAGING_TYPES.map(pt => {
                             const selected = packagingType === pt.id;
@@ -348,28 +374,21 @@ export default function ProductFormQuick({
                 )}
 
                 {/* ─── COST SECTION (first) ─── */}
-                <div className="bg-slate-50 dark:bg-slate-800/20 p-3 rounded-xl border border-slate-200/60 dark:border-slate-800/40">
-                    <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block mb-2 ml-1">
-                        Costo de Adquisición ({priceSuffix ? priceSuffix.replace(' / ', '') : 'Unidad'})
+                <div className="bg-slate-50 dark:bg-slate-800/30 p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-700/50">
+                    <span className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wide block mb-2.5 ml-0.5">
+                        Costo de Adquisición <span className="font-medium text-slate-400">({priceSuffix ? priceSuffix.replace(' / ', '') : 'Unidad'})</span>
                     </span>
-                    <div className="grid grid-cols-2 gap-3 items-center">
-                        <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">
-                                {copEnabled && copPrimary && tasaCop > 0 ? 'COP' : '$'}
-                            </span>
-                            {copEnabled && copPrimary && tasaCop > 0 ? (
-                                <input type="number" inputMode="decimal" value={costCop} onChange={e => handleCostCopChange(e.target.value)} placeholder="4100"
-                                    className="w-full bg-white dark:bg-slate-900 p-2.5 pl-11 rounded-xl font-bold text-slate-700 dark:text-white outline-none border border-slate-200/60 dark:border-slate-800/40 focus:ring-2 focus:ring-slate-500/40 transition-all text-xs" />
-                            ) : (
-                                <input type="number" inputMode="decimal" value={costUsd} onChange={e => handleCostUsdChange(e.target.value)} placeholder="1.00"
-                                    className="w-full bg-white dark:bg-slate-900 p-2.5 pl-7 rounded-xl font-bold text-slate-700 dark:text-white outline-none border border-slate-200/60 dark:border-slate-800/40 focus:ring-2 focus:ring-slate-500/40 transition-all text-xs" />
-                            )}
-                        </div>
-                        <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">Bs</span>
-                            <input type="number" inputMode="decimal" value={costBs} onChange={e => handleCostBsChange(e.target.value)} placeholder="0.00"
-                                className="w-full bg-white dark:bg-slate-900 p-2.5 pl-8 rounded-xl font-bold text-slate-700 dark:text-white outline-none border border-slate-200/60 dark:border-slate-800/40 focus:ring-2 focus:ring-slate-500/40 transition-all text-xs" />
-                        </div>
+                    <div className="relative">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-black text-slate-400">
+                            {copEnabled && copPrimary && tasaCop > 0 ? 'COP' : '$'}
+                        </span>
+                        {copEnabled && copPrimary && tasaCop > 0 ? (
+                            <input type="number" inputMode="decimal" value={costCop} onChange={e => handleCostCopChange(e.target.value)} placeholder="4100"
+                                className="w-full bg-white dark:bg-slate-900 p-3 pl-14 rounded-xl font-black text-slate-800 dark:text-white outline-none border-2 border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-slate-400/40 focus:border-slate-400 transition-all text-sm shadow-2xs" />
+                        ) : (
+                            <input type="number" inputMode="decimal" value={costUsd} onChange={e => handleCostUsdChange(e.target.value)} placeholder="1.00"
+                                className="w-full bg-white dark:bg-slate-900 p-3 pl-8 rounded-xl font-black text-slate-800 dark:text-white outline-none border-2 border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-slate-400/40 focus:border-slate-400 transition-all text-sm shadow-2xs" />
+                        )}
                     </div>
                 </div>
 
@@ -406,31 +425,283 @@ export default function ProductFormQuick({
                 )}
 
                 {/* ─── PRICE SECTION ─── */}
-                <div className="bg-emerald-500/5 dark:bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/15">
-                    <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest block mb-2 ml-1">
-                        Precio de Venta ({priceSuffix ? priceSuffix.replace(' / ', '') : 'Unidad'})
+                <div className="bg-emerald-500/8 dark:bg-emerald-500/12 p-3.5 rounded-xl border-2 border-emerald-400/30 dark:border-emerald-500/25">
+                    <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wide block mb-2.5 ml-0.5">
+                        Precio de Venta <span className="font-medium text-emerald-500/70">({priceSuffix ? priceSuffix.replace(' / ', '') : 'Unidad'})</span>
                     </span>
-                    <div className="grid grid-cols-2 gap-3 items-center">
-                        <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-emerald-500">
-                                {copEnabled ? 'USD' : '$'}
-                            </span>
-                            <input type="number" inputMode="decimal" value={priceUsd} onChange={e => handlePriceUsdChange(e.target.value)} placeholder="1.50"
-                                className="w-full bg-white dark:bg-slate-900 p-2.5 pl-11 pr-10 rounded-xl font-black text-emerald-800 dark:text-emerald-400 outline-none border border-emerald-100 dark:border-emerald-800/30 focus:ring-2 focus:ring-emerald-500/40 transition-all text-xs" />
-                            {parseFloat(priceUsd) > 0 && (
-                                <CheckCircle size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 transition-all duration-300" />
-                            )}
-                        </div>
-                        <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-brand-dark dark:text-brand">Bs</span>
-                            <input type="number" inputMode="decimal" value={priceBs} onChange={e => handlePriceBsChange(e.target.value)} placeholder="0.00"
-                                className="w-full bg-white dark:bg-slate-900 p-2.5 pl-8 pr-10 rounded-xl font-black text-surface-800 dark:text-brand outline-none border border-surface-200 dark:border-surface-800/30 focus:ring-2 focus:ring-brand/40 transition-all text-xs" />
-                            {parseFloat(priceBs) > 0 && (
-                                <CheckCircle size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-brand transition-all duration-300" />
-                            )}
-                        </div>
+                    <div className="relative">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-black text-emerald-600 dark:text-emerald-400">
+                            {copEnabled ? 'USD' : '$'}
+                        </span>
+                        <input type="number" inputMode="decimal" value={priceUsd} onChange={e => handlePriceUsdChange(e.target.value)} placeholder="1.50"
+                            className="w-full bg-white dark:bg-slate-900 p-3 pl-12 pr-10 rounded-xl font-black text-emerald-900 dark:text-emerald-300 outline-none border-2 border-emerald-300 dark:border-emerald-700/60 focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 transition-all text-sm sm:text-base shadow-2xs" />
+                        {parseFloat(priceUsd) > 0 && (
+                            <CheckCircle size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 transition-all duration-300" />
+                        )}
                     </div>
                 </div>
+
+                {/* ─── PRECIO EN BOLÍVARES / BCV ─── */}
+                {(() => {
+                    const actualBcvRate = bcvRate || effectiveRate;
+                    const has2 = isPrice2Active || (price2Usd !== '' && price2Usd !== null && price2Usd !== undefined);
+                    const parsedPrice2Bs = parseFloat(price2Bs);
+                    const bcvBsDisplay = (parsedPrice2Bs > 0)
+                        ? price2Bs
+                        : (price2Usd && parseFloat(price2Usd) > 0 ? (parseFloat(price2Usd) * actualBcvRate).toFixed(2) : '');
+
+                    // Calcular si el recargo actual coincide con el de tienda o es custom
+                    const priceUsdNum = parseFloat(priceUsd) || 0;
+                    const currentP2Usd = parseFloat(price2Usd) || 0;
+                    const expectedStoreP2Usd = priceUsdNum > 0 ? parseFloat((priceUsdNum * (1 + bcvMarginNum / 100)).toFixed(2)) : 0;
+                    const isStoreMarginActive = has2 && expectedStoreP2Usd > 0 && Math.abs(currentP2Usd - expectedStoreP2Usd) < 0.01;
+                    const customPctCalc = (has2 && priceUsdNum > 0 && !isStoreMarginActive)
+                        ? Math.round(((currentP2Usd / priceUsdNum) - 1) * 100)
+                        : null;
+
+                    return (
+                        <div className={`p-4 rounded-2xl border transition-all duration-300 ${
+                            has2
+                                ? 'bg-gradient-to-br from-blue-50/90 via-white to-indigo-50/50 dark:from-blue-950/30 dark:via-slate-900 dark:to-indigo-950/30 border-blue-400/60 dark:border-blue-500/50 shadow-md shadow-blue-500/5 ring-1 ring-blue-500/20'
+                                : 'bg-slate-50/80 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-700/60'
+                        }`}>
+                            {/* Cabecera con Tasa BCV oficial en tiempo real */}
+                            <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+                                        has2 ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-xs ring-2 ring-blue-600/20' : 'bg-slate-200 dark:bg-slate-700 text-slate-400'
+                                    }`}>
+                                        <Building2 size={16} />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <p className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Precio en Bolívares / BCV</p>
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[9px] font-black rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700/50 shrink-0">
+                                                <Landmark size={11} className="text-blue-600 dark:text-blue-400" /> Tasa BCV: {actualBcvRate} Bs
+                                            </span>
+                                        </div>
+                                        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Cobro en Bs con recargo sobre BCV</p>
+                                    </div>
+                                </div>
+
+                                {/* Selector de segmentos */}
+                                <div className="flex items-center bg-slate-200/70 dark:bg-slate-800 p-0.5 rounded-xl shrink-0 border border-slate-300/40 dark:border-slate-700/50">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsPrice2Active(false);
+                                            handlePrice2UsdChange('');
+                                        }}
+                                        className={`px-2.5 py-1 text-[9px] font-black rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                                            !has2 ? 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 shadow-xs' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600'
+                                        }`}
+                                    >
+                                        <CircleX size={11} className="text-slate-400" /> Sin Recargo Bs
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsPrice2Active(true);
+                                            if (!price2Usd || parseFloat(price2Usd) <= 0) {
+                                                const p1 = parseFloat(priceUsd) || 0;
+                                                const suggested = p1 > 0 ? (p1 * (1 + bcvMarginNum / 100)).toFixed(2) : '3.73';
+                                                handlePrice2UsdChange(suggested);
+                                            }
+                                        }}
+                                        className={`px-2.5 py-1 text-[9px] font-black rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                                            has2 ? 'bg-blue-600 text-white shadow-xs ring-1 ring-blue-500/30' : 'text-slate-400 dark:text-slate-500 hover:text-blue-600'
+                                        }`}
+                                    >
+                                        <Coins size={11} className={has2 ? 'text-white' : 'text-blue-500'} /> Con Precio Bs
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Sugerencia automática & Chips rápidos */}
+                            {parseFloat(priceUsd) > 0 && (() => {
+                                const p2UsdSug = (parseFloat(priceUsd) * (1 + bcvMarginNum / 100)).toFixed(2);
+                                const p2BsSugNum = parseFloat((parseFloat(p2UsdSug) * actualBcvRate).toFixed(2));
+                                const p2BsSugFormatted = p2BsSugNum.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                return (
+                                    <div className="mt-3 space-y-2.5">
+                                        <div className="flex items-center justify-between gap-2 p-2.5 px-3 bg-blue-500/10 dark:bg-blue-900/30 border border-blue-200/80 dark:border-blue-700/50 rounded-xl">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <TrendingUp size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                                                <p className="text-xs font-extrabold text-blue-800 dark:text-blue-200 truncate">
+                                                    Sugerido (+{bcvMarginNum}% Tienda): <span className="font-black text-blue-950 dark:text-white">${p2UsdSug} USD</span> <span className="text-blue-500 font-black">➜</span> <span className="font-black text-blue-950 dark:text-white">Bs {p2BsSugFormatted}</span>
+                                                </p>
+                                            </div>
+                                            {!has2 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setIsPrice2Active(true);
+                                                        handlePrice2UsdChange(p2UsdSug);
+                                                    }}
+                                                    className="text-[9px] font-black bg-blue-600 text-white px-2.5 py-1.5 rounded-lg hover:bg-blue-700 active:scale-95 transition-all cursor-pointer uppercase shrink-0 shadow-xs flex items-center gap-1"
+                                                >
+                                                    <CheckCircle size={10} /> Usar +{bcvMarginNum}%
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {/* Chips de Recargo Rápido */}
+                                        <div className="flex items-center gap-2 flex-wrap pt-1">
+                                            <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wide">Recargo:</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setIsPrice2Active(true);
+                                                    setShowCustomPct(false);
+                                                    handlePrice2UsdChange(p2UsdSug);
+                                                }}
+                                                className={`px-3 py-1.5 text-xs font-black rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+                                                    isStoreMarginActive
+                                                        ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-500/30'
+                                                        : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-blue-100 dark:hover:bg-blue-900/40 hover:text-blue-700'
+                                                }`}
+                                            >
+                                                <Store size={13} /> {isStoreMarginActive ? '✓ ' : ''}+{bcvMarginNum}% Tienda
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowCustomPct(prev => !prev)}
+                                                className={`px-3 py-1.5 text-xs font-black rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+                                                    showCustomPct || (customPctCalc !== null && customPctCalc > 0)
+                                                        ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-500/30'
+                                                        : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-blue-100 dark:hover:bg-blue-900/40 hover:text-blue-700'
+                                                }`}
+                                            >
+                                                <SlidersHorizontal size={13} /> {customPctCalc !== null && customPctCalc > 0 ? `+${customPctCalc}% Custom` : 'Personalizado'}
+                                            </button>
+
+                                            {showCustomPct && (
+                                                <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 px-2 py-1.5 rounded-xl border-2 border-blue-400 dark:border-blue-600 shadow-md animate-in fade-in zoom-in-95 duration-150">
+                                                    <input
+                                                        type="number"
+                                                        inputMode="decimal"
+                                                        value={customPctVal}
+                                                        onChange={e => setCustomPctVal(e.target.value)}
+                                                        placeholder="%"
+                                                        className="w-16 text-sm font-black px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white outline-none border border-slate-200 dark:border-slate-700 text-center"
+                                                        autoFocus
+                                                        onKeyDown={e => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                const pct = parseFloat(customPctVal);
+                                                                if (!isNaN(pct) && pct >= 0) {
+                                                                    setIsPrice2Active(true);
+                                                                    handlePrice2UsdChange((parseFloat(priceUsd) * (1 + pct / 100)).toFixed(2));
+                                                                    setShowCustomPct(false);
+                                                                }
+                                                            }
+                                                        }}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const pct = parseFloat(customPctVal);
+                                                            if (!isNaN(pct) && pct >= 0) {
+                                                                setIsPrice2Active(true);
+                                                                handlePrice2UsdChange((parseFloat(priceUsd) * (1 + pct / 100)).toFixed(2));
+                                                                setShowCustomPct(false);
+                                                            }
+                                                        }}
+                                                        className="px-3 py-1 text-xs font-black rounded-lg bg-blue-600 text-white hover:bg-blue-700 active:scale-95 cursor-pointer"
+                                                    >
+                                                        Aplicar
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
+                            {/* Campos de entrada bidireccionales con Alta Legibilidad */}
+                            {has2 && (
+                                <div className="pt-3.5 mt-3.5 border-t border-blue-500/20 dark:border-blue-500/25 space-y-2.5 animate-in fade-in duration-200">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <div className="flex items-center justify-between mb-1.5">
+                                                <span className="text-[10px] font-black text-slate-700 dark:text-slate-200 tracking-wide uppercase">Precio en Dólares (BCV)</span>
+                                                <span className="text-[9px] font-black px-2 py-0.5 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-md border border-blue-200/60 dark:border-blue-800/40">USD</span>
+                                            </div>
+                                            <div className="relative">
+                                                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-black text-blue-600 pointer-events-none">$</span>
+                                                <input
+                                                    type="number"
+                                                    inputMode="decimal"
+                                                    value={price2Usd}
+                                                    onChange={e => {
+                                                        setIsPrice2Active(true);
+                                                        handlePrice2UsdChange(e.target.value);
+                                                    }}
+                                                    placeholder="3.73"
+                                                    className="w-full bg-white dark:bg-slate-900 p-3 pl-8 rounded-xl font-black text-blue-950 dark:text-white text-sm sm:text-base outline-none border-2 border-blue-300 dark:border-blue-700 focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all shadow-2xs"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center justify-between mb-1.5">
+                                                <span className="text-[10px] font-black text-emerald-800 dark:text-emerald-300 tracking-wide uppercase">Monto Final Bolívares</span>
+                                                <span className="text-[9px] font-black px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 rounded-md border border-emerald-200 dark:border-emerald-800/40 flex items-center gap-1">
+                                                    <Landmark size={10} /> Bs BCV
+                                                </span>
+                                            </div>
+                                            <div className="relative">
+                                                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-black text-emerald-700 dark:text-emerald-400 pointer-events-none">Bs</span>
+                                                <input
+                                                    type="number"
+                                                    inputMode="decimal"
+                                                    value={bcvBsDisplay}
+                                                    onChange={e => {
+                                                        setIsPrice2Active(true);
+                                                        handlePrice2BsChange(e.target.value);
+                                                    }}
+                                                    placeholder="2749.87"
+                                                    className="w-full bg-emerald-50/70 dark:bg-emerald-950/40 p-3 pl-10 rounded-xl font-black text-emerald-950 dark:text-emerald-100 text-sm sm:text-base outline-none border-2 border-emerald-400 dark:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 transition-all shadow-2xs"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* 💡 Tarjeta de Valor y Ganancia Real USDT (Reposición) */}
+                                    {usdtRate > 0 && parseFloat(bcvBsDisplay) > 0 && (() => {
+                                        const bsMonto = parseFloat(bcvBsDisplay) || 0;
+                                        const realUsdtValue = (bsMonto / usdtRate).toFixed(2);
+                                        const costUsdNum = parseFloat(costUsd) || 0;
+                                        const realProfitVal = (parseFloat(realUsdtValue) - costUsdNum).toFixed(2);
+                                        const realMarginPct = costUsdNum > 0 ? (((parseFloat(realUsdtValue) - costUsdNum) / costUsdNum) * 100).toFixed(1) : null;
+
+                                        return (
+                                            <div className="mt-3 p-3 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 dark:from-emerald-950/40 dark:via-teal-950/30 dark:to-emerald-950/40 border border-emerald-300 dark:border-emerald-700/60 rounded-xl flex flex-wrap items-center justify-between gap-2 shadow-2xs">
+                                                <div className="flex items-center gap-2">
+                                                    <Sparkles size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                                    <div>
+                                                        <p className="text-[10px] font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">Valor Real al cambiar Bs ➔ USDT</p>
+                                                        <p className="text-xs font-extrabold text-emerald-950 dark:text-emerald-100">
+                                                            ${realUsdtValue} USDT <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">(Tasa USDT: {usdtRate} Bs/$)</span>
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                {costUsdNum > 0 && (
+                                                    <div className="bg-white/80 dark:bg-slate-900/80 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800/50 text-right">
+                                                        <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 block uppercase">Ganancia Real USDT</span>
+                                                        <span className={`text-xs font-black ${parseFloat(realProfitVal) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}`}>
+                                                            {parseFloat(realProfitVal) >= 0 ? '+' : ''}${realProfitVal} USDT {realMarginPct !== null && `(${realMarginPct}%)`}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
 
                 {/* ─── COP CONFUSION WARNING ─── */}
                 {copEnabled && parsedPrice >= 100 && (

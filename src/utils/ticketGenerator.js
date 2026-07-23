@@ -24,7 +24,8 @@ export async function generateTicketPDF(sale, bcvRate) {
     const CX = WIDTH / 2;
     const RIGHT = WIDTH - M;
 
-    const rate = sale.rate || bcvRate || 1;
+    // El ticket refleja todo a Tasa BCV Oficial
+    const rate = sale.bcvRate || bcvRate || sale.rate || 1;
     const isCop = sale.copEnabled && sale.tasaCop > 0;
     // FIN-024: fmtUsd usa formatUsd (Intl.NumberFormat) — sin parseFloat/toFixed.
     const fmtUsd = (v) => isCop ? `USD ${formatUsd(v)}` : `$${formatUsd(v)}`;
@@ -134,10 +135,12 @@ export async function generateTicketPDF(sale, bcvRate) {
             // FIN-024: formatUsd para cantidades peso (2 decimales), sin toFixed.
             const qty = item.isWeight ? formatUsd(item.qty) : String(item.qty);
             const unit = item.isWeight ? 'Kg' : 'u';
-            // FIN-024: mulR en vez de multiplicación raw.
+            const itemRate = (item._priceMode === 'bcv' || item._bcvRate)
+                ? (item._bcvRate || sale.bcvRate || bcvRate || rate)
+                : rate;
             const itemExactBs = item.exactBs ?? (item.isCashAdvance && item.currency === 'BS' ? (item.montoEfectivo + item.montoComision) : null);
-            const sub = itemExactBs != null ? (rate > 0 ? divR(itemExactBs, rate) : item.priceUsd) : mulR(item.priceUsd, item.qty);
-            const subBs = itemExactBs != null ? mulR(itemExactBs, item.qty) : mulR(sub, rate);
+            const sub = itemExactBs != null ? (itemRate > 0 ? divR(itemExactBs, itemRate) : item.priceUsd) : mulR(item.priceUsd, item.qty);
+            const subBs = itemExactBs != null ? mulR(itemExactBs, item.qty) : mulR(sub, itemRate);
 
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(7.5);

@@ -1,93 +1,10 @@
-// v1.2.1: Calibrador y preview de ticket ocultados hasta nuevo aviso
 import React, { useState, useRef, useEffect } from 'react';
-import { Store, Printer, Coins, Check, Tag } from 'lucide-react';
+import { Store, Printer, Coins, Check, Tag, Landmark, Package, FileText, DollarSign, CreditCard } from 'lucide-react';
 import { SectionCard, Toggle } from '../../SettingsShared';
-import { generarPreviewLabel } from '../../../utils/labelGenerator';
-
-
-const CalibratorSlider = ({ label, value, setValue, baseKey, mode, paperWidth, min, max, step = 0.5, unit = 'mm', triggerHaptic }) => {
-    const valFloat = parseFloat(value || '0');
-    const is80 = paperWidth === '80';
-    const suffix = is80
-        ? (mode === 'mixto' ? '_80_mixto' : '_80_unico')
-        : (mode === 'mixto' ? '_mixto' : '_unico');
-    const storageKey = `${baseKey}${suffix}`;
-    
-    const handleIncrement = () => {
-        const newVal = Math.min(max, valFloat + 1);
-        const formatted = Number(newVal.toFixed(1)).toString();
-        setValue(formatted);
-        localStorage.setItem(storageKey, formatted);
-        triggerHaptic?.();
-    };
-
-    const handleDecrement = () => {
-        const newVal = Math.max(min, valFloat - 1);
-        const formatted = Number(newVal.toFixed(1)).toString();
-        setValue(formatted);
-        localStorage.setItem(storageKey, formatted);
-        triggerHaptic?.();
-    };
-
-    return (
-        <div className="space-y-1">
-            <div className="flex justify-between items-center text-[10px] text-slate-400 font-bold w-full">
-                <span>{label}</span>
-                <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded px-1.5 py-0.5 shadow-sm">
-                    <input
-                        type="number"
-                        step={step}
-                        min={min}
-                        max={max}
-                        value={value}
-                        onChange={e => {
-                            const rawVal = e.target.value;
-                            setValue(rawVal);
-                            if (rawVal !== '' && !isNaN(parseFloat(rawVal))) {
-                                localStorage.setItem(storageKey, rawVal);
-                            }
-                        }}
-                        className="w-10 bg-transparent text-[10px] font-black text-brand text-right focus:outline-none focus:ring-0 p-0 border-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                    <span className="text-[9px] font-black text-slate-400/80 dark:text-slate-500 select-none">{unit}</span>
-                </div>
-            </div>
-            <div className="flex items-center gap-1.5">
-                <button
-                    type="button"
-                    onClick={handleDecrement}
-                    className="w-6 h-6 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-650 dark:text-slate-350 hover:bg-slate-200 dark:hover:bg-slate-800 text-xs font-black transition-all active:scale-[0.85] select-none"
-                >
-                    -
-                </button>
-                <input
-                    type="range"
-                    min={min}
-                    max={max}
-                    step={step}
-                    value={value}
-                    onChange={e => {
-                        setValue(e.target.value);
-                        localStorage.setItem(storageKey, e.target.value);
-                        triggerHaptic?.();
-                    }}
-                    className="flex-1 h-1 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-brand"
-                />
-                <button
-                    type="button"
-                    onClick={handleIncrement}
-                    className="w-6 h-6 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-650 dark:text-slate-350 hover:bg-slate-200 dark:hover:bg-slate-800 text-xs font-black transition-all active:scale-[0.85] select-none"
-                >
-                    +
-                </button>
-            </div>
-        </div>
-    );
-};
+import PaymentMethodsManager from '../PaymentMethodsManager';
+import CasheaIcon from '../../CasheaIcon';
 
 export default function SettingsTabNegocio({
-    businessName, setBusinessName,
-    businessRif, setBusinessRif,
     paperWidth, setPaperWidth,
     labelCurrencyMode, setLabelCurrencyMode,
     labelOffsetNameX, setLabelOffsetNameX,
@@ -102,144 +19,270 @@ export default function SettingsTabNegocio({
     labelOffsetFontPrice, setLabelOffsetFontPrice,
     labelOffsetFontSecPrice, setLabelOffsetFontSecPrice,
     labelOffsetFontFooter, setLabelOffsetFontFooter,
+    allowNegativeStock, setAllowNegativeStock,
     copEnabled, setCopEnabled,
     autoCopEnabled, setAutoCopEnabled,
     tasaCopManual, setTasaCopManual,
     copPrimary, setCopPrimary,
     calculatedTasaCop,
     effectiveRate,
+    bcvMarginPctState,
+    setBcvMarginPct,
     handleSaveBusinessData,
     forceHeartbeat,
     showToast,
     triggerHaptic,
 }) {
-    const [showCalibrator, setShowCalibrator] = useState(false);
-
-    // ─── PdfPreview: 100% pixel-perfect usando jsPDF real embebido en iframe ──
-    // generarPreviewLabel usa exactamente el mismo código que generarEtiquetas,
-    // devuelve un blobURL del PDF que mostramos directamente — cero simulación.
-    const PdfPreview = () => {
-        const [pdfUrl, setPdfUrl] = useState(null);
-        const [loading, setLoading] = useState(true);
-        const prevUrlRef = useRef(null);
-
-        const isMixto = labelCurrencyMode === 'mixto';
-        const PX_MM   = 3.78;
-        const is80 = paperWidth === '80';
-        const W_PX = (is80 ? 80 : 58) * PX_MM;
-        const H_PX = (is80
-            ? (isMixto ? 80 : (hasSecondaryPrice ? 68 : 60))
-            : (isMixto ? 60 : (hasSecondaryPrice ? 50 : 44))
-        ) * PX_MM;
-
-        useEffect(() => {
-            let cancelled = false;
-            setLoading(true);
-            generarPreviewLabel(effectiveRate, copEnabled, calculatedTasaCop).then(url => {
-                if (cancelled) return;
-                if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
-                prevUrlRef.current = url;
-                setPdfUrl(url);
-                setLoading(false);
-            }).catch(() => {
-                if (!cancelled) setLoading(false);
-            });
-            return () => { cancelled = true; };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        }, [
-            labelCurrencyMode,
-            paperWidth,
-            labelOffsetNameX, labelOffsetNameY,
-            labelOffsetPriceX, labelOffsetPriceY,
-            labelOffsetSecPriceX, labelOffsetSecPriceY,
-            labelOffsetFooterX, labelOffsetFooterY,
-            labelOffsetFontName, labelOffsetFontPrice,
-            labelOffsetFontSecPrice, labelOffsetFontFooter,
-            effectiveRate, copEnabled, calculatedTasaCop,
-        ]);
-
-        return (
-            <div
-                className="relative border border-slate-200 dark:border-slate-700 shadow-md rounded bg-white overflow-hidden"
-                style={{ width: `${W_PX}px`, height: `${H_PX}px` }}
-            >
-                {loading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-white/80 text-slate-400 text-xs">
-                        Generando…
-                    </div>
-                )}
-                {pdfUrl && (
-                    <iframe
-                        key={pdfUrl}
-                        src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
-                        title="Vista previa del ticket"
-                        style={{
-                            width: `${W_PX}px`,
-                            height: `${H_PX}px`,
-                            border: 'none',
-                            display: 'block',
-                        }}
-                    />
-                )}
-            </div>
-        );
-    };
-
+    const [casheaEnabled, setCasheaEnabled] = useState(() => localStorage.getItem('cashea_enabled') === 'true');
+    const [casheaMinAmount, setCasheaMinAmount] = useState(() => localStorage.getItem('cashea_min_amount') || '0');
+    const [receiptCurrency, setReceiptCurrency] = useState(() => localStorage.getItem('receipt_currency_mode') || 'bs');
+    const [cashAdvanceEnabled, setCashAdvanceEnabled] = useState(() => localStorage.getItem('allow_cash_advance') === 'true');
+    const [cashAdvancePct, setCashAdvancePct] = useState(() => localStorage.getItem('cash_advance_default_pct') || '10');
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
 
-            {/* Impresora - Sólo Tamaño de Ticket */}
-            <SectionCard icon={Printer} title="Tamaño de Ticket" subtitle="Configuración del ancho de papel" iconColor="text-brand">
-                <label className="text-[11px] uppercase tracking-wider font-extrabold text-slate-500 dark:text-slate-400 block mb-1.5">Ancho de Papel</label>
-                <div className="grid grid-cols-2 gap-2">
-                    {[{ val: '58', label: '58 mm (Pequeña)' }, { val: '80', label: '80 mm (Estándar)' }].map(opt => (
-                        <button
-                            key={opt.val}
-                            onClick={() => { setPaperWidth(opt.val); localStorage.setItem('printer_paper_width', opt.val); triggerHaptic?.(); }}
-                            className={`py-2.5 px-3 text-xs font-bold rounded-xl transition-all border ${paperWidth === opt.val
-                                ? 'bg-brand-light dark:bg-brand/10 border-brand text-brand-dark dark:text-brand shadow-sm'
-                                : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
-                            }`}
-                        >
-                            {opt.label}
-                        </button>
-                    ))}
-                </div>
-            </SectionCard>
+                {/* Recargo BCV por defecto de la Tienda */}
+                <SectionCard icon={Landmark} title="Recargo BCV de la Tienda" subtitle="Porcentaje de recargo automático al cobrar en Bs" iconColor="text-blue-600">
+                    <div className="space-y-3">
+                        <div>
+                            <label className="text-[11px] uppercase tracking-wider font-extrabold text-slate-500 dark:text-slate-400 block mb-1 font-mono">% Recargo por Defecto en Bs</label>
+                            <div className="relative">
+                                <input
+                                    type="number"
+                                    inputMode="decimal"
+                                    value={bcvMarginPctState}
+                                    onChange={e => setBcvMarginPct(e.target.value)}
+                                    placeholder="49"
+                                    className="w-full bg-slate-50 dark:bg-slate-950 p-2.5 pr-8 rounded-xl font-black text-blue-700 dark:text-blue-400 outline-none border border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-blue-500/40 text-xs"
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400 pointer-events-none">%</span>
+                            </div>
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
+                            Este porcentaje se aplica sobre el precio base USD para sugerir el monto de cobro en Bolívares.
+                        </p>
+                    </div>
+                </SectionCard>
 
-            {/* Etiquetas de Precios */}
-            <SectionCard icon={Tag} title="Etiquetas de Productos" subtitle="Moneda a mostrar en la etiqueta" iconColor="text-brand">
-                <div className="space-y-4">
-                    <div>
-                        <label className="text-[11px] uppercase tracking-wider font-extrabold text-slate-500 dark:text-slate-400 block mb-1.5">Moneda del Precio</label>
-                        <div className="grid grid-cols-3 gap-1.5">
-                            {[
-                                { val: 'bs', label: 'Bs' },
-                                { val: 'usd', label: '$' },
-                                { val: 'mixto', label: 'Mixto' }
-                            ].map(opt => (
-                                <button
-                                    key={opt.val}
-                                    onClick={() => {
-                                        setLabelCurrencyMode(opt.val);
-                                        localStorage.setItem('label_currency_mode', opt.val);
-                                        triggerHaptic?.();
-                                        showToast(`Moneda de etiqueta cambiada a ${opt.label}`, 'success');
-                                    }}
-                                    className={`py-2.5 px-2 text-xs font-bold rounded-xl transition-all border text-center ${labelCurrencyMode === opt.val
-                                        ? 'bg-brand-light dark:bg-brand/10 border-brand text-brand-dark dark:text-brand shadow-sm'
-                                        : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
-                                    }`}
-                                >
-                                    {opt.label}
-                                </button>
-                            ))}
+                {/* Impresora - Ancho de Ticket */}
+                <SectionCard icon={Printer} title="Tamaño de Ticket" subtitle="Configuración del ancho de papel" iconColor="text-brand">
+                    <label className="text-[11px] uppercase tracking-wider font-extrabold text-slate-500 dark:text-slate-400 block mb-1.5">Ancho de Papel</label>
+                    <div className="grid grid-cols-2 gap-2">
+                        {[{ val: '58', label: '58 mm (Pequeña)' }, { val: '80', label: '80 mm (Estándar)' }].map(opt => (
+                            <button
+                                key={opt.val}
+                                onClick={() => { setPaperWidth(opt.val); localStorage.setItem('printer_paper_width', opt.val); triggerHaptic?.(); }}
+                                className={`py-2.5 px-3 text-xs font-bold rounded-xl transition-all border ${paperWidth === opt.val
+                                    ? 'bg-brand-light dark:bg-brand/10 border-brand text-brand-dark dark:text-brand shadow-sm'
+                                    : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                }`}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
+                </SectionCard>
+
+                {/* Etiquetas de Precios */}
+                <SectionCard icon={Tag} title="Etiquetas de Productos" subtitle="Moneda a mostrar en la etiqueta" iconColor="text-brand">
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-[11px] uppercase tracking-wider font-extrabold text-slate-500 dark:text-slate-400 block mb-1.5">Moneda del Precio</label>
+                            <div className="grid grid-cols-3 gap-1.5">
+                                {[
+                                    { val: 'bs', label: 'Bs' },
+                                    { val: 'usd', label: '$' },
+                                    { val: 'mixto', label: 'Mixto' }
+                                ].map(opt => (
+                                    <button
+                                        key={opt.val}
+                                        onClick={() => {
+                                            setLabelCurrencyMode(opt.val);
+                                            localStorage.setItem('label_currency_mode', opt.val);
+                                            triggerHaptic?.();
+                                            showToast(`Moneda de etiqueta cambiada a ${opt.label}`, 'success');
+                                        }}
+                                        className={`py-2.5 px-2 text-xs font-bold rounded-xl transition-all border text-center ${labelCurrencyMode === opt.val
+                                            ? 'bg-brand-light dark:bg-brand/10 border-brand text-brand-dark dark:text-brand shadow-sm'
+                                            : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                        }`}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
-                </div>
-            </SectionCard>
+                </SectionCard>
 
+                {/* Ticket de Venta */}
+                <SectionCard icon={FileText} title="Ticket de Venta" subtitle="Moneda del comprobante" iconColor="text-blue-500">
+                    <div className="space-y-3">
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                            Elige en qué moneda se expresarán los precios y totales del ticket al imprimir o compartir:
+                        </p>
+                        <div className="grid grid-cols-3 gap-2 pt-1">
+                            {[
+                                { id: 'bs', label: 'Bolívares' },
+                                { id: 'usd', label: 'Dólares ($)' },
+                                { id: 'mixto', label: 'Mixto' }
+                            ].map(opt => {
+                                const isSelected = receiptCurrency === opt.id;
+                                return (
+                                    <button
+                                        key={opt.id}
+                                        type="button"
+                                        onClick={() => {
+                                            setReceiptCurrency(opt.id);
+                                            localStorage.setItem('receipt_currency_mode', opt.id);
+                                            forceHeartbeat?.();
+                                            showToast(`Ticket configurado en ${opt.label}`, 'success');
+                                            triggerHaptic?.();
+                                        }}
+                                        className={`py-2 rounded-xl text-xs font-bold transition-all border ${
+                                            isSelected
+                                                ? 'bg-brand text-white border-transparent shadow-sm'
+                                                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-850 hover:border-brand/40'
+                                        }`}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </SectionCard>
+
+                {/* Reglas de Inventario */}
+                <SectionCard icon={Package} title="Inventario" subtitle="Reglas de ventas" iconColor="text-emerald-500">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Vender sin Stock</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Permitir ventas si el inventario es 0</p>
+                        </div>
+                        <Toggle
+                            enabled={allowNegativeStock}
+                            onChange={() => {
+                                const newVal = !allowNegativeStock;
+                                setAllowNegativeStock(newVal);
+                                localStorage.setItem('allow_negative_stock', newVal.toString());
+                                forceHeartbeat?.();
+                                showToast(newVal ? 'Se permite vender sin stock' : 'No se permite vender sin stock', 'success');
+                                triggerHaptic?.();
+                            }}
+                        />
+                    </div>
+                </SectionCard>
+
+                {/* Financiamiento Cashea */}
+                <SectionCard icon={CasheaIcon} title="Financiamiento Cashea" subtitle="Configuración de Cashea" iconColor="text-purple-500">
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Activar Cashea</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Habilitar cobros financiados por Cashea en caja</p>
+                            </div>
+                            <Toggle
+                                enabled={casheaEnabled}
+                                onChange={() => {
+                                    const newVal = !casheaEnabled;
+                                    setCasheaEnabled(newVal);
+                                    localStorage.setItem('cashea_enabled', newVal.toString());
+                                    forceHeartbeat?.();
+                                    showToast(newVal ? 'Módulo Cashea activado' : 'Módulo Cashea desactivado', 'success');
+                                    triggerHaptic?.();
+                                }}
+                            />
+                        </div>
+
+                        {casheaEnabled && (
+                            <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 animate-in fade-in">
+                                <div>
+                                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Compra Mínima ($)</p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Monto mínimo en dólares para permitir Cashea</p>
+                                </div>
+                                <input
+                                    type="number"
+                                    placeholder="0.00"
+                                    value={casheaMinAmount}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setCasheaMinAmount(val);
+                                        localStorage.setItem('cashea_min_amount', val);
+                                        forceHeartbeat?.();
+                                    }}
+                                    className="w-24 text-right font-bold text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-700 dark:text-white outline-none focus:ring-1 focus:ring-purple-500"
+                                />
+                            </div>
+                        )}
+                    </div>
+                </SectionCard>
+
+                {/* Avance de Efectivo */}
+                <SectionCard icon={DollarSign} title="Avance de Efectivo" subtitle="Configuración de Avances" iconColor="text-amber-500">
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Habilitar Avances</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Permitir avances de efectivo con comisión en caja</p>
+                            </div>
+                            <Toggle
+                                enabled={cashAdvanceEnabled}
+                                onChange={() => {
+                                    const newVal = !cashAdvanceEnabled;
+                                    setCashAdvanceEnabled(newVal);
+                                    localStorage.setItem('allow_cash_advance', newVal.toString());
+                                    forceHeartbeat?.();
+                                    showToast(newVal ? 'Módulo de Avance de Efectivo activado' : 'Módulo de Avance de Efectivo desactivado', 'success');
+                                    triggerHaptic?.();
+                                }}
+                            />
+                        </div>
+
+                        {cashAdvanceEnabled && (
+                            <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 animate-in fade-in">
+                                <div>
+                                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200">Comisión por Defecto (%)</p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Porcentaje de recargo por el servicio de avance</p>
+                                </div>
+                                <input
+                                    type="number"
+                                    placeholder="10"
+                                    value={cashAdvancePct}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setCashAdvancePct(val);
+                                        localStorage.setItem('cash_advance_default_pct', val);
+                                        forceHeartbeat?.();
+                                    }}
+                                    className="w-24 text-right font-bold text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-700 dark:text-white outline-none focus:ring-1 focus:ring-amber-500"
+                                />
+                            </div>
+                        )}
+                    </div>
+                </SectionCard>
+
+            </div>
+
+            {/* Métodos de Pago Activos */}
+            <div className="pt-2">
+                <PaymentMethodsManager
+                    copEnabled={copEnabled}
+                    setCopEnabled={setCopEnabled}
+                    autoCopEnabled={autoCopEnabled}
+                    setAutoCopEnabled={setAutoCopEnabled}
+                    tasaCopManual={tasaCopManual}
+                    setTasaCopManual={setTasaCopManual}
+                    copPrimary={copPrimary}
+                    setCopPrimary={setCopPrimary}
+                    calculatedTasaCop={calculatedTasaCop}
+                    effectiveRate={effectiveRate}
+                    showToast={showToast}
+                    triggerHaptic={triggerHaptic}
+                />
+            </div>
         </div>
     );
 }

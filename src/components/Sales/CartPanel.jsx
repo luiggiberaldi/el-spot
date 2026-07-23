@@ -1,11 +1,12 @@
 import React from 'react';
-import { ShoppingCart, Plus, Minus, X, CheckCircle, Package, Trash2, DollarSign, Percent, Search, Pause } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, X, CheckCircle, Package, Trash2, DollarSign, Percent, Search, Pause, Landmark } from 'lucide-react';
 import { formatBs, formatCop, getCop, formatUsd } from '../../utils/calculatorUtils';
 import { mulR } from '../../utils/dinero';
 
 export default function CartPanel({
     cart,
     effectiveRate,
+    bcvRate,
     cartSubtotalUsd,
     cartSubtotalBs,
     cartTotalUsd,
@@ -105,7 +106,19 @@ export default function CartPanel({
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0 pr-1">
-                                            <p className={`text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 leading-tight mb-0.5 sm:mb-1 ${isCashAdvance ? 'break-words' : 'truncate'}`}>{item.name}</p>
+                                            <div className="flex items-center gap-1.5 mb-0.5 sm:mb-1">
+                                                <p className={`text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 leading-tight ${isCashAdvance ? 'break-words' : 'truncate'}`}>{item.name}</p>
+                                                {item._priceMode === 'bcv' && (
+                                                    <span className="shrink-0 flex items-center gap-0.5 text-[8px] font-black bg-blue-600 text-white px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                                                        <Landmark size={8} /> BCV
+                                                    </span>
+                                                )}
+                                                {item._priceMode === 'usdt' && (
+                                                    <span className="shrink-0 flex items-center gap-0.5 text-[8px] font-black bg-emerald-500 text-white px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                                                        <DollarSign size={8} /> USDT
+                                                    </span>
+                                                )}
+                                            </div>
                                             <div className={`flex items-center flex-wrap ${isCashAdvance ? 'gap-1.5' : 'gap-1 sm:gap-2'}`}>
                                                 {isCashAdvance ? (
                                                     <>
@@ -122,20 +135,20 @@ export default function CartPanel({
                                                             <>
                                                                 <p className="text-[10px] sm:text-[11px] font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-1 sm:px-1.5 rounded">{formatCop(getCop(item, tasaCop))} COP</p>
                                                                 <p className="text-[10px] sm:text-[11px] font-bold text-emerald-600">${formatUsd(item.priceUsd)}</p>
-                                                                <p className="text-[10px] sm:text-[11px] font-bold text-brand dark:text-brand">{item.exactBs != null ? formatBs(item.exactBs) : formatBs(mulR(item.priceUsd, effectiveRate))} Bs</p>
+                                                                <p className="text-[10px] sm:text-[11px] font-bold text-brand dark:text-brand">{item.exactBs != null ? formatBs(item.exactBs) : formatBs(mulR(item.priceUsd, item._priceMode === 'bcv' ? (bcvRate || effectiveRate) : effectiveRate))} Bs</p>
                                                             </>
                                                         ) : (
                                                             <>
                                                                 <p className="text-[10px] sm:text-[11px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-1 sm:px-1.5 rounded">${formatUsd(item.priceUsd)}</p>
                                                                 <p className="text-[10px] sm:text-[11px] font-bold text-amber-600 dark:text-amber-400">{formatCop(getCop(item, tasaCop))} COP</p>
-                                                                <p className="text-[10px] sm:text-[11px] font-bold text-brand dark:text-brand">{item.exactBs != null ? formatBs(item.exactBs) : formatBs(mulR(item.priceUsd, effectiveRate))} Bs</p>
+                                                                <p className="text-[10px] sm:text-[11px] font-bold text-brand dark:text-brand">{item.exactBs != null ? formatBs(item.exactBs) : formatBs(mulR(item.priceUsd, item._priceMode === 'bcv' ? (bcvRate || effectiveRate) : effectiveRate))} Bs</p>
                                                             </>
                                                         )
                                                     ) : (
                                                         <>
                                                             <p className="text-[10px] sm:text-[11px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-1 sm:px-1.5 rounded">${formatUsd(item.priceUsd)}</p>
                                                             <p className="text-[10px] sm:text-[11px] font-medium text-slate-400">
-                                                                {item.exactBs != null ? formatBs(item.exactBs) : formatBs(mulR(item.priceUsd, effectiveRate))} Bs
+                                                                {item.exactBs != null ? formatBs(item.exactBs) : formatBs(mulR(item.priceUsd, item._priceMode === 'bcv' ? (bcvRate || effectiveRate) : effectiveRate))} Bs
                                                             </p>
                                                         </>
                                                     )
@@ -161,7 +174,7 @@ export default function CartPanel({
                                                 <p className="text-[10px] font-medium text-right leading-tight">
                                                     <span className="text-emerald-600 dark:text-emerald-400 font-bold">${formatUsd(mulR(item.priceUsd, item.qty))}</span>
                                                     <span className="text-slate-300 mx-0.5">|</span>
-                                                    <span className="text-brand dark:text-brand font-bold">{formatBs(mulR(mulR(item.priceUsd, item.qty), effectiveRate))} Bs</span>
+                                                    <span className="text-brand dark:text-brand font-bold">{formatBs(mulR(mulR(item.priceUsd, item.qty), item._priceMode === 'bcv' ? (bcvRate || effectiveRate) : effectiveRate))} Bs</span>
                                                 </p>
                                             </>
                                         ) : (
@@ -173,7 +186,7 @@ export default function CartPanel({
                                                     <p className="text-[10px] font-medium text-right leading-tight">
                                                         <span className="text-amber-600 dark:text-amber-400 font-bold">{formatCop(mulR(getCop(item, tasaCop), item.qty))} COP</span>
                                                         <span className="text-slate-300 mx-0.5">|</span>
-                                                        <span className="text-brand dark:text-brand font-bold">{formatBs(mulR(mulR(item.priceUsd, item.qty), effectiveRate))} Bs</span>
+                                                        <span className="text-brand dark:text-brand font-bold">{formatBs(mulR(mulR(item.priceUsd, item.qty), item._priceMode === 'bcv' ? (bcvRate || effectiveRate) : effectiveRate))} Bs</span>
                                                     </p>
                                                 )}
                                             </>
@@ -210,8 +223,12 @@ export default function CartPanel({
                                             </div>
                                         )}
                                     </div>
-                                    <button aria-label="Eliminar del carrito" onClick={() => removeFromCart(item.id)} className="absolute -top-1 -right-1 sm:top-2 sm:right-2 p-1.5 bg-red-50 dark:bg-red-900/40 text-red-500 sm:bg-transparent sm:text-slate-300 sm:hover:text-red-500 opacity-80 sm:opacity-0 group-hover:opacity-100 transition-opacity rounded-full sm:rounded-lg">
-                                        <X size={12} className="sm:w-[14px] sm:h-[14px]" />
+                                    <button 
+                                        aria-label="Eliminar del carrito" 
+                                        onClick={() => { triggerHaptic && triggerHaptic(); removeFromCart(item.id); }} 
+                                        className="absolute top-2 right-2 p-1.5 bg-red-50 dark:bg-red-950/40 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/60 hover:scale-105 active:scale-95 transition-all rounded-lg cursor-pointer"
+                                    >
+                                        <X size={14} strokeWidth={2.5} />
                                     </button>
                                 </div>
                             );

@@ -45,12 +45,30 @@ export default function DashboardPaymentBreakdown({
 
         // Always show native currency as primary
         let displayAmount;
+        let barColor = 'bg-cyan-500';
+        let badgeBg = 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-700 dark:text-cyan-300';
+        let badgeLabel = 'Bs';
+
         if (data.currency === 'BS' || (!data.currency)) {
             displayAmount = `${formatBs(data.total)} Bs`;
-        } else if (data.currency === 'USD' || data.currency === 'FIADO') {
+            barColor = 'bg-cyan-500';
+            badgeBg = 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-700 dark:text-cyan-300';
+            badgeLabel = 'Bs';
+        } else if (data.currency === 'USD') {
             displayAmount = `USD ${data.total.toFixed(2)}`;
+            barColor = 'bg-emerald-500';
+            badgeBg = 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300';
+            badgeLabel = 'USD';
         } else if (data.currency === 'COP') {
             displayAmount = `${formatCop(data.total)} COP`;
+            barColor = 'bg-amber-500';
+            badgeBg = 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300';
+            badgeLabel = 'COP';
+        } else if (data.currency === 'FIADO' || method === 'cashea') {
+            displayAmount = `USD ${data.total.toFixed(2)}`;
+            barColor = 'bg-purple-500';
+            badgeBg = 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300';
+            badgeLabel = 'Fiado';
         }
 
         return (
@@ -59,17 +77,20 @@ export default function DashboardPaymentBreakdown({
                     <span className="text-slate-600 dark:text-slate-300 font-medium flex items-center gap-1.5">
                         {PayIcon && <PayIcon size={14} className="text-slate-400" />}
                         {label}
+                        <span className={`text-[9px] font-black uppercase px-1.5 py-0.2 rounded ${badgeBg}`}>
+                            {badgeLabel}
+                        </span>
                     </span>
                     <div className="text-right">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 font-mono">
                             <span className="font-bold text-slate-700 dark:text-white">{displayAmount}</span>
                             {data.currency !== 'FIADO' && <span className="text-[10px] text-slate-400 font-medium w-8 text-right">{pct.toFixed(0)}%</span>}
                         </div>
                     </div>
                 </div>
                 {data.currency !== 'FIADO' && (
-                    <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-cyan-400 to-teal-500 rounded-full transition-all" style={{ width: `${Math.min(pct, 100)}%` }} />
+                    <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${Math.min(pct, 100)}%` }} />
                     </div>
                 )}
             </div>

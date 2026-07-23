@@ -8,14 +8,14 @@ export const Modal = ({ isOpen, onClose, title, children, className = '', size =
     // ✅ z-[100] asegura que esté por encima de la barra de navegación (z-30)
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
       
-      {/* Backdrop con desenfoque */}
+      {/* Backdrop optimizado con aceleración por GPU */}
       <div 
-        className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" 
+        className="absolute inset-0 bg-slate-950/70 transform-gpu transition-opacity" 
         onClick={onClose}
       />
       
-      {/* Contenido del Modal */}
-      <div className={`relative bg-white dark:bg-slate-900 w-full ${size} rounded-[2rem] shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden animate-in zoom-in-95 duration-200 transition-all ${className}`}>
+      {/* Contenido del Modal — capa aislada en GPU */}
+      <div className={`relative bg-white dark:bg-slate-900 w-full ${size} rounded-[2rem] shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden animate-in zoom-in-95 duration-200 transition-all transform-gpu ${className}`}>
         
         {/* Cabecera */}
         <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
@@ -28,9 +28,8 @@ export const Modal = ({ isOpen, onClose, title, children, className = '', size =
           </button>
         </div>
 
-        {/* Body con Scroll Mejorado */}
-        {/* ✅ CAMBIO: max-h-[85vh] para más espacio y pb-10 para margen inferior seguro */}
-        <div className="p-6 max-h-[85vh] overflow-y-auto custom-scrollbar pb-10">
+        {/* Body con Scroll Ultra-Fluido a 60 FPS */}
+        <div className="p-6 max-h-[85vh] overflow-y-auto overscroll-contain touch-pan-y custom-scrollbar pb-10 transform-gpu">
           {children}
         </div>
       </div>

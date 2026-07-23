@@ -28,6 +28,7 @@ import CajaCerradaOverlay from '../components/Sales/CajaCerradaOverlay';
 import { getLocalISODate } from '../utils/dateHelpers';
 import AperturaCajaModal from '../components/Dashboard/AperturaCajaModal';
 import HoldsModal from '../components/Sales/HoldsModal';
+import PricePickerModal from '../components/Sales/PricePickerModal';
 
 import ConfirmModal from '../components/ConfirmModal';
 import Confetti from '../components/Confetti';
@@ -73,6 +74,7 @@ export default function SalesView({ triggerHaptic, isActive }) {
     const [showCheckout, setShowCheckout] = useState(false);
     const [showReceipt, setShowReceipt] = useState(null);
     const [hierarchyPending, setHierarchyPending] = useState(null);
+    const [pricePickerPending, setPricePickerPending] = useState(null); // {product}
     const [weightPending, setWeightPending] = useState(null);
     const [selectedCustomerId, setSelectedCustomerId] = useState('');
 
@@ -313,6 +315,8 @@ export default function SalesView({ triggerHaptic, isActive }) {
         ? products
         : products.filter(p => p.category === selectedCategory), [selectedCategory, products]);
 
+    const bcvRate = rates?.bcv?.price || (typeof rates?.bcv === 'number' ? rates.bcv : effectiveRate);
+
     const {
         subtotalUsd: cartSubtotalUsd,
         subtotalBs: cartSubtotalBs,
@@ -322,8 +326,8 @@ export default function SalesView({ triggerHaptic, isActive }) {
         totalBs: cartTotalBs,
         totalCop: cartTotalCop
     } = useMemo(() =>
-        FinancialEngine.buildCartTotals(cart, discount, effectiveRate, copEnabled ? tasaCop : 0)
-    , [cart, discount, effectiveRate, copEnabled, tasaCop]);
+        FinancialEngine.buildCartTotals(cart, discount, effectiveRate, copEnabled ? tasaCop : 0, bcvRate)
+    , [cart, discount, effectiveRate, copEnabled, tasaCop, bcvRate]);
 
     // Variables estáticas para pasar a los componentes hijos
     const discountData = {
@@ -397,11 +401,13 @@ export default function SalesView({ triggerHaptic, isActive }) {
         return () => window.removeEventListener('keydown', handler);
     }, [cart, showCheckout, showReceipt, showHoldsModal, pendingCarts]);
 
+    const usdtRate = rates?.usdt?.price || rates?.bcv?.price || bcvRate || effectiveRate;
+
     // ── Checkout Flow Hook ──────────────────────────
     const { handleCheckout, handleCreateCustomer, handleSaveApertura, isProcessing } = useCheckoutFlow({
         cart, cartTotalUsd, cartTotalBs, cartSubtotalUsd,
         selectedCustomerId, customers, setCustomers, products, setProducts,
-        effectiveRate, tasaCop, copEnabled, discountData, useAutoRate,
+        effectiveRate, bcvRate, usdtRate, tasaCop, copEnabled, discountData, useAutoRate,
         setSalesData, setShowReceipt, setShowCheckout, setSelectedCustomerId,
         setCart, setCartSelectedIndex, setShowConfetti, setTodayAperturaData, setIsAperturaOpen,
         playCheckout, playError, notifyLowStock, notifySaleComplete, triggerHaptic
@@ -430,13 +436,19 @@ export default function SalesView({ triggerHaptic, isActive }) {
 
         playAdd();
 
+        // Dual-price: si el producto tiene precio BCV configurado, mostrar selector antes de agregar
+        if (product.price2Usd && product.price2Usd > 0 && !forceMode && !qtyOverride && !product._priceMode && !product.isCashAdvance) {
+            setPricePickerPending(product);
+            return;
+        }
+
         if (product.sellByUnit && product.unitPriceUsd && !forceMode && !qtyOverride) { setHierarchyPending(product); return; }
         if ((product.unit === 'kg' || product.unit === 'litro') && !qtyOverride) { setWeightPending(product); return; }
 
-        // When priceCop is the source of truth, derive USD from COP at current rate
-        let priceToUse = (product.priceCop && tasaCop > 0)
-            ? product.priceCop / tasaCop
-            : (parseFloat(product.priceUsdt) || 0);
+        // When priceCop is the source of truth, derive USD from COP at current rate (unless _priceMode was explicitly chosen)
+        let priceToUse = product._priceMode
+            ? parseFloat(product.priceUsdt || product.priceUsd || 0)
+            : (product.priceCop && tasaCop > 0 ? product.priceCop / tasaCop : (parseFloat(product.priceUsdt) || 0));
         let cartId = product.id;
         let cartName = product.name;
         let qtyToAdd = qtyOverride || 1;
@@ -446,6 +458,8 @@ export default function SalesView({ triggerHaptic, isActive }) {
             priceToUse = (unitCop && tasaCop > 0) ? unitCop / tasaCop : product.unitPriceUsd;
             cartId = product.id + '_unit';
             cartName = product.name + ' (Ud.)';
+        } else if (product._priceMode) {
+            cartId = `${product.id}_${product._priceMode}`;
         }
 
         // Pre-calculate stock check BEFORE setCart to avoid React StrictMode double-firing
@@ -812,6 +826,7 @@ export default function SalesView({ triggerHaptic, isActive }) {
                                     copPrimary={copPrimary}
                                     tasaCop={tasaCop}
                                     effectiveRate={effectiveRate}
+                                    bcvRate={bcvRate}
                                     products={products}
                                     categories={categories}
                                     onClearCart={() => { triggerHaptic && triggerHaptic(); setShowClearCartConfirm(true); }}
@@ -828,10 +843,35 @@ export default function SalesView({ triggerHaptic, isActive }) {
                     )}
                 </div>
 
+                {/* ── PricePickerModal — Selector de precio dual ── */}
+                {pricePickerPending && (
+                    <PricePickerModal
+                        product={pricePickerPending}
+                        effectiveRate={effectiveRate}
+                        bcvRate={rates?.bcv?.price || effectiveRate}
+                        rates={rates}
+                        onClose={() => setPricePickerPending(null)}
+                        onSelect={(product, mode, priceOverride) => {
+                            setPricePickerPending(null);
+                            const bcvRateToStore = rates?.bcv?.price || (typeof rates?.bcv === 'number' ? rates.bcv : effectiveRate);
+                            const withPrice = {
+                                ...product,
+                                priceUsdt: priceOverride,
+                                priceUsd: priceOverride,
+                                priceCop: null,
+                                _priceMode: mode,
+                                _bcvRate: bcvRateToStore
+                            };
+                            addToCart(withPrice, null, true);
+                        }}
+                    />
+                )}
+
                 {/* ── Right Column: Cart Sidebar — desktop only ── */}
                 <div className="hidden lg:flex lg:w-[380px] lg:shrink-0 lg:flex-col">
                     <CartPanel
                         cart={cart} effectiveRate={effectiveRate}
+                        bcvRate={rates?.bcv?.price || effectiveRate}
                         cartSubtotalUsd={cartSubtotalUsd} cartSubtotalBs={cartSubtotalBs}
                         cartTotalUsd={cartTotalUsd} cartTotalBs={cartTotalBs} cartTotalCop={cartTotalCop} cartItemCount={cartItemCount}
                         discountData={discountData} onOpenDiscount={() => setShowDiscountModal(true)}
@@ -895,6 +935,7 @@ export default function SalesView({ triggerHaptic, isActive }) {
                             </div>
                             <CartPanel
                                 cart={cart} effectiveRate={effectiveRate}
+                                bcvRate={rates?.bcv?.price || effectiveRate}
                                 cartSubtotalUsd={cartSubtotalUsd} cartSubtotalBs={cartSubtotalBs}
                                 cartTotalUsd={cartTotalUsd} cartTotalBs={cartTotalBs} cartTotalCop={cartTotalCop} cartItemCount={cartItemCount}
                                 discountData={discountData} onOpenDiscount={() => setShowDiscountModal(true)}
@@ -918,7 +959,7 @@ export default function SalesView({ triggerHaptic, isActive }) {
             {showCheckout && (() => {
                 const sharedProps = {
                     onClose: () => { setShowCheckout(false); setSelectedCustomerId(''); },
-                    cartSubtotalUsd, cartSubtotalBs: cartSubtotalUsd * effectiveRate,
+                    cartSubtotalUsd, cartSubtotalBs,
                     cartTotalUsd, cartTotalBs, cartTotalCop,
                     discountData, effectiveRate,
                     customers, selectedCustomerId, setSelectedCustomerId,

@@ -72,6 +72,7 @@ export default function CheckoutModal({
         rateError,
         copRateError,
         safeRate,
+        effectiveCartRate,
     } = useCheckoutCalculations({
         paymentMethods,
         effectiveRate,
@@ -188,7 +189,7 @@ export default function CheckoutModal({
                 <CheckoutPaymentBars
                     paymentMethods={paymentMethods}
                     barValues={barValues}
-                    effectiveRate={effectiveRate}
+                    effectiveRate={effectiveCartRate || effectiveRate}
                     tasaCop={tasaCop}
                     copEnabled={copEnabled}
                     onBarChange={handleBarChange}

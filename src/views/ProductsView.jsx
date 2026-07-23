@@ -46,6 +46,7 @@ export const ProductsView = ({ rates, triggerHaptic }) => {
         useAutoRate, setUseAutoRate,
         customRate, setCustomRate,
         effectiveRate,
+        bcvMarginPct,
         copEnabled,
         copPrimary,
         tasaCop,
@@ -247,6 +248,10 @@ export const ProductsView = ({ rates, triggerHaptic }) => {
         stockInLotes, setStockInLotes,
         granelUnit, setGranelUnit,
         isFormShaking, setIsFormShaking,
+        hasWarranty, setHasWarranty,
+        warrantyDays, setWarrantyDays,
+        price2Usd, setPrice2Usd,
+        price2Bs, setPrice2Bs,
         resetForm,
         populateForm,
     } = useProductForm();
@@ -325,6 +330,14 @@ export const ProductsView = ({ rates, triggerHaptic }) => {
         if (!val || parseFloat(val) <= 0) { setPriceBs(''); setPriceCop(''); return; }
         setPriceBs((parseFloat(val) * effectiveRate).toFixed(2));
         if (copEnabled && tasaCop > 0) setPriceCop(Math.round(parseFloat(val) * tasaCop).toString());
+
+        // Si Precio 2 (Bolívares / BCV) está activo, recalcular dinámicamente con recargo configurable de la tienda
+        if (price2Usd && parseFloat(price2Usd) > 0) {
+            const marginMult = 1 + (parseFloat(bcvMarginPct) >= 0 ? parseFloat(bcvMarginPct) : 49) / 100;
+            const p2UsdVal = (parseFloat(val) * marginMult).toFixed(2);
+            setPrice2Usd(p2UsdVal);
+            setPrice2Bs((parseFloat(p2UsdVal) * bcvRate).toFixed(2));
+        }
     };
 
     const handlePriceBsChange = (val) => {
@@ -369,6 +382,22 @@ export const ProductsView = ({ rates, triggerHaptic }) => {
         setCostBs((usd * effectiveRate).toFixed(2));
     };
 
+    // ─── HANDLERS PRECIO 2 (BCV) ────────────────────────────
+    // Tasa BCV oficial real: rates.bcv.price (ej: 737.23)
+    const bcvRate = rates?.bcv?.price || (typeof rates?.bcv === 'number' ? rates.bcv : effectiveRate);
+
+    const handlePrice2UsdChange = (val) => {
+        setPrice2Usd(val);
+        if (!val || parseFloat(val) <= 0) { setPrice2Bs(''); return; }
+        setPrice2Bs((parseFloat(val) * bcvRate).toFixed(2));
+    };
+
+    const handlePrice2BsChange = (val) => {
+        setPrice2Bs(val);
+        if (!val || parseFloat(val) <= 0) { setPrice2Usd(''); return; }
+        setPrice2Usd((parseFloat(val) / bcvRate).toFixed(4));
+    };
+
     // ─── CRUD ───────────────────────────────────────────────
 
     const handleSave = () => {
@@ -382,7 +411,7 @@ export const ProductsView = ({ rates, triggerHaptic }) => {
         const productData = buildProductPayload({
             name, barcode, priceUsd, priceBs, priceCop, costUsd, costBs, stock, stockInLotes,
             packagingType, unitsPerPackage, granelUnit, sellByUnit, unitPriceUsd, unitPriceCop,
-            category, lowStockAlert
+            category, lowStockAlert, hasWarranty, warrantyDays, price2Usd
         }, effectiveRate);
 
         // Advertencia si el precio parece inusualmente alto
@@ -444,7 +473,7 @@ export const ProductsView = ({ rates, triggerHaptic }) => {
 
     const handleEdit = async (product) => {
         triggerHaptic && triggerHaptic();
-        populateForm(product, effectiveRate);
+        populateForm(product, effectiveRate, bcvRate);
         // Set COP price for editing: use stored priceCop if available, otherwise derive
         if (copEnabled && tasaCop > 0) {
             if (product.priceCop != null && product.priceCop > 0) {
@@ -724,6 +753,7 @@ export const ProductsView = ({ rates, triggerHaptic }) => {
                                     <ProductCard
                                         product={p}
                                         effectiveRate={effectiveRate}
+                                        bcvRate={bcvRate}
                                         streetRate={streetRate}
                                         categories={categories}
                                         copEnabled={copEnabled}
@@ -926,7 +956,14 @@ export const ProductsView = ({ rates, triggerHaptic }) => {
                 packagingType={packagingType} setPackagingType={setPackagingType}
                 stockInLotes={stockInLotes} setStockInLotes={setStockInLotes}
                 granelUnit={granelUnit} setGranelUnit={setGranelUnit}
+                hasWarranty={hasWarranty} setHasWarranty={setHasWarranty}
+                warrantyDays={warrantyDays} setWarrantyDays={setWarrantyDays}
+                price2Usd={price2Usd} handlePrice2UsdChange={handlePrice2UsdChange}
+                price2Bs={price2Bs} handlePrice2BsChange={handlePrice2BsChange}
                 effectiveRate={effectiveRate}
+                bcvRate={bcvRate}
+                bcvMarginPct={bcvMarginPct}
+                rates={rates}
                 copEnabled={copEnabled}
                 copPrimary={copPrimary}
                 tasaCop={tasaCop}

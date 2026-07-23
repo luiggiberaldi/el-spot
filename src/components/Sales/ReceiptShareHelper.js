@@ -18,6 +18,7 @@ export function buildReceiptWhatsAppUrl(receipt, currentRate) {
     const sep2 = '--------------------------------';
 
     const receiptCurrencyMode = localStorage.getItem('receipt_currency_mode') || 'bs';
+    const ticketRate = r.bcvRate || currentRate || r.rate || 1;
 
     // Items
     const itemsLines = (r.items ?? []).map(item => {
@@ -26,8 +27,8 @@ export function buildReceiptWhatsAppUrl(receipt, currentRate) {
             : `${item.qty} und`;
         const subUsd = (item.priceUsd * item.qty).toFixed(2);
         const unitPriceUsd = parseFloat(item.priceUsd).toFixed(2);
-        const priceBs = item.priceUsd * (r.rate || 1);
-        const subBs = item.priceUsd * item.qty * (r.rate || 1);
+        const priceBs = item.priceUsd * ticketRate;
+        const subBs = item.priceUsd * item.qty * ticketRate;
 
         if (receiptCurrencyMode === 'usd') {
             const subStr = isCop ? `USD ${subUsd}` : `$${subUsd}`;
@@ -65,7 +66,7 @@ export function buildReceiptWhatsAppUrl(receipt, currentRate) {
     }).join('\n');
 
     // Totales
-    const totalBs = r.totalBs ?? (r.totalUsd * r.rate);
+    const totalBs = r.totalUsd * ticketRate;
     const totalUsdStr = fmtUsd(r.totalUsd || 0);
     const totalBsStr = `Bs ${formatBs(totalBs)}`;
     const totalCopStr = isCop ? `  /  COP ${(r.totalCop || (r.totalUsd * r.tasaCop)).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '';
@@ -118,7 +119,7 @@ export function buildReceiptWhatsAppUrl(receipt, currentRate) {
         headerBlocks.push(sep2);
         headerBlocks.push(`COMPROBANTE DE VENTA`);
     } else {
-        headerBlocks.push(`COMPROBANTE DE VENTA | PRECIOS AL DIA`);
+        headerBlocks.push(`COMPROBANTE DE VENTA | EL SPOT`);
     }
 
     const text = [
@@ -141,7 +142,7 @@ export function buildReceiptWhatsAppUrl(receipt, currentRate) {
         `Gracias por su compra!`,
         ``,
         `_Este documento no constituye factura fiscal. Comprobante de control interno._`,
-        `Precios Al Dia - Sistema POS`,
+        `El Spot - Sistema POS`,
     ].filter(Boolean).join('\n');
 
     const formatVzlaPhone = (phone) => {

@@ -42,6 +42,10 @@ export default function ReceiptModal({ receipt, onClose, onShareWhatsApp, curren
                             </p>
                         )}
                         {(() => {
+                            const ticketRate = receipt.bcvRate || currentRate || receipt.rate || 1;
+                            const ticketBs = receipt.totalUsd * ticketRate;
+                            const isCop = receipt.copEnabled && receipt.tasaCop > 0;
+
                             if (receipt.tipo === 'AVANCE_EFECTIVO') {
                                 return (
                                     <p className="text-4xl font-black text-brand mb-2 tracking-tighter">
@@ -49,13 +53,12 @@ export default function ReceiptModal({ receipt, onClose, onShareWhatsApp, curren
                                     </p>
                                 );
                             }
-                            const isCop = receipt.copEnabled && receipt.tasaCop > 0;
                             
                             if (receiptCurrencyMode === 'usd') {
                                 return <p className="text-4xl font-black text-slate-900 mb-2 tracking-tighter">${receipt.totalUsd.toFixed(2)} USD</p>;
                             }
                             if (receiptCurrencyMode === 'bs') {
-                                return <p className="text-4xl font-black text-brand mb-2 tracking-tighter">Bs {formatBs(receipt.totalBs)}</p>;
+                                return <p className="text-4xl font-black text-brand mb-2 tracking-tighter">Bs {formatBs(ticketBs)}</p>;
                             }
                             
                             // mixto
@@ -63,18 +66,18 @@ export default function ReceiptModal({ receipt, onClose, onShareWhatsApp, curren
                                 copPrimary ? (
                                     <>
                                         <p className="text-4xl font-black text-amber-600 dark:text-amber-400 mb-1 tracking-tighter">{formatCop(receipt.totalCop || (receipt.totalUsd * receipt.tasaCop))} COP</p>
-                                        <p className="text-lg font-bold text-slate-500 mb-2">${receipt.totalUsd.toFixed(2)} USD · {formatBs(receipt.totalBs)} Bs</p>
+                                        <p className="text-lg font-bold text-slate-500 mb-2">${receipt.totalUsd.toFixed(2)} USD · {formatBs(ticketBs)} Bs</p>
                                     </>
                                 ) : (
                                     <>
                                         <p className="text-4xl font-black text-slate-900 mb-1 tracking-tighter">${receipt.totalUsd.toFixed(2)}</p>
-                                        <p className="text-lg font-bold text-slate-500 mb-2">{formatCop(receipt.totalCop || (receipt.totalUsd * receipt.tasaCop))} COP · {formatBs(receipt.totalBs)} Bs</p>
+                                        <p className="text-lg font-bold text-slate-500 mb-2">{formatCop(receipt.totalCop || (receipt.totalUsd * receipt.tasaCop))} COP · {formatBs(ticketBs)} Bs</p>
                                     </>
                                 )
                             ) : (
                                 <>
                                     <p className="text-4xl font-black text-slate-900 mb-1 tracking-tighter">${receipt.totalUsd.toFixed(2)}</p>
-                                    <p className="text-lg font-bold text-slate-500 mb-2">{formatBs(receipt.totalBs)} Bs</p>
+                                    <p className="text-lg font-bold text-slate-500 mb-2">{formatBs(ticketBs)} Bs</p>
                                 </>
                             );
                         })()}
@@ -122,8 +125,9 @@ export default function ReceiptModal({ receipt, onClose, onShareWhatsApp, curren
                             ) : (
                                 receipt.items.map((item, i) => {
                                 const isCop = receipt.copEnabled && receipt.tasaCop > 0;
-                                const priceBs = item.priceUsd * (receipt.rate || 0);
-                                const totalBs = item.priceUsd * item.qty * (receipt.rate || 0);
+                                const itemRate = receipt.bcvRate || currentRate || receipt.rate || 1;
+                                const priceBs = item.exactBs != null ? item.exactBs : item.priceUsd * itemRate;
+                                const totalBs = item.exactBs != null ? (item.exactBs * item.qty) : item.priceUsd * item.qty * itemRate;
 
                                 if (item.isCashAdvance) {
                                     return (
@@ -203,7 +207,10 @@ export default function ReceiptModal({ receipt, onClose, onShareWhatsApp, curren
                                                     </>
                                                 )
                                             ) : (
-                                                <span className="text-xs text-slate-400">{item.isWeight ? `${item.qty.toFixed(3)} Kg` : `${item.qty} u`} × ${item.priceUsd.toFixed(2)}</span>
+                                                <span className="text-xs text-slate-400">
+                                                    {item.isWeight ? `${item.qty.toFixed(3)} Kg` : `${item.qty} u`} × ${item.priceUsd.toFixed(2)}
+                                                    <span className="text-brand font-bold ml-1">(Bs {formatBs(priceBs)})</span>
+                                                </span>
                                             )}
                                         </div>
                                         <div className="text-right">
@@ -299,7 +306,7 @@ export default function ReceiptModal({ receipt, onClose, onShareWhatsApp, curren
 
                         <div className="mt-6 flex flex-col items-center gap-1">
                             <p className="text-center text-[10px] text-slate-400 uppercase tracking-wider font-bold">
-                                Tasa BCV Aplicada: {formatBs(receipt.rate)} Bs/$
+                                Tasa BCV Aplicada: {formatBs(receipt.bcvRate || currentRate || receipt.rate)} Bs/$
                             </p>
                             {receipt.tasaCop > 0 && (
                                 <p className="text-center text-[10px] text-slate-400 uppercase tracking-wider font-bold">

@@ -85,20 +85,27 @@ export default function LoginPinModal({ isOpen, onClose, user, onSubmit }) {
           <p className="text-xs text-slate-400 mt-1">Ingresa tu PIN de {pinLength} dígitos</p>
         </div>
 
-        {/* PIN Dots */}
-        <div className={`flex justify-center gap-3 mb-4 ${error ? 'animate-shake' : ''}`}>
-          {Array.from({ length: pinLength }).map((_, i) => (
-            <div
-              key={i}
-              className={`w-4 h-4 rounded-full border-2 transition-all duration-200 ${
-                error
-                  ? 'bg-red-500 border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]'
-                  : i < pin.length
-                    ? 'bg-brand border-brand shadow-[0_0_10px_rgba(var(--brand-rgb,59,130,246),0.4)] scale-110'
-                    : 'bg-transparent border-slate-600'
-              }`}
-            />
-          ))}
+        {/* PIN Dots — Alto Contraste y Brillo */}
+        <div className={`flex justify-center gap-3.5 mb-6 ${error ? 'animate-shake' : ''}`}>
+          {Array.from({ length: pinLength }).map((_, i) => {
+            const isFilled = i < pin.length;
+            const isUserAdmin = user?.rol === 'ADMIN';
+
+            return (
+              <div
+                key={i}
+                className={`w-4 h-4 rounded-full border-2 transition-all duration-200 ${
+                  error
+                    ? 'bg-red-500 border-red-400 shadow-[0_0_14px_rgba(239,68,68,0.95)] scale-125'
+                    : isFilled
+                      ? isUserAdmin
+                        ? 'bg-amber-400 border-amber-200 shadow-[0_0_16px_rgba(251,191,36,0.95)] scale-125 ring-2 ring-amber-400/40'
+                        : 'bg-emerald-400 border-emerald-200 shadow-[0_0_16px_rgba(52,211,153,0.95)] scale-125 ring-2 ring-emerald-400/40'
+                      : 'bg-zinc-950/90 border-zinc-600 shadow-inner scale-100'
+                }`}
+              />
+            );
+          })}
         </div>
 
         {lockoutMsg && (
