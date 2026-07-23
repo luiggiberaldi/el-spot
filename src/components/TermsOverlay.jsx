@@ -22,11 +22,16 @@ export default function TermsOverlay({ onAccept }) {
     };
 
     const handleAcceptTerms = () => {
-        setStep(2);
+        // Guardar aceptación de términos inmediatamente para evitar reaparición en recarga
+        localStorage.setItem('pda_terms_accepted', 'true');
+        const existingName = localStorage.getItem('business_name') || 'EL SPOT';
+        localStorage.setItem('business_name', existingName.trim());
+        setHasAccepted(true);
+        if (onAccept) onAccept();
     };
 
     const handleFinish = () => {
-        const trimmedName = businessName.trim();
+        const trimmedName = businessName.trim() || 'EL SPOT';
         const trimmedEmail = marketingEmail.trim();
         localStorage.setItem('business_name', trimmedName);
         localStorage.setItem('marketing_email', trimmedEmail);
@@ -198,7 +203,7 @@ export default function TermsOverlay({ onAccept }) {
                         {/* Cuerpo Paso 2 */}
                         <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6">
                             <div className="text-center max-w-md mx-auto mb-2">
-                                <h3 className="font-display text-3xl text-surface-700 tracking-tight mb-2">¡Bienvenido a Precios al Día!</h3>
+                                <h3 className="font-display text-3xl text-surface-700 tracking-tight mb-2">¡Bienvenido a El Spot Concept Store!</h3>
                                 <p className="text-xs text-surface-500 font-medium leading-relaxed">
                                     Para comenzar a gestionar tu negocio, por favor ingresa los siguientes datos. El correo electrónico nos ayudará a mantenerte al tanto de actualizaciones y promociones exclusivas.
                                 </p>
