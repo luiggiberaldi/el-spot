@@ -25,7 +25,7 @@ export function getPaperConfig(paperWidth) {
         is80,
         cssPageSize: is80 ? '80mm auto' : '58mm auto',
         cssBodyWidth: is80 ? '76mm' : '46mm',
-        cssLogoW: is80 ? '60mm' : '40mm',
+        cssLogoW: is80 ? '70mm' : '44mm',
         fDisclaimer: is80 ? '9px' : '7px',
         fTiny: is80 ? '11px' : '8.5px',
         fSmall: is80 ? '12px' : '10px',

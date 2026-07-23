@@ -241,12 +241,11 @@ export function buildTicketHtml(sale, bcvRate, paperConfig, settings) {
 <body>
     <!-- Logo -->
     <div class="center" style="margin-bottom:6px;">
-        <img src="./logo.png" alt="Logo" style="max-width:${cssLogoW};max-height:16mm;" onerror="this.style.display='none'">
+        <img src="./logo.png" alt="Logo" style="max-width:${cssLogoW};max-height:24mm;" onerror="this.style.display='none'">
     </div>
 
-    <!-- Info del Negocio -->
+    <!-- Info del Negocio (sin repetir el nombre impreso en el logo) -->
     <div class="center" style="margin-bottom:6px;line-height:1.2;">
-        ${settings.name ? `<div class="bold" style="font-size:${fTitle};text-transform:uppercase;">${escapeHtml(settings.name)}</div>` : ''}
         ${settings.rif ? `<div style="font-size:${fTiny};">RIF: ${escapeHtml(settings.rif)}</div>` : ''}
         ${settings.address ? `<div style="font-size:${fTiny};">${escapeHtml(settings.address)}</div>` : ''}
         ${settings.phone ? `<div style="font-size:${fTiny};">Tel: ${escapeHtml(settings.phone)}</div>` : ''}

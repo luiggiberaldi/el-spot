@@ -64,10 +64,10 @@ export async function generateTicketPDF(sale, bcvRate) {
             } catch (_) {}
         }
         if (img) {
-            const logoW = is80 ? 54 : 42;
-            const logoH = is80 ? 14 : 11;
+            const logoW = is80 ? 64 : 48;
+            const logoH = is80 ? 22 : 16;
             doc.addImage(img, 'PNG', CX - logoW / 2, y, logoW, logoH);
-            y += logoH + 4;
+            y += logoH + 3;
         } else {
             y += 2;
         }
