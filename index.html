@@ -8,9 +8,9 @@
 
   <meta name="viewport"
     content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-visual" />
-  <!-- Naranja Industrial El Spot POS -->
-  <meta name="theme-color" content="#e65100" />
-  <meta name="color-scheme" content="light dark" />
+  <!-- Negro Obsidian El Spot POS -->
+  <meta name="theme-color" content="#000000" />
+  <meta name="color-scheme" content="dark light" />
   <meta name="description"
     content="El Spot - Sistema de punto de venta e inventario para artículos electrónicos y multirubro. Conversión bimoneda y gestión inteligente." />
 
@@ -31,7 +31,7 @@
 
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="El Spot" />
   <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
   <link rel="manifest" href="/manifest.webmanifest" />
@@ -49,17 +49,12 @@
   <script>
     (function () {
       try {
-        var t = localStorage.getItem('theme') || 'light';
-        // Respetar prefers-color-scheme si no hay preferencia guardada
-        if (!localStorage.getItem('theme')) {
-          t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-        }
+        var t = localStorage.getItem('theme') || 'dark';
         document.documentElement.setAttribute('data-theme', t);
         if (t === 'dark') document.documentElement.classList.add('dark');
-        // Actualizar theme-color meta según tema
         var meta = document.querySelector('meta[name="theme-color"]');
-        if (meta) meta.setAttribute('content', t === 'dark' ? '#1a1917' : '#e65100');
-      } catch (e) { /* no-op: localStorage puede estar bloqueado */ }
+        if (meta) meta.setAttribute('content', '#000000');
+      } catch (e) { /* no-op */ }
     })();
   </script>
 </head>
