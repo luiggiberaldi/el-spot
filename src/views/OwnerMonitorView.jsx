@@ -430,33 +430,50 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 font-sans pb-12 transition-colors duration-300 overflow-x-hidden">
-            {/* Header del Monitor */}
-            <header className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-sm">
+            {/* Header del Monitor — v1.4.0 High Contrast Obsidian El Spot */}
+            <header className="sticky top-0 z-50 bg-black backdrop-blur-md border-b border-zinc-800 px-4 py-2.5 flex items-center justify-between shadow-xl">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/20 text-white font-bold">
-                        <ShieldCheck size={20} />
-                    </div>
-                    <div>
-                        <h1 className="text-base font-black leading-tight text-slate-800 dark:text-white">Panel de Supervisión</h1>
-                        <p className="text-[10px] text-slate-400 font-medium">Monitoreo en vivo • {localStorage.getItem('business_name') || 'Mi Negocio'}</p>
+                    <img 
+                        src="/logo-header-negro.png" 
+                        alt="El Spot Concept Store" 
+                        className="h-10 sm:h-12 w-auto object-contain drop-shadow-sm" 
+                        onError={(e) => {
+                            if (!e.currentTarget.dataset.fallback) {
+                                e.currentTarget.dataset.fallback = 'true';
+                                e.currentTarget.src = '/logo.png';
+                            }
+                        }}
+                    />
+                    <div className="hidden sm:flex flex-col border-l border-zinc-800 pl-3">
+                        <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1">
+                            <ShieldCheck size={12} className="text-emerald-400" /> Modo Supervisor
+                        </span>
+                        <p className="text-[10px] text-zinc-400 font-bold truncate max-w-[180px]">
+                            {localStorage.getItem('business_name') || 'El Spot Concept Store'}
+                        </p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5">
+                    {/* Badge Modo Supervisor en móvil */}
+                    <div className="sm:hidden flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg text-[9px] font-black text-emerald-400 uppercase tracking-wider">
+                        <ShieldCheck size={11} /> Supervisor
+                    </div>
+
                     {/* Status Badge */}
                     <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black tracking-wider uppercase shadow-sm transition-colors duration-300 ${
                         isConnected 
-                            ? 'bg-emerald-50 border border-emerald-200/50 text-emerald-600 dark:bg-emerald-950/20 dark:border-emerald-800/30 dark:text-emerald-400' 
-                            : 'bg-rose-50 border border-rose-200/50 text-rose-600 dark:bg-rose-950/20 dark:border-rose-800/30 dark:text-rose-400 animate-pulse'
+                            ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400' 
+                            : 'bg-rose-500/10 border border-rose-500/30 text-rose-400 animate-pulse'
                     }`}>
                         {isConnected ? (
                             <>
-                                <Wifi size={12} className="shrink-0" />
+                                <Wifi size={12} className="shrink-0 text-emerald-400" />
                                 <span>En Vivo</span>
                             </>
                         ) : (
                             <>
-                                <WifiOff size={12} className="shrink-0" />
+                                <WifiOff size={12} className="shrink-0 text-rose-400" />
                                 <span>Desconectado</span>
                             </>
                         )}
@@ -469,18 +486,18 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                             showToast?.('Datos actualizados', 'success');
                         }}
                         disabled={syncLoading}
-                        className="p-2.5 rounded-2xl text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800 dark:hover:text-emerald-400 transition-colors disabled:opacity-50"
+                        className="p-2 rounded-xl text-zinc-400 hover:text-emerald-400 hover:bg-zinc-800 border border-zinc-800 bg-zinc-900 transition-colors disabled:opacity-50 active:scale-95"
                         title="Actualizar Datos"
                     >
-                        <RefreshCw size={16} className={syncLoading ? "animate-spin text-emerald-500" : ""} />
+                        <RefreshCw size={15} className={syncLoading ? "animate-spin text-emerald-400" : ""} />
                     </button>
 
                     <button 
                         onClick={() => { triggerHaptic?.(); setShowDisconnectConfirm(true); }}
-                        className="p-2.5 rounded-2xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800 dark:hover:text-rose-400 transition-colors"
+                        className="p-2 rounded-xl text-zinc-400 hover:text-rose-400 hover:bg-zinc-800 border border-zinc-800 bg-zinc-900 transition-colors active:scale-95"
                         title="Desvincular Dispositivo"
                     >
-                        <LogOut size={16} />
+                        <LogOut size={15} />
                     </button>
                 </div>
             </header>
