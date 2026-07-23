@@ -71,6 +71,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
     // ── Edición remota de inventario ──
     const [showRemoteForm, setShowRemoteForm] = useState(false);
     const [remoteEditingProduct, setRemoteEditingProduct] = useState(null);
+    const [confirmModalConfig, setConfirmModalConfig] = useState(null);
     const [pendingChanges, setPendingChanges] = useState(() => {
         try {
             const raw = localStorage.getItem(PENDING_KEY);
@@ -198,19 +199,29 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
     };
 
     const handleDeleteProduct = (product) => {
-        if (!window.confirm(`¿Añadir eliminación de "${product.name}" al borrador de cambios?`)) return;
         triggerHaptic?.();
-        let next = pendingChanges.filter(c => c.productId !== product.id);
-        next.push({
-            id: crypto.randomUUID(),
-            action: 'delete',
-            productId: product.id,
-            data: {},
-            productName: product.name,
-            timestamp: new Date().toISOString()
+        setConfirmModalConfig({
+            title: `¿Eliminar "${product.name}"?`,
+            message: 'Se añadirá la eliminación del producto al borrador de cambios para procesarse en la caja registradora.',
+            confirmText: 'Sí, Eliminar',
+            cancelText: 'Cancelar',
+            iconBg: 'bg-rose-500/10 text-rose-500 border-rose-500/20',
+            confirmBtnClass: 'bg-rose-500 hover:bg-rose-600 text-white shadow-rose-500/20',
+            onConfirm: () => {
+                triggerHaptic?.();
+                let next = pendingChanges.filter(c => c.productId !== product.id);
+                next.push({
+                    id: crypto.randomUUID(),
+                    action: 'delete',
+                    productId: product.id,
+                    data: {},
+                    productName: product.name,
+                    timestamp: new Date().toISOString()
+                });
+                persistPending(next);
+                showToast(`"${product.name}" marcado para eliminar en borrador`, 'info');
+            }
         });
-        persistPending(next);
-        showToast(`"${product.name}" marcado para eliminar en borrador`, 'info');
     };
 
     const handleUploadPendingChanges = async () => {
@@ -245,10 +256,20 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
     };
 
     const handleClearPending = () => {
-        if (!window.confirm('¿Descartar todos los cambios borrador de inventario sin enviar a la caja?')) return;
         triggerHaptic?.();
-        persistPending([]);
-        showToast('Borrador de cambios descartado', 'info');
+        setConfirmModalConfig({
+            title: '¿Descartar cambios en borrador?',
+            message: 'Se descartarán todas las modificaciones de inventario pendientes sin enviarse a la caja registradora.',
+            confirmText: 'Sí, Descartar Todo',
+            cancelText: 'Mantener Cambios',
+            iconBg: 'bg-rose-500/10 text-rose-500 border-rose-500/20',
+            confirmBtnClass: 'bg-rose-500 hover:bg-rose-600 text-white shadow-rose-500/20',
+            onConfirm: () => {
+                triggerHaptic?.();
+                persistPending([]);
+                showToast('Borrador de cambios descartado', 'info');
+            }
+        });
     };
 
     const [currentPageInventario, setCurrentPageInventario] = useState(1);
@@ -1652,6 +1673,41 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                             >
                                 {uploading ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />}
                                 <span>{uploading ? 'Subiendo...' : 'Subir a Caja'}</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Personalizado de Confirmación */}
+            {confirmModalConfig && (
+                <div className="fixed inset-0 z-[350] bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-5 text-center">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto border ${confirmModalConfig.iconBg || 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
+                            <AlertTriangle size={24} />
+                        </div>
+                        <div className="space-y-1.5">
+                            <h3 className="text-base font-black text-slate-800 dark:text-white">{confirmModalConfig.title}</h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                                {confirmModalConfig.message}
+                            </p>
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => { triggerHaptic?.(); setConfirmModalConfig(null); }}
+                                className="flex-1 py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-black text-xs rounded-2xl border border-slate-200 dark:border-slate-700 transition-colors"
+                            >
+                                {confirmModalConfig.cancelText || 'Cancelar'}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const action = confirmModalConfig.onConfirm;
+                                    setConfirmModalConfig(null);
+                                    action?.();
+                                }}
+                                className={`flex-1 py-3 px-4 font-black text-xs rounded-2xl shadow-lg transition-colors ${confirmModalConfig.confirmBtnClass || 'bg-emerald-500 hover:bg-emerald-600 text-slate-950 shadow-emerald-500/20'}`}
+                            >
+                                {confirmModalConfig.confirmText || 'Aceptar'}
                             </button>
                         </div>
                     </div>
