@@ -298,7 +298,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
 
         products.forEach(p => {
             const stock = p.stock || 0;
-            const cost = p.costPrice || 0;
+            const cost = p.costUsd || p.costPrice || 0;
             const retail = p.priceUsd || 0;
             const minStock = p.minStock || 5;
 
@@ -408,8 +408,9 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
             if (!s.items) return;
             s.items.forEach(item => {
                 const prod = products.find(p => p.id === item.productId || p.id === item.id);
-                if (prod && prod.costPrice) {
-                    costSum += prod.costPrice * item.qty;
+                const costVal = prod?.costUsd || prod?.costPrice || 0;
+                if (costVal > 0) {
+                    costSum += costVal * item.qty;
                 }
             });
         });
@@ -1427,7 +1428,8 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                         const minStock = p.minStock || 5;
                                         const isAgotado = stock <= 0;
                                         const isBajo = !isAgotado && stock <= minStock;
-                                        const profitUsd = Math.max(0, p.priceUsd - (p.costPrice || 0));
+                                        const costVal = p.costUsd || p.costPrice || 0;
+                                        const profitUsd = Math.max(0, p.priceUsd - costVal);
                                         const profitPct = p.priceUsd > 0 ? Math.round((profitUsd / p.priceUsd) * 100) : 0;
 
                                         return (
@@ -1469,7 +1471,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                                         {/* Costo */}
                                                         <div>
                                                             <span className="text-[8px] text-slate-400 uppercase font-black block">Costo</span>
-                                                            <span className="font-outfit text-xs font-black text-slate-500 tabular-nums">${(p.costPrice || 0).toFixed(2)}</span>
+                                                            <span className="font-outfit text-xs font-black text-slate-500 tabular-nums">${(p.costUsd || p.costPrice || 0).toFixed(2)}</span>
                                                         </div>
                                                         {/* Venta */}
                                                         <div>
