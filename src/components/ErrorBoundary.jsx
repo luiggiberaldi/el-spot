@@ -69,26 +69,59 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       const errMsg = this.state.error?.message || 'Error desconocido';
+      const isChunkError = errMsg.includes('dynamically imported module') || errMsg.includes('Loading chunk') || this.state.error?.name === 'ChunkLoadError';
+
       return (
-        <div className="flex items-center justify-center h-full bg-slate-50 dark:bg-slate-950 p-6">
-          <div className="text-center max-w-sm">
-            <div className="text-6xl mb-4">⚠️</div>
-            <h2 className="text-xl font-bold text-red-500 mb-2">Error de Carga</h2>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
-              La aplicación no pudo cargar correctamente. Esto puede deberse a datos corruptos o problemas de compatibilidad.
-            </p>
-            <p className="text-xs text-slate-400 dark:text-slate-500 mb-4 font-mono break-all">
-              {errMsg}
-            </p>
-            <button
-              onClick={this._handleRetry}
-              disabled={this.state.clearing}
-              className="px-6 py-3 bg-brand text-slate-900 rounded-xl font-bold hover:brightness-110 transition-all mb-3 disabled:opacity-50"
-            >
-              Reintentar (recargar)
-            </button>
+        <div className="flex items-center justify-center min-h-screen bg-slate-950 p-4 sm:p-6 font-outfit select-none">
+          <div className="bg-slate-900 border border-slate-800/80 rounded-3xl p-6 sm:p-8 max-w-md w-full text-center shadow-2xl shadow-black/80 space-y-5 animate-in fade-in zoom-in-95 duration-200">
+            {/* Ícono destacado */}
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 text-3xl shadow-inner">
+              ⚠️
+            </div>
+
+            {/* Título y Mensaje */}
+            <div className="space-y-2">
+              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                {isChunkError ? 'Nueva Versión Disponible' : 'Error de Carga'}
+              </h2>
+              <p className="text-sm font-medium text-slate-300 leading-relaxed">
+                {isChunkError 
+                  ? 'Se ha desplegado una actualización de la aplicación. Por favor recarga para cargar los últimos archivos.'
+                  : 'La aplicación encontró un inconveniente al cargar componentes. Puedes reintentar la recarga inmediatamente.'}
+              </p>
+            </div>
+
+            {/* Snippet del Error con alto contraste */}
+            <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-left">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Detalle del error:</p>
+              <p className="text-xs font-mono text-rose-400 break-all leading-snug">
+                {errMsg}
+              </p>
+            </div>
+
+            {/* Botones de Acción de Alto Contraste */}
+            <div className="space-y-2.5 pt-1">
+              <button
+                onClick={this._handleRetry}
+                disabled={this.state.clearing}
+                className="w-full py-3.5 px-6 bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98] text-slate-950 font-black text-sm rounded-xl shadow-lg shadow-emerald-500/20 transition-all cursor-pointer disabled:opacity-50"
+              >
+                Reintentar (Recargar App)
+              </button>
+
+              {!isChunkError && (
+                <button
+                  onClick={this._handleClearCriticalData}
+                  disabled={this.state.clearing}
+                  className="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 active:scale-[0.98] text-slate-300 font-bold text-xs rounded-xl border border-slate-700 transition-all cursor-pointer disabled:opacity-50"
+                >
+                  Limpiar datos en caché y recargar
+                </button>
+              )}
+            </div>
+
             {this.state.clearMsg && (
-              <p className="text-xs text-amber-500 mt-2">{this.state.clearMsg}</p>
+              <p className="text-xs font-bold text-amber-400 animate-pulse">{this.state.clearMsg}</p>
             )}
           </div>
         </div>
