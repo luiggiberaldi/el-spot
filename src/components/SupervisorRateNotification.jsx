@@ -1,0 +1,86 @@
+import React, { useState, useEffect, useContext } from 'react';
+import { Sparkles, X, TrendingUp } from 'lucide-react';
+import { ProductContext } from '../context/ProductContext';
+
+export default function SupervisorRateNotification({ rates: propRates }) {
+    const [visible, setVisible] = useState(false);
+    const [rateInfo, setRateInfo] = useState({ rateMode: '', customRate: 0 });
+    const productCtx = useContext(ProductContext);
+    const rates = propRates || productCtx?.rates;
+
+    useEffect(() => {
+        const handleRateApplied = (e) => {
+            const { rateMode, customRate } = e.detail || {};
+            setRateInfo({ rateMode, customRate });
+            setVisible(true);
+
+            try {
+                if (navigator.vibrate) {
+                    navigator.vibrate([150, 100, 150]);
+                }
+            } catch (err) {}
+        };
+
+        window.addEventListener('supervisor_rate_applied', handleRateApplied);
+        return () => {
+            window.removeEventListener('supervisor_rate_applied', handleRateApplied);
+        };
+    }, []);
+
+    if (!visible) return null;
+
+    const getRateValue = () => {
+        if (rateInfo.rateMode === 'manual') return rateInfo.customRate;
+        if (rateInfo.rateMode === 'bcv') return rates?.bcv?.price;
+        if (rateInfo.rateMode === 'euro') return rates?.euro?.price;
+        if (rateInfo.rateMode === 'usdt') return rates?.usdt?.price;
+        return null;
+    };
+
+    const getModeLabel = (mode) => {
+        if (mode === 'bcv') return 'Tasa BCV Oficial';
+        if (mode === 'euro') return 'Tasa Euro Oficial';
+        if (mode === 'usdt') return 'Tasa Paralelo / Binance';
+        return 'Tasa Manual';
+    };
+
+    const rateVal = getRateValue();
+
+    return (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[400] w-full max-w-sm px-4 animate-in fade-in slide-in-from-top-6 duration-300 pointer-events-auto">
+            <div 
+                onPointerDown={() => setVisible(false)}
+                className="bg-slate-900 border border-emerald-500/30 text-white rounded-3xl p-4 shadow-2xl flex items-start gap-3 backdrop-blur-md relative overflow-hidden group cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all"
+                title="Toca para cerrar"
+            >
+                <div className="absolute -top-12 -right-12 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl group-hover:bg-emerald-500/20 transition-all duration-500" />
+                
+                <div className="p-2.5 bg-emerald-500/20 text-emerald-400 rounded-2xl shrink-0 border border-emerald-500/30">
+                    <TrendingUp size={20} className="animate-pulse" />
+                </div>
+                
+                <div className="flex-1 space-y-1">
+                    <p className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                        <Sparkles size={12} />
+                        Tasa Actualizada
+                    </p>
+                    <h4 className="text-sm font-bold tracking-tight leading-tight">
+                        Tasa cambiada por Supervisor
+                    </h4>
+                    <p className="text-[11px] text-slate-300 font-medium">
+                        {getModeLabel(rateInfo.rateMode)}
+                        {rateVal && (
+                            <span className="font-bold text-emerald-400 block mt-0.5 text-xs">
+                                Nuevo valor: {parseFloat(rateVal).toFixed(2)} Bs/$
+                            </span>
+                        )}
+                    </p>
+                </div>
+                
+                <div className="p-1 rounded-xl text-slate-400 group-hover:text-white transition-colors">
+                    <X size={16} />
+                </div>
+            </div>
+        </div>
+    );
+}

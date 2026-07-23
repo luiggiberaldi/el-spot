@@ -4,45 +4,47 @@ import { useMonitorSync } from '../hooks/useMonitorSync';
 import { storageService } from '../utils/storageService';
 import { supabaseCloud } from '../config/supabaseCloud';
 import { showToast } from '../components/Toast';
+import SupervisorRateModal from '../components/SupervisorRateModal';
+import RemoteProductFormModal from '../components/Monitor/RemoteProductFormModal';
 import { 
     TrendingUp, Package, Coins, Users, LogOut, 
     RefreshCw, Wifi, WifiOff, Clock, FileText, DollarSign,
     Wallet, CreditCard, Smartphone, Banknote, ArrowDownRight,
-    ShieldCheck, Hash, AlertTriangle, Search, X, ChevronLeft, ChevronRight
+    ShieldCheck, Hash, AlertTriangle, Search, X, ChevronLeft, ChevronRight,
+    Pencil, Trash2, Plus, UploadCloud, MinusCircle, PlusCircle, Loader2
 } from 'lucide-react';
 import { formatBs, formatCop } from '../utils/calculatorUtils';
 import { getLocalISODate } from '../utils/dateHelpers';
 import { getPaymentLabel, toTitleCase } from '../config/paymentMethods';
 
-// Helper: icon por método de pago
-const PAYMENT_METHOD_ICONS = {
-    efectivo_bs: Banknote,
-    pago_movil: Smartphone,
-    punto_venta: CreditCard,
-    efectivo_usd: DollarSign,
-    efectivo_cop: Coins,
-    transferencia_cop: CreditCard,
-    fiado: Clock,
-    cashea: Clock,
-};
-
-function getMethodIcon(methodId) {
-    return PAYMENT_METHOD_ICONS[methodId] || Wallet;
-}
+const PENDING_KEY = 'pda_pending_inventory_changes_v1';
 
 export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) {
     const pairedDeviceId = localStorage.getItem('pda_paired_device_id');
-    const { products, effectiveRate: bcvRate, copEnabled, tasaCop } = useProductContext();
+    const { products, effectiveRate: bcvRate, copEnabled, tasaCop, rates } = useProductContext();
     const { isConnected, lastSync, loading: syncLoading, triggerRefresh } = useMonitorSync(pairedDeviceId);
 
     const [sales, setSales] = useState([]);
     const [activeCashier, setActiveCashier] = useState({ nombre: 'Ninguno', rol: '' });
     const [loadingData, setLoadingData] = useState(true);
     const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
-    const [viewTab, setViewTab] = useState('activo'); // 'activo' o 'cierres'
+    const [showRateModal, setShowRateModal] = useState(false);
+    const [viewTab, setViewTab] = useState('activo'); // 'activo', 'cierres', 'inventario'
     const [selectedCierreId, setSelectedCierreId] = useState(null);
     const [searchTermInventario, setSearchTermInventario] = useState('');
     const [filterStockInventario, setFilterStockInventario] = useState('todos'); // 'todos', 'bajo', 'agotado'
+
+    // ── Edición remota de inventario ──
+    const [showRemoteForm, setShowRemoteForm] = useState(false);
+    const [remoteEditingProduct, setRemoteEditingProduct] = useState(null);
+    const [pendingChanges, setPendingChanges] = useState(() => {
+        try {
+            const raw = localStorage.getItem(PENDING_KEY);
+            const arr = raw ? JSON.parse(raw) : [];
+            return Array.isArray(arr) ? arr : [];
+        } catch { return []; }
+    });
+    const [uploading, setUploading] = useState(false);
 
     const filteredProducts = useMemo(() => {
         if (!products) return [];
@@ -61,6 +63,58 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
             return true;
         });
     }, [products, searchTermInventario, filterStockInventario]);
+
+    const persistPending = (next) => {
+        setPendingChanges(next);
+        try { localStorage.setItem(PENDING_KEY, JSON.stringify(next)); } catch {}
+    };
+
+    const sendSingleCommand = async (action, productId, data) => {
+        if (!pairedDeviceId || !supabaseCloud) return;
+        const monitorDeviceId = localStorage.getItem('pda_device_id') || 'monitor_web';
+        const { error } = await supabaseCloud
+            .from('supervisor_commands')
+            .insert({
+                primary_device_id: pairedDeviceId,
+                monitor_device_id: monitorDeviceId,
+                command_type: 'inventory_update',
+                payload: { action, productId, data },
+                status: 'pending'
+            });
+        if (error) throw error;
+    };
+
+    const handleRemoteSubmit = async (action, productId, data) => {
+        triggerHaptic?.();
+        try {
+            await sendSingleCommand(action, productId, data);
+            showToast(action === 'add' ? '¡Producto agregado remotamente!' : '¡Producto editado remotamente!', 'success');
+        } catch (err) {
+            console.error('[OwnerMonitorView] Error al enviar comando de inventario:', err);
+            showToast('Error al enviar cambios a la caja', 'error');
+        }
+    };
+
+    const handleStockAdjust = async (product, delta) => {
+        triggerHaptic?.();
+        try {
+            await sendSingleCommand('adjust_stock', product.id, { delta });
+            showToast(`Ajustando stock de ${product.name} (${delta > 0 ? '+' : ''}${delta})`, 'success');
+        } catch (err) {
+            showToast('Error al ajustar stock en la caja', 'error');
+        }
+    };
+
+    const handleDeleteProduct = async (product) => {
+        if (!window.confirm(`¿Estás seguro de eliminar "${product.name}" remotamente en la caja?`)) return;
+        triggerHaptic?.();
+        try {
+            await sendSingleCommand('delete', product.id, {});
+            showToast(`¡Comando de eliminación enviado a la caja!`, 'success');
+        } catch (err) {
+            showToast('Error al enviar eliminación a la caja', 'error');
+        }
+    };
 
     const [currentPageInventario, setCurrentPageInventario] = useState(1);
     const ITEMS_PER_PAGE_INVENTARIO = 15;
@@ -478,6 +532,15 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                             </>
                         )}
                     </div>
+
+                    <button 
+                        onClick={() => { triggerHaptic?.(); setShowRateModal(true); }}
+                        className="px-3 py-1.5 rounded-xl text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 bg-emerald-500/10 transition-colors active:scale-95 flex items-center gap-1.5 text-xs font-bold shrink-0"
+                        title="Cambiar Tasa Remota"
+                    >
+                        <TrendingUp size={14} />
+                        <span className="hidden sm:inline">Cambiar Tasa</span>
+                    </button>
 
                     <button 
                         onClick={async () => { 
@@ -1141,7 +1204,20 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                             </div>
 
                             {/* Filtro de Segmentación de Stock */}
-                            <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-2xl border border-slate-200/60 dark:border-slate-850 self-start md:self-auto shrink-0 shadow-inner">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <button
+                                    onClick={() => {
+                                        triggerHaptic?.();
+                                        setRemoteEditingProduct(null);
+                                        setShowRemoteForm(true);
+                                    }}
+                                    className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all shrink-0"
+                                >
+                                    <Plus size={15} />
+                                    <span>Nuevo Producto</span>
+                                </button>
+
+                                <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-2xl border border-slate-200/60 dark:border-slate-850 shrink-0 shadow-inner">
                                 <button
                                     onClick={() => { triggerHaptic?.(); setFilterStockInventario('todos'); }}
                                     className={`px-3 py-1.5 text-[10px] sm:text-xs font-black rounded-xl transition-all ${
@@ -1173,6 +1249,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                     Agotados ({inventoryMetrics.outOfStockCount})
                                 </button>
                             </div>
+                        </div>
                         </div>
 
                         {/* Listado de Productos */}
@@ -1252,18 +1329,58 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                                         </div>
                                                     </div>
 
-                                                    {/* Stock */}
-                                                    <div className={`w-20 text-center py-2 px-2.5 rounded-2xl border ${
-                                                        isAgotado 
-                                                            ? 'bg-rose-50/50 border-rose-150/70 text-rose-700 dark:bg-rose-950/20 dark:border-rose-900/30 dark:text-rose-455' 
-                                                            : isBajo 
-                                                                ? 'bg-amber-50/50 border-amber-150/70 text-amber-700 dark:bg-amber-950/20 dark:border-amber-900/30 dark:text-amber-455' 
-                                                                : 'bg-slate-50 border-slate-150/70 text-slate-700 dark:bg-slate-850/60 dark:border-slate-800 dark:text-slate-300'
-                                                    }`}>
-                                                        <span className="text-[8px] uppercase font-black block leading-none mb-0.5">Stock</span>
-                                                        <span className="font-outfit text-xs sm:text-sm font-black tabular-nums leading-none">
-                                                            {p.isWeight ? `${stock.toFixed(3)} Kg` : `${stock} u`}
-                                                        </span>
+                                                    {/* Stock con controles +/- */}
+                                                    <div className="flex items-center gap-1.5">
+                                                        <button
+                                                            onClick={() => handleStockAdjust(p, -1)}
+                                                            className="p-1 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 dark:bg-slate-800 dark:hover:bg-rose-950/40 dark:text-slate-400 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-700 transition-colors active:scale-90"
+                                                            title="Disminuir 1 stock en caja"
+                                                        >
+                                                            <MinusCircle size={15} />
+                                                        </button>
+
+                                                        <div className={`w-16 text-center py-1.5 px-2 rounded-2xl border ${
+                                                            isAgotado 
+                                                                ? 'bg-rose-50/50 border-rose-150/70 text-rose-700 dark:bg-rose-950/20 dark:border-rose-900/30 dark:text-rose-400' 
+                                                                : isBajo 
+                                                                    ? 'bg-amber-50/50 border-amber-150/70 text-amber-700 dark:bg-amber-950/20 dark:border-amber-900/30 dark:text-amber-400' 
+                                                                    : 'bg-slate-50 border-slate-150/70 text-slate-700 dark:bg-slate-850/60 dark:border-slate-800 dark:text-slate-300'
+                                                        }`}>
+                                                            <span className="text-[7px] uppercase font-black block leading-none mb-0.5">Stock</span>
+                                                            <span className="font-outfit text-xs font-black tabular-nums leading-none">
+                                                                {p.isWeight ? `${stock.toFixed(1)}k` : `${stock} u`}
+                                                            </span>
+                                                        </div>
+
+                                                        <button
+                                                            onClick={() => handleStockAdjust(p, 1)}
+                                                            className="p-1 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-500 hover:text-emerald-600 dark:bg-slate-800 dark:hover:bg-emerald-950/40 dark:text-slate-400 dark:hover:text-emerald-400 border border-slate-200 dark:border-slate-700 transition-colors active:scale-90"
+                                                            title="Aumentar 1 stock en caja"
+                                                        >
+                                                            <PlusCircle size={15} />
+                                                        </button>
+                                                    </div>
+
+                                                    {/* Botones Editar y Borrar */}
+                                                    <div className="flex items-center gap-1 border-l border-slate-200 dark:border-slate-800 pl-2">
+                                                        <button
+                                                            onClick={() => {
+                                                                triggerHaptic?.();
+                                                                setRemoteEditingProduct(p);
+                                                                setShowRemoteForm(true);
+                                                            }}
+                                                            className="p-1.5 rounded-xl text-slate-400 hover:text-emerald-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                                            title="Editar producto remotamente"
+                                                        >
+                                                            <Pencil size={14} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteProduct(p)}
+                                                            className="p-1.5 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                                            title="Eliminar producto remotamente"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1347,6 +1464,24 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                     </div>
                 </div>
             )}
+
+            {/* Modal para Cambiar Tasa Remota */}
+            <SupervisorRateModal
+                isOpen={showRateModal}
+                onClose={() => setShowRateModal(false)}
+                rates={rates}
+                primaryDeviceId={pairedDeviceId}
+                triggerHaptic={triggerHaptic}
+            />
+
+            {/* Modal para Crear / Editar Producto Remoto */}
+            <RemoteProductFormModal
+                isOpen={showRemoteForm}
+                onClose={() => setShowRemoteForm(false)}
+                editingProduct={remoteEditingProduct}
+                onSubmit={handleRemoteSubmit}
+                effectiveRate={bcvRate}
+            />
         </div>
     );
 }

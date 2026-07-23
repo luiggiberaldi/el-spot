@@ -32,6 +32,9 @@ import { ImagePrecacheRunner } from './hooks/useImagePrecache';
 
 const OwnerMonitorView = lazy(() => import('./views/OwnerMonitorView'));
 import PairingScanScreen from './components/PairingScanScreen';
+import { useSupervisorCommands } from './hooks/useSupervisorCommands';
+import SupervisorRateNotification from './components/SupervisorRateNotification';
+import SupervisorInventoryNotification from './components/SupervisorInventoryNotification';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('inicio');
@@ -106,6 +109,9 @@ export default function App() {
     if (outcome === 'accepted') setInstallPrompt(null);
   };
 
+
+  // Escuchar comandos remotos del supervisor en la caja principal
+  useSupervisorCommands(deviceId);
 
   // Theme
   const [theme, setTheme] = useState(() => {
@@ -224,6 +230,10 @@ export default function App() {
 
   return (
     <div className="font-sans antialiased bg-slate-50 dark:bg-black h-[100dvh] flex flex-col overflow-clip transition-colors duration-300">
+
+      {/* Notifications from Supervisor Remote Commands */}
+      <SupervisorRateNotification rates={rates} />
+      <SupervisorInventoryNotification />
 
       {/* Terms and Conditions Overlay (First Use) */}
       <TermsOverlay onAccept={forceHeartbeat} />

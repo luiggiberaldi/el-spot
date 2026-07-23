@@ -164,4 +164,67 @@ BEGIN
     END IF;
 END $$;
 
+-- ============================================================
+-- 8. Tabla y Políticas para Comandos del Supervisor (remotos)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.supervisor_commands (
+    id                 UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    primary_device_id  TEXT NOT NULL,
+    monitor_device_id  TEXT NOT NULL,
+    command_type       TEXT NOT NULL CHECK (command_type IN ('rate_change', 'inventory_update')),
+    payload            JSONB NOT NULL DEFAULT '{}'::jsonb,
+    status             TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'applied', 'failed')),
+    error_reason       TEXT,
+    created_at         TIMESTAMPTZ DEFAULT now(),
+    applied_at         TIMESTAMPTZ
+);
+
+ALTER TABLE public.supervisor_commands ADD COLUMN IF NOT EXISTS error_reason TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_supervisor_commands_pending
+    ON public.supervisor_commands (primary_device_id, status, created_at);
+
+ALTER TABLE public.supervisor_commands ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "supervisor_commands_monitor_insert" ON public.supervisor_commands;
+CREATE POLICY "supervisor_commands_monitor_insert" ON public.supervisor_commands
+    FOR INSERT TO anon WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.device_pairings dp
+            WHERE dp.primary_device_id = supervisor_commands.primary_device_id
+        )
+    );
+
+DROP POLICY IF EXISTS "supervisor_commands_pair_select" ON public.supervisor_commands;
+CREATE POLICY "supervisor_commands_pair_select" ON public.supervisor_commands
+    FOR SELECT TO anon USING (
+        EXISTS (
+            SELECT 1 FROM public.device_pairings dp
+            WHERE dp.primary_device_id = supervisor_commands.primary_device_id
+        )
+    );
+
+DROP POLICY IF EXISTS "supervisor_commands_pair_update" ON public.supervisor_commands;
+CREATE POLICY "supervisor_commands_pair_update" ON public.supervisor_commands
+    FOR UPDATE TO anon USING (
+        EXISTS (
+            SELECT 1 FROM public.device_pairings dp
+            WHERE dp.primary_device_id = supervisor_commands.primary_device_id
+        )
+    );
+
+GRANT SELECT, INSERT, UPDATE ON public.supervisor_commands TO anon, authenticated;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables
+        WHERE pubname = 'supabase_realtime'
+          AND schemaname = 'public'
+          AND tablename = 'supervisor_commands'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.supervisor_commands;
+    END IF;
+END $$;
+
 
