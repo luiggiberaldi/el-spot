@@ -138,9 +138,9 @@ export default function App() {
       root.style.zoom = `${savedScale}%`;
     }
 
-    // Update theme-color meta: Naranja Industrial #e65100 (light) / carbón #1a1917 (dark)
+    // Update theme-color meta: Negro Obsidiana El Spot POS (#000000)
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', theme === 'dark' ? '#1a1917' : '#e65100');
+    if (meta) meta.setAttribute('content', '#000000');
   }, [theme]);
 
   const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
