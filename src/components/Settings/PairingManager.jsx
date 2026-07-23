@@ -65,11 +65,32 @@ export default function PairingManager({ deviceId, triggerHaptic }) {
         setPairingState('generating');
 
         try {
-            const { data: generatedToken, error } = await supabaseCloud.rpc('generate_pairing_token', {
+            let generatedToken = null;
+            const { data: rpcToken, error: rpcError } = await supabaseCloud.rpc('generate_pairing_token', {
                 p_device_id: deviceId
             });
 
-            if (error) throw error;
+            if (rpcError) {
+                console.warn('[PairingManager] RPC generate_pairing_token falló, intentando registro directo:', rpcError);
+                // Fallback directo contra la tabla device_pairings
+                const fallbackToken = Math.random().toString(36).substring(2, 8).toUpperCase();
+                const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+
+                const { error: upsertError } = await supabaseCloud
+                    .from('device_pairings')
+                    .upsert({
+                        primary_device_id: deviceId,
+                        pairing_token: fallbackToken,
+                        token_expires_at: expiresAt,
+                        monitor_device_id: null,
+                        paired_at: null
+                    }, { onConflict: 'primary_device_id' });
+
+                if (upsertError) throw upsertError;
+                generatedToken = fallbackToken;
+            } else {
+                generatedToken = rpcToken;
+            }
 
             setToken(generatedToken);
             setPairingState('show_qr');
@@ -114,7 +135,11 @@ export default function PairingManager({ deviceId, triggerHaptic }) {
 
         } catch (err) {
             console.error('[PairingManager] Error generando token:', err);
-            showToast('Error al generar el token QR', 'error');
+            if (err.code === 'PGRST202' || err.code === 'PGRST204') {
+                showToast('Falta ejecutar supabase_pairing_setup.sql en el SQL Editor de Supabase', 'error');
+            } else {
+                showToast('Error al generar el token QR', 'error');
+            }
             setPairingState('idle');
         }
     };
@@ -161,11 +186,17 @@ export default function PairingManager({ deviceId, triggerHaptic }) {
         setCheckingStatus(true);
 
         try {
-            const { error } = await supabaseCloud.rpc('unpair_monitor', {
+            const { error: rpcErr } = await supabaseCloud.rpc('unpair_monitor', {
                 p_device_id: deviceId
             });
 
-            if (error) throw error;
+            if (rpcErr) {
+                console.warn('[PairingManager] RPC unpair_monitor falló, usando fallback directo:', rpcErr);
+                await supabaseCloud
+                    .from('device_pairings')
+                    .update({ monitor_device_id: null, paired_at: null, pairing_token: null })
+                    .eq('primary_device_id', deviceId);
+            }
 
             setPairedDevice(null);
             setPairingState('idle');

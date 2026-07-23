@@ -194,17 +194,50 @@ export default function PairingScanScreen({ onCancel, triggerHaptic }) {
                 localStorage.setItem('pda_device_id', monitorId);
             }
 
-            // Llamar al RPC en Supabase
-            const { data, error } = await supabaseCloud.rpc('pair_monitor_device', {
-                p_token: token.trim().toUpperCase(),
+            // Llamar al RPC en Supabase con fallback a consulta directa
+            let resultData = null;
+            const cleanToken = token.trim().toUpperCase();
+
+            const { data: rpcData, error: rpcError } = await supabaseCloud.rpc('pair_monitor_device', {
+                p_token: cleanToken,
                 p_monitor_device_id: monitorId
             });
 
-            if (error) throw error;
+            if (rpcError) {
+                console.warn('[PairingScanScreen] RPC pair_monitor_device no disponible, intentando vinculación directa:', rpcError);
+                // Fallback directo contra la tabla device_pairings
+                const { data: pairingRecord, error: findError } = await supabaseCloud
+                    .from('device_pairings')
+                    .select('*')
+                    .eq('pairing_token', cleanToken)
+                    .gt('token_expires_at', new Date().toISOString())
+                    .maybeSingle();
 
-            if (data && data.success) {
+                if (findError || !pairingRecord) {
+                    setErrorMsg('Código QR inválido o expirado.');
+                    startScanning();
+                    return;
+                }
+
+                // Actualizar registro con monitor_device_id
+                const { error: updateError } = await supabaseCloud
+                    .from('device_pairings')
+                    .update({
+                        monitor_device_id: monitorId,
+                        paired_at: new Date().toISOString(),
+                        pairing_token: null
+                    })
+                    .eq('id', pairingRecord.id);
+
+                if (updateError) throw updateError;
+                resultData = { success: true, primary_device_id: pairingRecord.primary_device_id };
+            } else {
+                resultData = rpcData;
+            }
+
+            if (resultData && resultData.success) {
                 // Éxito: Guardar credenciales de emparejamiento
-                localStorage.setItem('pda_paired_device_id', data.primary_device_id);
+                localStorage.setItem('pda_paired_device_id', resultData.primary_device_id);
                 localStorage.setItem('pda_pairing_mode', 'monitor');
                 showToast('¡Vinculado con éxito! Cargando monitor...', 'success');
                 
@@ -213,7 +246,7 @@ export default function PairingScanScreen({ onCancel, triggerHaptic }) {
                     window.location.reload();
                 }, 1500);
             } else {
-                setErrorMsg(data?.message || 'Error desconocido al vincular.');
+                setErrorMsg(resultData?.message || 'Error desconocido al vincular.');
                 startScanning(); // Volver a habilitar cámara
             }
         } catch (err) {
