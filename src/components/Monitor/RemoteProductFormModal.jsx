@@ -1,174 +1,289 @@
-import React, { useState, useEffect } from 'react';
-import { X, Package, Barcode, Tag, AlertTriangle, Send, Loader2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import ProductFormModal from '../Products/ProductFormModal';
+import { useProductForm } from '../../hooks/useProductForm';
 import { useProductContext } from '../../context/ProductContext';
+import { buildProductPayload } from '../../utils/productProcessor';
+import { showToast } from '../Toast';
 
-const EMPTY = {
-    name: '', category: '', barcode: '',
-    priceUsd: '', priceBsManual: '', costUsd: '', stock: '', lowStockAlert: '5',
-    sellByBox: false, boxUnits: '', boxBarcode: '', boxPriceUsd: '',
-    sellByHalfBox: false, halfBoxUnits: '', halfBoxBarcode: '', halfBoxPriceUsd: '',
-    pricingMode: 'tasa_dia',
-};
+export default function RemoteProductFormModal({ isOpen, onClose, editingProduct, onSubmit, effectiveRate: propEffectiveRate }) {
+    const { 
+        categories, rates, copEnabled, copPrimary, tasaCop, 
+        effectiveRate: ctxEffectiveRate, bcvMarginPct 
+    } = useProductContext();
 
-function productToForm(p) {
-    if (!p) return { ...EMPTY };
-    const s = (v) => (v == null ? '' : String(v));
-    return {
-        name: s(p.name), category: s(p.category), barcode: s(p.barcode),
-        priceUsd: s(p.priceUsd || p.priceUsdt), priceBsManual: s(p.priceBsManual),
-        costUsd: s(p.costUsd), stock: s(p.stock), lowStockAlert: s(p.lowStockAlert ?? 5),
-        sellByBox: Boolean(p.sellByBox), boxUnits: s(p.boxUnits), boxBarcode: s(p.boxBarcode),
-        boxPriceUsd: s(p.boxPriceUsd),
-        sellByHalfBox: Boolean(p.sellByHalfBox), halfBoxUnits: s(p.halfBoxUnits), halfBoxBarcode: s(p.halfBoxBarcode),
-        halfBoxPriceUsd: s(p.halfBoxPriceUsd),
-        pricingMode: p.pricingMode || (p.forceBcv ? 'bcv' : 'tasa_dia'),
-    };
-}
+    const effectiveRate = propEffectiveRate || ctxEffectiveRate || rates?.bcv?.price || 1;
+    const bcvRate = rates?.bcv?.price || effectiveRate;
 
-const inputCls = 'w-full bg-slate-900 border border-slate-800 p-2.5 rounded-xl font-bold text-xs text-white outline-none focus:ring-2 focus:ring-emerald-500/40';
-const labelCls = 'text-[9px] font-bold text-slate-400 ml-1 mb-0.5 block uppercase';
-
-export default function RemoteProductFormModal({ isOpen, onClose, editingProduct, onSubmit, effectiveRate }) {
-    const { categories } = useProductContext();
-    const [form, setForm] = useState(EMPTY);
-    const [sending, setSending] = useState(false);
+    const form = useProductForm();
+    const [priceCop, setPriceCop] = useState('');
+    const [unitPriceCop, setUnitPriceCop] = useState('');
+    const [costCop, setCostCop] = useState('');
 
     useEffect(() => {
-        if (isOpen) setForm(productToForm(editingProduct));
+        if (isOpen) {
+            if (editingProduct) {
+                form.populateForm(editingProduct, effectiveRate, bcvRate);
+                if (copEnabled && tasaCop > 0) {
+                    if (editingProduct.priceCop != null && editingProduct.priceCop > 0) {
+                        setPriceCop(editingProduct.priceCop.toString());
+                    } else if (editingProduct.priceUsdt > 0) {
+                        setPriceCop(Math.round(editingProduct.priceUsdt * tasaCop).toString());
+                    } else {
+                        setPriceCop('');
+                    }
+
+                    if (editingProduct.unitPriceCop != null && editingProduct.unitPriceCop > 0) {
+                        setUnitPriceCop(editingProduct.unitPriceCop.toString());
+                    } else if (editingProduct.unitPriceUsd > 0) {
+                        setUnitPriceCop(Math.round(editingProduct.unitPriceUsd * tasaCop).toString());
+                    } else {
+                        setUnitPriceCop('');
+                    }
+
+                    if (editingProduct.costUsd > 0) {
+                        setCostCop(Math.round(editingProduct.costUsd * tasaCop).toString());
+                    } else {
+                        setCostCop('');
+                    }
+                }
+            } else {
+                form.resetForm();
+                setPriceCop('');
+                setUnitPriceCop('');
+                setCostCop('');
+            }
+        }
     }, [isOpen, editingProduct]);
 
     if (!isOpen) return null;
 
-    const set = (field) => (e) => {
-        const value = e?.target ? e.target.value : e;
-        setForm(prev => ({ ...prev, [field]: value }));
-    };
-
-    const priceNum = Number(form.priceUsd) || 0;
-    const canSave = form.name.trim().length >= 2 && priceNum > 0;
-
-    const handleSubmit = async () => {
-        if (!canSave || sending) return;
-        setSending(true);
-        try {
-            const data = {
-                ...(editingProduct || {}),
-                name: form.name.trim(),
-                category: form.category || editingProduct?.category || 'varios',
-                barcode: form.barcode.trim() || null,
-                priceUsd: Number(form.priceUsd) || 0,
-                priceUsdt: Number(form.priceUsd) || 0,
-                priceBsManual: form.priceBsManual !== '' ? Number(form.priceBsManual) : null,
-                costUsd: Number(form.costUsd) || 0,
-                stock: parseInt(form.stock, 10) || 0,
-                lowStockAlert: parseInt(form.lowStockAlert, 10) || 5,
-                sellByBox: form.sellByBox,
-                boxUnits: form.sellByBox ? parseInt(form.boxUnits, 10) || null : null,
-                boxBarcode: form.sellByBox ? form.boxBarcode.trim() || null : null,
-                boxPriceUsd: form.sellByBox && form.boxPriceUsd !== '' ? Number(form.boxPriceUsd) : null,
-                sellByHalfBox: form.sellByBox && form.sellByHalfBox,
-                halfBoxUnits: form.sellByHalfBox ? parseInt(form.halfBoxUnits, 10) || null : null,
-                halfBoxBarcode: form.sellByHalfBox ? form.halfBoxBarcode.trim() || null : null,
-                halfBoxPriceUsd: form.sellByHalfBox && form.halfBoxPriceUsd !== '' ? Number(form.halfBoxPriceUsd) : null,
-            };
-            delete data.image;
-            if (!editingProduct) data.id = crypto.randomUUID();
-            await onSubmit(editingProduct ? 'edit' : 'add', data.id, data);
-            onClose();
-        } finally {
-            setSending(false);
+    // Price change handlers
+    const handlePriceUsdChange = (val) => {
+        form.setPriceUsd(val);
+        const parsed = parseFloat(val);
+        if (!isNaN(parsed) && parsed > 0) {
+            form.setPriceBs((parsed * effectiveRate).toFixed(2));
+            if (copEnabled && tasaCop > 0) {
+                setPriceCop(Math.round(parsed * tasaCop).toString());
+            }
+        } else {
+            form.setPriceBs('');
+            setPriceCop('');
         }
     };
 
+    const handlePriceBsChange = (val) => {
+        form.setPriceBs(val);
+        const parsed = parseFloat(val);
+        if (!isNaN(parsed) && parsed > 0 && effectiveRate > 0) {
+            const usd = parsed / effectiveRate;
+            form.setPriceUsd(usd.toFixed(4));
+            if (copEnabled && tasaCop > 0) {
+                setPriceCop(Math.round(usd * tasaCop).toString());
+            }
+        } else {
+            form.setPriceUsd('');
+            setPriceCop('');
+        }
+    };
+
+    const handlePriceCopChange = (val) => {
+        setPriceCop(val);
+        const parsedCop = parseFloat(val);
+        if (!isNaN(parsedCop) && parsedCop > 0 && tasaCop > 0) {
+            const usd = parsedCop / tasaCop;
+            form.setPriceUsd(usd.toFixed(4));
+            form.setPriceBs((usd * effectiveRate).toFixed(2));
+        } else if (!val) {
+            form.setPriceUsd('');
+            form.setPriceBs('');
+        }
+    };
+
+    const handleCostUsdChange = (val) => {
+        form.setCostUsd(val);
+        const parsed = parseFloat(val);
+        if (!isNaN(parsed) && parsed > 0) {
+            form.setCostBs((parsed * effectiveRate).toFixed(2));
+            if (copEnabled && tasaCop > 0) {
+                setCostCop(Math.round(parsed * tasaCop).toString());
+            }
+        } else {
+            form.setCostBs('');
+            setCostCop('');
+        }
+    };
+
+    const handleCostBsChange = (val) => {
+        form.setCostBs(val);
+        const parsed = parseFloat(val);
+        if (!isNaN(parsed) && parsed > 0 && effectiveRate > 0) {
+            const usd = parsed / effectiveRate;
+            form.setCostUsd(usd.toFixed(4));
+            if (copEnabled && tasaCop > 0) {
+                setCostCop(Math.round(usd * tasaCop).toString());
+            }
+        } else {
+            form.setCostUsd('');
+            setCostCop('');
+        }
+    };
+
+    const handleCostCopChange = (val) => {
+        setCostCop(val);
+        const parsedCop = parseFloat(val);
+        if (!isNaN(parsedCop) && parsedCop > 0 && tasaCop > 0) {
+            const usd = parsedCop / tasaCop;
+            form.setCostUsd(usd.toFixed(4));
+            form.setCostBs((usd * effectiveRate).toFixed(2));
+        } else if (!val) {
+            form.setCostUsd('');
+            form.setCostBs('');
+        }
+    };
+
+    const handlePrice2UsdChange = (val) => {
+        form.setPrice2Usd(val);
+        const parsed = parseFloat(val);
+        if (!isNaN(parsed) && parsed > 0) {
+            form.setPrice2Bs((parsed * bcvRate).toFixed(2));
+        } else {
+            form.setPrice2Bs('');
+        }
+    };
+
+    const handlePrice2BsChange = (val) => {
+        form.setPrice2Bs(val);
+        const parsed = parseFloat(val);
+        if (!isNaN(parsed) && parsed > 0 && bcvRate > 0) {
+            form.setPrice2Usd((parsed / bcvRate).toFixed(4));
+        } else {
+            form.setPrice2Usd('');
+        }
+    };
+
+    const handleImageUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            if (file.size > 5 * 1024 * 1024) {
+                showToast('La imagen excede los 5MB', 'warning');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                form.setImage(reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleSave = async () => {
+        if (!form.name || (!form.priceUsd && !form.priceBs)) {
+            form.setIsFormShaking(true);
+            setTimeout(() => form.setIsFormShaking(false), 500);
+            return showToast('Nombre y precio requeridos', 'warning');
+        }
+
+        const productData = buildProductPayload({
+            name: form.name,
+            barcode: form.barcode,
+            priceUsd: form.priceUsd,
+            priceBs: form.priceBs,
+            priceCop,
+            costUsd: form.costUsd,
+            costBs: form.costBs,
+            stock: form.stock,
+            stockInLotes: form.stockInLotes,
+            packagingType: form.packagingType,
+            unitsPerPackage: form.unitsPerPackage,
+            granelUnit: form.granelUnit,
+            sellByUnit: form.sellByUnit,
+            unitPriceUsd: form.unitPriceUsd,
+            unitPriceCop,
+            category: form.category,
+            lowStockAlert: form.lowStockAlert,
+            hasWarranty: form.hasWarranty,
+            warrantyDays: form.warrantyDays,
+            price2Usd: form.price2Usd
+        }, effectiveRate);
+
+        if (form.image !== undefined) {
+            productData.image = form.image;
+        }
+
+        const productId = editingProduct?.id || crypto.randomUUID();
+        const action = editingProduct ? 'edit' : 'add';
+
+        await onSubmit(action, productId, productData);
+        form.resetForm();
+        onClose();
+    };
+
     return (
-        <div className="fixed inset-0 z-[300] bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200 max-h-[92vh] overflow-y-auto space-y-4 text-white">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-500/20 text-emerald-400">
-                            <Package size={18} />
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-white text-sm">
-                                {editingProduct ? 'Editar producto (remoto)' : 'Nuevo producto (remoto)'}
-                            </h3>
-                            <p className="text-[10px] text-slate-400 font-medium">Se enviará a la caja al guardar</p>
-                        </div>
-                    </div>
-                    <button onClick={onClose} className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
-                        <X size={16} />
-                    </button>
-                </div>
-
-                <div className="space-y-2">
-                    <div>
-                        <label className={labelCls}>Nombre del Artículo *</label>
-                        <input value={form.name} onChange={set('name')} placeholder="Ej: Audífonos Bluetooth Lenovo" className={inputCls} />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                        <div>
-                            <label className={labelCls}>Categoría</label>
-                            <select value={form.category} onChange={set('category')} className={inputCls}>
-                                <option value="">Seleccionar...</option>
-                                {(categories || []).filter(c => c && c.id !== 'todos').map(c => (
-                                    <option key={c.id || c.name} value={c.id || c.name}>{c.label || c.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className={labelCls}><Barcode size={9} className="inline mr-0.5" />Código de barras</label>
-                            <input value={form.barcode} onChange={set('barcode')} placeholder="Escanear..." className={inputCls} />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Precios */}
-                <div className="p-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 space-y-2">
-                    <span className="text-[9px] font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1"><Tag size={10} /> Precio Unidad</span>
-                    <div className="grid grid-cols-2 gap-2">
-                        <div>
-                            <label className={labelCls}>Precio USD ($) *</label>
-                            <input type="number" inputMode="decimal" value={form.priceUsd} onChange={set('priceUsd')} placeholder="0.00" className={inputCls} />
-                        </div>
-                        <div>
-                            <label className={labelCls}>Costo USD ($)</label>
-                            <input type="number" inputMode="decimal" value={form.costUsd} onChange={set('costUsd')} placeholder="0.00" className={inputCls} />
-                        </div>
-                    </div>
-                    {priceNum > 0 && (
-                        <p className="text-[10px] text-emerald-400 font-bold">
-                            Ref. Bs: {(priceNum * (effectiveRate || 1)).toFixed(2)} Bs
-                        </p>
-                    )}
-                </div>
-
-                {/* Stock & Alerta */}
-                <div className="grid grid-cols-2 gap-2">
-                    <div>
-                        <label className={labelCls}>Stock (Uds)</label>
-                        <input
-                            type="number" inputMode="numeric" value={form.stock} onChange={set('stock')} placeholder="0"
-                            disabled={Boolean(editingProduct)}
-                            title={editingProduct ? 'Ajusta con +/- en la lista' : undefined}
-                            className={`${inputCls} ${editingProduct ? 'opacity-40 cursor-not-allowed' : ''}`}
-                        />
-                        {editingProduct && <span className="text-[8px] text-slate-400 font-medium block mt-0.5 ml-1">Ajusta stock con +/-</span>}
-                    </div>
-                    <div>
-                        <label className={`${labelCls} text-amber-400 flex items-center gap-0.5`}><AlertTriangle size={9} /> Alerta stock mínimo</label>
-                        <input type="number" inputMode="numeric" value={form.lowStockAlert} onChange={set('lowStockAlert')} placeholder="5" className={inputCls} />
-                    </div>
-                </div>
-
-                <button
-                    onClick={handleSubmit}
-                    disabled={!canSave || sending}
-                    className="w-full py-3 rounded-2xl font-bold text-slate-950 uppercase tracking-wider text-xs bg-emerald-500 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                    {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                    {sending ? 'Guardando...' : 'Enviar Comando a Caja'}
-                </button>
-            </div>
-        </div>
+        <ProductFormModal
+            isOpen={isOpen}
+            onClose={onClose}
+            isEditing={Boolean(editingProduct)}
+            image={form.image}
+            setImage={form.setImage}
+            name={form.name}
+            setName={form.setName}
+            barcode={form.barcode}
+            setBarcode={form.setBarcode}
+            category={form.category}
+            setCategory={form.setCategory}
+            unit={form.unit}
+            setUnit={form.setUnit}
+            priceUsd={form.priceUsd}
+            handlePriceUsdChange={handlePriceUsdChange}
+            priceBs={form.priceBs}
+            handlePriceBsChange={handlePriceBsChange}
+            priceCop={priceCop}
+            handlePriceCopChange={handlePriceCopChange}
+            costUsd={form.costUsd}
+            handleCostUsdChange={handleCostUsdChange}
+            costBs={form.costBs}
+            handleCostBsChange={handleCostBsChange}
+            costCop={costCop}
+            handleCostCopChange={handleCostCopChange}
+            stock={form.stock}
+            setStock={form.setStock}
+            lowStockAlert={form.lowStockAlert}
+            setLowStockAlert={form.setLowStockAlert}
+            unitsPerPackage={form.unitsPerPackage}
+            setUnitsPerPackage={form.setUnitsPerPackage}
+            sellByUnit={form.sellByUnit}
+            setSellByUnit={form.setSellByUnit}
+            unitPriceUsd={form.unitPriceUsd}
+            setUnitPriceUsd={form.setUnitPriceUsd}
+            unitPriceCop={unitPriceCop}
+            setUnitPriceCop={setUnitPriceCop}
+            packagingType={form.packagingType}
+            setPackagingType={form.setPackagingType}
+            stockInLotes={form.stockInLotes}
+            setStockInLotes={form.setStockInLotes}
+            granelUnit={form.granelUnit}
+            setGranelUnit={form.setGranelUnit}
+            hasWarranty={form.hasWarranty}
+            setHasWarranty={form.setHasWarranty}
+            warrantyDays={form.warrantyDays}
+            setWarrantyDays={form.setWarrantyDays}
+            price2Usd={form.price2Usd}
+            handlePrice2UsdChange={handlePrice2UsdChange}
+            price2Bs={form.price2Bs}
+            handlePrice2BsChange={handlePrice2BsChange}
+            effectiveRate={effectiveRate}
+            bcvRate={bcvRate}
+            bcvMarginPct={bcvMarginPct}
+            rates={rates}
+            copEnabled={copEnabled}
+            copPrimary={copPrimary}
+            tasaCop={tasaCop}
+            isFormShaking={form.isFormShaking}
+            handleImageUpload={handleImageUpload}
+            handleSave={handleSave}
+            categories={categories}
+            productMovements={null}
+        />
     );
 }
