@@ -463,7 +463,7 @@ export default function DashboardView({ rates, triggerHaptic, onNavigate, theme,
                         <img 
                             src="/logo-header-negro.png" 
                             alt="El Spot" 
-                            className="h-[62px] md:h-[78px] w-auto object-contain drop-shadow-sm" 
+                            className="h-[74px] md:h-[92px] -my-1.5 md:-my-2 w-auto object-contain drop-shadow-sm transition-all" 
                             onError={(e) => {
                                 if (!e.currentTarget.dataset.fallback) {
                                     e.currentTarget.dataset.fallback = 'true';
