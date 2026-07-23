@@ -461,9 +461,15 @@ export default function DashboardView({ rates, triggerHaptic, onNavigate, theme,
 
                     <div className="flex items-center justify-center gap-3">
                         <img 
-                            src="./logo-header-negro.png" 
+                            src="/logo-header-negro.png" 
                             alt="El Spot" 
                             className="h-[62px] md:h-[78px] w-auto object-contain drop-shadow-sm" 
+                            onError={(e) => {
+                                if (!e.currentTarget.dataset.fallback) {
+                                    e.currentTarget.dataset.fallback = 'true';
+                                    e.currentTarget.src = '/logo.png';
+                                }
+                            }}
                         />
                     </div>
                     {/* Estatus Sync a la derecha absoluta en móvil, relativo normal en PC */}

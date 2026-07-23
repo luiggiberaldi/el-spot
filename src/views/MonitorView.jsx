@@ -130,7 +130,7 @@ export default function MonitorView({ rates: propRates, loading, isOffline, onRe
             {/* Encabezado Kiosco */}
             <div className="flex flex-col items-center mt-4 sm:mt-8 md:mt-10 gap-1.5 sm:gap-2 relative z-10 shrink-0">
                 <button onClick={handleSecretDebug} className="active:scale-95 transition-transform outline-none">
-                    <img src="./logo.png" alt="El Spot" className="h-12 xs:h-16 sm:h-20 w-auto object-contain drop-shadow-sm" />
+                    <img src="/logo.png" alt="El Spot" className="h-12 xs:h-16 sm:h-20 w-auto object-contain drop-shadow-sm" />
                 </button>
                 <p className="text-slate-700 text-xs sm:text-sm font-medium -mt-1 font-outfit">Actualizado donde vayas</p>
                 <div className="bg-white/80 px-3 sm:px-4 py-1 rounded-full border border-slate-200 backdrop-blur-md shadow-sm mt-1 sm:mt-2">

@@ -466,7 +466,7 @@ ${lastSalesDetail}
                     <div className="px-5 py-4 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
                         <div className="flex items-center gap-2.5">
                             <div className="w-8 h-8 rounded-2xl bg-white dark:bg-slate-800 border border-slate-150 dark:border-slate-700 overflow-hidden shrink-0 flex items-center justify-center p-0.5">
-                                <img src="./bot-avatar.png" alt="Bot Avatar" className="w-full h-full object-contain rounded-xl" />
+                                <img src="/bot-avatar.png" alt="Bot Avatar" className="w-full h-full object-contain rounded-xl" />
                             </div>
                             <div>
                                 <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200">Asistente Virtual</h3>
