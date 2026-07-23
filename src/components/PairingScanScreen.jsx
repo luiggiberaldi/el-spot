@@ -210,12 +210,17 @@ export default function PairingScanScreen({ onCancel, triggerHaptic }) {
                     .from('device_pairings')
                     .select('*')
                     .eq('pairing_token', cleanToken)
-                    .gt('token_expires_at', new Date().toISOString())
                     .maybeSingle();
 
                 if (findError || !pairingRecord) {
-                    setErrorMsg('Código QR inválido o expirado.');
-                    startScanning();
+                    setErrorMsg('Código no encontrado. Verifica en la caja.');
+                    if (scanMethod === 'camera') startScanning();
+                    return;
+                }
+
+                if (pairingRecord.token_expires_at && new Date(pairingRecord.token_expires_at) < new Date()) {
+                    setErrorMsg('El código ha expirado (dura 5 min). Genera uno nuevo en la caja.');
+                    if (scanMethod === 'camera') startScanning();
                     return;
                 }
 
@@ -244,15 +249,15 @@ export default function PairingScanScreen({ onCancel, triggerHaptic }) {
                 // Forzar reinicio de la app para cargar la nueva vista limpia
                 setTimeout(() => {
                     window.location.reload();
-                }, 1500);
+                }, 1000);
             } else {
-                setErrorMsg(resultData?.message || 'Error desconocido al vincular.');
-                startScanning(); // Volver a habilitar cámara
+                setErrorMsg(resultData?.message || 'Error al vincular. Verifica el código.');
+                if (scanMethod === 'camera') startScanning();
             }
         } catch (err) {
             console.error('[PairingScanScreen] Error al vincular:', err);
             setErrorMsg(err.message || 'Error de conexión con el servidor.');
-            startScanning(); // Volver a habilitar cámara
+            if (scanMethod === 'camera') startScanning();
         } finally {
             setLoading(false);
         }
@@ -388,7 +393,10 @@ export default function PairingScanScreen({ onCancel, triggerHaptic }) {
                                 type="text"
                                 maxLength={6}
                                 value={manualCode}
-                                onChange={(e) => setManualCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                                onChange={(e) => {
+                                    setErrorMsg('');
+                                    setManualCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''));
+                                }}
                                 placeholder="Escribe el código de 6 letras"
                                 className={`w-full py-3.5 px-4 border border-slate-200 dark:border-slate-700/60 dark:bg-slate-800 rounded-2xl text-center focus:outline-none focus:border-emerald-500 transition-all ${
                                     manualCode 

@@ -963,6 +963,128 @@ export default function ProductFormQuick({
                     </div>
                 )}
 
+                {/* ─── GARANTÍA DEL PRODUCTO ─── */}
+                <div className={`p-4 rounded-2xl border transition-all duration-200 ${
+                    hasWarranty 
+                        ? 'bg-gradient-to-br from-amber-500/5 via-orange-500/5 to-amber-500/10 dark:from-amber-500/10 dark:via-orange-500/10 dark:to-transparent border-amber-500/30 dark:border-amber-500/40 shadow-sm shadow-amber-500/5' 
+                        : 'bg-slate-50/80 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-700/60'
+                }`}>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+                                hasWarranty 
+                                    ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25 ring-4 ring-amber-500/15' 
+                                    : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500'
+                            }`}>
+                                <ShieldCheck size={20} />
+                            </div>
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">
+                                        Garantía del Producto
+                                    </p>
+                                </div>
+                                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate mt-0.5">
+                                    Ofrece cobertura de servicio o reemplazo al cliente
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Selector de Segmentos Interactivo */}
+                        <div className="flex items-center bg-slate-200/70 dark:bg-slate-800 p-1 rounded-xl shrink-0 border border-slate-300/40 dark:border-slate-700/50 self-start sm:self-auto">
+                            <button
+                                type="button"
+                                onClick={() => setHasWarranty(false)}
+                                className={`px-2.5 py-1 text-[10px] font-black rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                                    !hasWarranty
+                                        ? 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 shadow-sm'
+                                        : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+                                }`}
+                            >
+                                <X size={11} /> Sin Garantía
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setHasWarranty(true);
+                                    if (!warrantyDays || warrantyDays <= 0) {
+                                        setWarrantyDays('30');
+                                    }
+                                }}
+                                className={`px-2.5 py-1 text-[10px] font-black rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                                    hasWarranty
+                                        ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25 ring-2 ring-amber-500/30'
+                                        : 'text-slate-400 dark:text-slate-500 hover:text-amber-600 dark:hover:text-amber-400'
+                                }`}
+                            >
+                                <ShieldCheck size={11} /> Con Garantía
+                            </button>
+                        </div>
+                    </div>
+
+                    {hasWarranty && (
+                        <div className="pt-3.5 mt-3.5 border-t border-amber-500/20 dark:border-amber-500/25 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                            <div className="flex items-center justify-between">
+                                <label className="text-[11px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider">
+                                    Días de Cobertura
+                                </label>
+                                <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                                    {warrantyDays === '365' ? '1 Año completo' : `${warrantyDays || 0} días seleccionados`}
+                                </span>
+                            </div>
+                            
+                            {/* Chips de selección rápida */}
+                            <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
+                                {[
+                                    { days: 7, label: '7d' },
+                                    { days: 15, label: '15d' },
+                                    { days: 30, label: '30d' },
+                                    { days: 60, label: '60d' },
+                                    { days: 90, label: '90d' },
+                                    { days: 180, label: '180d' },
+                                    { days: 365, label: '1 Año' },
+                                ].map((item) => {
+                                    const isSelected = String(warrantyDays) === String(item.days);
+                                    return (
+                                        <button
+                                            key={item.days}
+                                            type="button"
+                                            onClick={() => setWarrantyDays(item.days.toString())}
+                                            className={`py-2 px-1 text-xs font-black rounded-xl border transition-all active:scale-95 cursor-pointer text-center ${
+                                                isSelected
+                                                    ? 'bg-amber-500 text-white border-amber-500 shadow-md shadow-amber-500/20 ring-2 ring-amber-500/30'
+                                                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-amber-400 dark:hover:border-amber-500 hover:bg-amber-50/50 dark:hover:bg-amber-950/20'
+                                            }`}
+                                        >
+                                            {item.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Input personalizado de días */}
+                            <div className="relative flex items-center">
+                                <div className="absolute left-3 text-amber-500 pointer-events-none">
+                                    <ShieldCheck size={16} />
+                                </div>
+                                <input
+                                    type="number"
+                                    inputMode="numeric"
+                                    min="1"
+                                    value={warrantyDays}
+                                    onChange={(e) => setWarrantyDays(e.target.value)}
+                                    placeholder="Ej: 30"
+                                    className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 pl-9 pr-28 py-2.5 rounded-xl font-black text-slate-800 dark:text-white text-sm outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition-all shadow-inner"
+                                />
+                                <span className="absolute right-3 text-xs font-bold text-slate-400 dark:text-slate-500 pointer-events-none uppercase tracking-wider">
+                                    Días de garantía
+                                </span>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
                 {/* ─── PRE-SAVE SUMMARY ─── */}
                 {name && parsedPrice > 0 && (
                     <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">

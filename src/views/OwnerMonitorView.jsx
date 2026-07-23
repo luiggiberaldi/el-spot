@@ -80,9 +80,46 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
     });
     const [uploading, setUploading] = useState(false);
 
+    // Aplicar borradores pendientes optimísticamente en la vista del supervisor
+    const productsWithDrafts = useMemo(() => {
+        let list = Array.isArray(products) ? [...products] : [];
+        
+        for (const change of pendingChanges) {
+            if (change.action === 'add') {
+                const exists = list.some(p => p.id === change.productId);
+                if (!exists) {
+                    list.unshift({
+                        id: change.productId,
+                        name: change.data.name || 'Nuevo Producto',
+                        priceUsd: change.data.priceUsd || 0,
+                        costPrice: change.data.costUsd || 0,
+                        stock: change.data.stock || 0,
+                        category: change.data.category || 'varios',
+                        barcode: change.data.barcode || '',
+                        isDraft: true
+                    });
+                }
+            } else if (change.action === 'edit') {
+                list = list.map(p => p.id === change.productId ? { ...p, ...change.data, isDraft: true } : p);
+            } else if (change.action === 'adjust_stock') {
+                list = list.map(p => {
+                    if (p.id === change.productId) {
+                        const currentStock = p.stock || 0;
+                        const delta = change.data?.delta || 0;
+                        return { ...p, stock: Math.max(0, currentStock + delta), draftDelta: (p.draftDelta || 0) + delta };
+                    }
+                    return p;
+                });
+            } else if (change.action === 'delete') {
+                list = list.filter(p => p.id !== change.productId);
+            }
+        }
+        return list;
+    }, [products, pendingChanges]);
+
     const filteredProducts = useMemo(() => {
-        if (!products) return [];
-        return products.filter(p => {
+        if (!productsWithDrafts) return [];
+        return productsWithDrafts.filter(p => {
             const matchesSearch = (p.name || '').toLowerCase().includes(searchTermInventario.toLowerCase()) || 
                                  (p.barcode && p.barcode.includes(searchTermInventario));
             
@@ -96,58 +133,120 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
             }
             return true;
         });
-    }, [products, searchTermInventario, filterStockInventario]);
+    }, [productsWithDrafts, searchTermInventario, filterStockInventario]);
 
     const persistPending = (next) => {
         setPendingChanges(next);
         try { localStorage.setItem(PENDING_KEY, JSON.stringify(next)); } catch {}
     };
 
-    const sendSingleCommand = async (action, productId, data) => {
-        if (!pairedDeviceId || !supabaseCloud) return;
-        const monitorDeviceId = localStorage.getItem('pda_device_id') || 'monitor_web';
-        const { error } = await supabaseCloud
-            .from('supervisor_commands')
-            .insert({
+    const handleRemoteSubmit = async (action, productId, data) => {
+        triggerHaptic?.();
+        const productName = data.name || 'Producto';
+        const existingIdx = pendingChanges.findIndex(c => c.productId === productId && (c.action === 'add' || c.action === 'edit'));
+        
+        let next = [...pendingChanges];
+        const newEntry = {
+            id: crypto.randomUUID(),
+            action,
+            productId,
+            data,
+            productName,
+            timestamp: new Date().toISOString()
+        };
+
+        if (existingIdx >= 0) {
+            next[existingIdx] = newEntry;
+        } else {
+            next.push(newEntry);
+        }
+
+        persistPending(next);
+        showToast(action === 'add' ? `"${productName}" añadido al borrador` : `"${productName}" editado en borrador`, 'info');
+    };
+
+    const handleStockAdjust = (product, delta) => {
+        triggerHaptic?.();
+        let next = [...pendingChanges];
+        const idx = next.findIndex(c => c.productId === product.id && c.action === 'adjust_stock');
+
+        if (idx >= 0) {
+            const newDelta = (next[idx].data?.delta || 0) + delta;
+            if (newDelta === 0) {
+                next.splice(idx, 1);
+            } else {
+                next[idx] = {
+                    ...next[idx],
+                    data: { delta: newDelta }
+                };
+            }
+        } else {
+            next.push({
+                id: crypto.randomUUID(),
+                action: 'adjust_stock',
+                productId: product.id,
+                data: { delta },
+                productName: product.name,
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        persistPending(next);
+        showToast(`Stock (${delta > 0 ? '+' : ''}${delta}) añadido a borrador`, 'info');
+    };
+
+    const handleDeleteProduct = (product) => {
+        if (!window.confirm(`¿Añadir eliminación de "${product.name}" al borrador de cambios?`)) return;
+        triggerHaptic?.();
+        let next = pendingChanges.filter(c => c.productId !== product.id);
+        next.push({
+            id: crypto.randomUUID(),
+            action: 'delete',
+            productId: product.id,
+            data: {},
+            productName: product.name,
+            timestamp: new Date().toISOString()
+        });
+        persistPending(next);
+        showToast(`"${product.name}" marcado para eliminar en borrador`, 'info');
+    };
+
+    const handleUploadPendingChanges = async () => {
+        if (!pairedDeviceId || !supabaseCloud || pendingChanges.length === 0) return;
+        setUploading(true);
+        triggerHaptic?.();
+
+        try {
+            const monitorDeviceId = localStorage.getItem('pda_device_id') || 'monitor_web';
+            const rows = pendingChanges.map(c => ({
                 primary_device_id: pairedDeviceId,
                 monitor_device_id: monitorDeviceId,
                 command_type: 'inventory_update',
-                payload: { action, productId, data },
+                payload: { action: c.action, productId: c.productId, data: c.data },
                 status: 'pending'
-            });
-        if (error) throw error;
-    };
+            }));
 
-    const handleRemoteSubmit = async (action, productId, data) => {
-        triggerHaptic?.();
-        try {
-            await sendSingleCommand(action, productId, data);
-            showToast(action === 'add' ? '¡Producto agregado remotamente!' : '¡Producto editado remotamente!', 'success');
+            const { error } = await supabaseCloud
+                .from('supervisor_commands')
+                .insert(rows);
+
+            if (error) throw error;
+
+            persistPending([]);
+            showToast(`¡${rows.length} cambios enviados a la caja con éxito!`, 'success');
         } catch (err) {
-            console.error('[OwnerMonitorView] Error al enviar comando de inventario:', err);
-            showToast('Error al enviar cambios a la caja', 'error');
+            console.error('[OwnerMonitorView] Error al enviar lote de comandos:', err);
+            showToast('Error al subir cambios a la caja: ' + (err.message || ''), 'error');
+        } finally {
+            setUploading(false);
         }
     };
 
-    const handleStockAdjust = async (product, delta) => {
+    const handleClearPending = () => {
+        if (!window.confirm('¿Descartar todos los cambios borrador de inventario sin enviar a la caja?')) return;
         triggerHaptic?.();
-        try {
-            await sendSingleCommand('adjust_stock', product.id, { delta });
-            showToast(`Ajustando stock de ${product.name} (${delta > 0 ? '+' : ''}${delta})`, 'success');
-        } catch (err) {
-            showToast('Error al ajustar stock en la caja', 'error');
-        }
-    };
-
-    const handleDeleteProduct = async (product) => {
-        if (!window.confirm(`¿Estás seguro de eliminar "${product.name}" remotamente en la caja?`)) return;
-        triggerHaptic?.();
-        try {
-            await sendSingleCommand('delete', product.id, {});
-            showToast(`¡Comando de eliminación enviado a la caja!`, 'success');
-        } catch (err) {
-            showToast('Error al enviar eliminación a la caja', 'error');
-        }
+        persistPending([]);
+        showToast('Borrador de cambios descartado', 'info');
     };
 
     const [currentPageInventario, setCurrentPageInventario] = useState(1);
@@ -1516,6 +1615,46 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                 onSubmit={handleRemoteSubmit}
                 effectiveRate={bcvRate}
             />
+
+            {/* Barra Flotante de Cambios Pendientes en Borrador */}
+            {pendingChanges.length > 0 && (
+                <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[250] w-full max-w-lg px-4 animate-in slide-in-from-bottom-5 duration-300">
+                    <div className="bg-slate-900/95 border border-emerald-500/40 text-white rounded-3xl p-3.5 shadow-2xl backdrop-blur-xl flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-9 h-9 bg-emerald-500/20 text-emerald-400 rounded-xl flex items-center justify-center border border-emerald-500/30 shrink-0 font-black text-sm">
+                                {pendingChanges.length}
+                            </div>
+                            <div className="min-w-0">
+                                <h4 className="text-xs font-bold text-white truncate">
+                                    {pendingChanges.length === 1 ? '1 cambio pendiente en borrador' : `${pendingChanges.length} cambios pendientes en borrador`}
+                                </h4>
+                                <p className="text-[10px] text-slate-400 font-medium truncate">
+                                    Toca "Subir a Caja" para aplicarlos en el POS
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                            <button
+                                onClick={handleClearPending}
+                                disabled={uploading}
+                                className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors text-xs font-bold"
+                                title="Descartar borrador"
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                            <button
+                                onClick={handleUploadPendingChanges}
+                                disabled={uploading}
+                                className="py-2 px-3.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black rounded-2xl text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
+                            >
+                                {uploading ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />}
+                                <span>{uploading ? 'Subiendo...' : 'Subir a Caja'}</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
