@@ -2,8 +2,10 @@
 -- SQL SETUP: Monitoreo Remoto en Tiempo Real (Solo Lectura por QR)
 -- ============================================================
 
--- 1. Crear la tabla de emparejamientos
-CREATE TABLE IF NOT EXISTS public.device_pairings (
+-- 1. Recrear o migrar la tabla de emparejamientos
+DROP TABLE IF EXISTS public.device_pairings CASCADE;
+
+CREATE TABLE public.device_pairings (
     id                 UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     primary_device_id  TEXT NOT NULL UNIQUE,     -- El equipo de caja (licencia activa)
     monitor_device_id  TEXT UNIQUE,              -- El celular del dueño (monitor)
