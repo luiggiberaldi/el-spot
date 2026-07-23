@@ -84,7 +84,6 @@ function _debouncePush(key, value) {
 export const pushCloudSync = async (key, value) => {
     if (!supabaseCloud) return;
     if (isSyncingFromCloud) return;          // Nunca re-emitir lo que llegó de la nube
-    if (!isCloudSyncActive) return;          // Omitir si la sesión cloud no está activa
     if (!SYNC_KEYS.includes(key)) return;
     if (!_currentDeviceId) return;
 
@@ -219,21 +218,7 @@ export function useCloudSync(deviceId) {
                     hasAuth = session && !(session.expires_at && session.expires_at * 1000 < Date.now());
                 } catch (e) {}
 
-                if (!hasAuth) {
-                    // Si no hay sesión, verificamos si está emparejado para permitir sync sin login
-                    const { data: pairing, error: pairingErr } = await supabaseCloud
-                        .from('device_pairings')
-                        .select('id')
-                        .eq('primary_device_id', deviceId)
-                        .maybeSingle();
-
-                    if (pairingErr || !pairing) {
-                        isCloudSyncActive = false;
-                        console.log('[CloudSync] Omitiendo sincronización: sin sesión cloud ni emparejamiento activo.');
-                        return;
-                    }
-                }
-
+                // SEC-010: Activar sincronización para que la caja envíe sus documentos a sync_documents
                 isCloudSyncActive = true;
                 isInitialized.current = true;
 
@@ -286,13 +271,9 @@ export function useCloudSync(deviceId) {
                         const localValue = await lf.getItem(key);
                         if (!localValue) continue;
 
-                        const hashKey = LAST_PUSH_HASH_PREFIX + key;
-                        const currentHash = quickHash(localValue);
-                        if (localStorage.getItem(hashKey) === currentHash) continue;
-
-                        // Subimos los datos locales a la base de datos para sincronizar el historial
                         await pushCloudSync(key, localValue);
-                        localStorage.setItem(hashKey, currentHash);
+                        const hashKey = LAST_PUSH_HASH_PREFIX + key;
+                        localStorage.setItem(hashKey, quickHash(localValue));
                     }
                 } catch (e) {
                     // Silencioso

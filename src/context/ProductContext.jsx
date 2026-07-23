@@ -205,6 +205,9 @@ export function ProductProvider({ children, rates, rateDiscrepancyWarning }) {
             return;
         }
 
+        // Evitar auto-guardar si la lista de productos está vacía para no sobrescribir datos sincronizados
+        if (products.length === 0 && productsRef.current.length === 0) return;
+
         // Setear el guard ANTES de agendar el timeout (HOOK-018).
         savingRef.current = true;
 
@@ -212,8 +215,6 @@ export function ProductProvider({ children, rates, rateDiscrepancyWarning }) {
             const savePromises = [];
             if (products.length > 0) {
                 savePromises.push(storageService.setItem('bodega_products_v1', products));
-            } else {
-                savePromises.push(storageService.removeItem('bodega_products_v1'));
             }
             savePromises.push(storageService.setItem('my_categories_v1', categories));
             Promise.all(savePromises).finally(() => {
@@ -224,9 +225,6 @@ export function ProductProvider({ children, rates, rateDiscrepancyWarning }) {
 
         return () => {
             clearTimeout(timer);
-            // Si el efecto se re-corre antes del fire (cambio rápido de products),
-            // dejamos el guard en true — el siguiente run lo reseteará al final.
-            // No tocamos savingRef aquí: lo gestiona el callback del setTimeout.
         };
     }, [products, categories, isLoadingProducts]);
 
@@ -292,16 +290,20 @@ export function ProductProvider({ children, rates, rateDiscrepancyWarning }) {
         };
 
         const handleAppStorageUpdate = async (e) => {
-            if (savingRef.current) return;
             const key = e.detail?.key;
             if (!key) return;
 
             if (key === 'bodega_products_v1') {
                 const updatedProducts = await storageService.getItem('bodega_products_v1', []);
-                if (JSON.stringify(updatedProducts) !== JSON.stringify(productsRef.current)) {
-                    setProducts(updatedProducts);
+                if (Array.isArray(updatedProducts)) {
+                    if (JSON.stringify(updatedProducts) !== JSON.stringify(productsRef.current)) {
+                        setProducts(updatedProducts);
+                    }
                 }
+                return;
             }
+
+            if (savingRef.current) return;
             if (key === 'my_categories_v1') {
                 const updatedCategories = await storageService.getItem('my_categories_v1', BODEGA_CATEGORIES);
                 setCategories(updatedCategories);
