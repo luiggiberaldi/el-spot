@@ -735,10 +735,10 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
             {/* Contenido Principal */}
             <main className="max-w-7xl mx-auto px-4 mt-6 space-y-6">
                 {/* Selector de Pestañas */}
-                <div className="flex bg-slate-200/60 dark:bg-slate-900/60 p-1 rounded-2xl w-full max-w-sm shadow-sm">
+                <div className="flex bg-slate-200/60 dark:bg-slate-900/60 p-1 rounded-2xl w-full max-w-md shadow-sm overflow-x-auto custom-scrollbar">
                     <button
                         onClick={() => { triggerHaptic?.(); setViewTab('activo'); }}
-                        className={`flex-1 py-2 text-[10px] sm:text-xs font-black rounded-xl transition-all ${
+                        className={`flex-1 py-2 px-3 text-[10px] sm:text-xs font-black rounded-xl transition-all shrink-0 whitespace-nowrap ${
                             viewTab === 'activo' 
                                 ? 'bg-white dark:bg-slate-800 text-slate-850 dark:text-white shadow-sm' 
                                 : 'text-slate-400 hover:text-slate-650 dark:hover:text-slate-200'
@@ -748,7 +748,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                     </button>
                     <button
                         onClick={() => { triggerHaptic?.(); setViewTab('cierres'); }}
-                        className={`flex-1 py-2 text-[10px] sm:text-xs font-black rounded-xl transition-all ${
+                        className={`flex-1 py-2 px-3 text-[10px] sm:text-xs font-black rounded-xl transition-all shrink-0 whitespace-nowrap ${
                             viewTab === 'cierres' 
                                 ? 'bg-white dark:bg-slate-800 text-slate-850 dark:text-white shadow-sm' 
                                 : 'text-slate-400 hover:text-slate-650 dark:hover:text-slate-200'
@@ -758,7 +758,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                     </button>
                     <button
                         onClick={() => { triggerHaptic?.(); setViewTab('inventario'); }}
-                        className={`flex-1 py-2 text-[10px] sm:text-xs font-black rounded-xl transition-all ${
+                        className={`flex-1 py-2 px-3 text-[10px] sm:text-xs font-black rounded-xl transition-all shrink-0 whitespace-nowrap ${
                             viewTab === 'inventario' 
                                 ? 'bg-white dark:bg-slate-800 text-slate-850 dark:text-white shadow-sm' 
                                 : 'text-slate-400 hover:text-slate-650 dark:hover:text-slate-200'
@@ -1168,8 +1168,9 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                                             <p className="text-[10px] text-slate-500 mt-0.5">El cajero completó el cierre de caja sin declarar el saldo físico.</p>
                                                         </div>
                                                     ) : (
-                                                        <div className="border border-slate-100 dark:border-slate-800 rounded-2xl overflow-hidden text-xs">
-                                                            <div className="grid grid-cols-4 gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-850/50 text-[10px] font-black text-slate-400 uppercase border-b border-slate-150 dark:border-slate-800">
+                                                        <div className="border border-slate-100 dark:border-slate-800 rounded-2xl overflow-x-auto custom-scrollbar text-xs">
+                                                            <div className="min-w-[320px]">
+                                                                <div className="grid grid-cols-4 gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-850/50 text-[10px] font-black text-slate-400 uppercase border-b border-slate-150 dark:border-slate-800">
                                                                 <span>Moneda</span>
                                                                 <span className="text-center">Esperado</span>
                                                                 <span className="text-center">Declarado</span>
@@ -1222,7 +1223,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                                                         {(declaredCop - activeC.reconData.expectedCop).toLocaleString()}
                                                                     </span>
                                                                 </div>
-                                                            )}
+                                                            </div>
                                                         </div>
                                                     )}
                                                 </div>
@@ -1465,9 +1466,9 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                                 </div>
 
                                                 {/* Derecha: Valores y Stock */}
-                                                <div className="flex items-center justify-between sm:justify-end gap-6 shrink-0">
+                                                <div className="flex flex-wrap sm:flex-nowrap items-center justify-between sm:justify-end gap-3 sm:gap-6 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800/60">
                                                     {/* Costo, Venta, Margen */}
-                                                    <div className="grid grid-cols-3 gap-4 text-right">
+                                                    <div className="grid grid-cols-3 gap-2 sm:gap-4 text-right flex-1 sm:flex-none">
                                                         {/* Costo */}
                                                         <div>
                                                             <span className="text-[8px] text-slate-400 uppercase font-black block">Costo</span>
@@ -1643,7 +1644,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
 
             {/* Barra Flotante de Cambios Pendientes en Borrador */}
             {pendingChanges.length > 0 && (
-                <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[250] w-full max-w-lg px-4 animate-in slide-in-from-bottom-5 duration-300">
+                <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[250] w-full max-w-lg px-3 sm:px-4 animate-in slide-in-from-bottom-5 duration-300 pb-[env(safe-area-inset-bottom)]">
                     <div className="bg-slate-900/95 border border-emerald-500/40 text-white rounded-3xl p-3.5 shadow-2xl backdrop-blur-xl flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2.5 min-w-0">
                             <div className="w-9 h-9 bg-emerald-500/20 text-emerald-400 rounded-xl flex items-center justify-center border border-emerald-500/30 shrink-0 font-black text-sm">

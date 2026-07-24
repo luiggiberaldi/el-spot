@@ -75,7 +75,7 @@ export default function SupervisorRateModal({ isOpen, onClose, rates, primaryDev
 
     return (
         <div className="fixed inset-0 z-[300] bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
-            <div className="bg-slate-900 border border-slate-800 rounded-[2rem] p-6 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col gap-5 text-white">
+            <div className="bg-slate-900 border border-slate-800 rounded-[2rem] p-5 sm:p-6 max-w-sm w-full max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col gap-4 sm:gap-5 text-white">
                 {/* Header */}
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2.5">
