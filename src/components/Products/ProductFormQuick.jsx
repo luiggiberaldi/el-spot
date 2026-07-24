@@ -124,18 +124,18 @@ export default function ProductFormQuick({
 
     return (
         <div className="space-y-4">
-            {/* File Upload Zone — Layout Horizontal Compacto 1:1 */}
-            <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 select-none">
+            {/* File Upload Zone — Layout Horizontal / Vertical Adaptable 1:1 */}
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3 sm:gap-4 bg-slate-50 dark:bg-slate-800/60 p-3 sm:p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 select-none text-center sm:text-left">
                 {/* Previsualización Cuadrada 1:1 */}
                 <div 
                     onClick={() => fileInputRef.current?.click()} 
-                    className="w-28 h-28 shrink-0 bg-white dark:bg-slate-900 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-emerald-500 transition-colors relative overflow-hidden group"
+                    className="w-24 h-24 sm:w-28 sm:h-28 shrink-0 bg-white dark:bg-slate-900 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-emerald-500 transition-colors relative overflow-hidden group"
                 >
                     {image ? (
                         <img src={image} className="w-full h-full object-contain p-1" alt="Product preview" />
                     ) : (
                         <>
-                            <Camera size={26} className="text-slate-400 group-hover:text-emerald-500 transition-colors mb-1" />
+                            <Camera size={24} className="text-slate-400 group-hover:text-emerald-500 transition-colors mb-1" />
                             <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider text-center px-1">Subir Foto</span>
                         </>
                     )}
@@ -143,16 +143,16 @@ export default function ProductFormQuick({
                 </div>
 
                 {/* Panel Informativo y Acciones */}
-                <div className="flex-1 min-w-0 flex flex-col justify-center gap-1.5">
+                <div className="flex-1 min-w-0 flex flex-col justify-center items-center sm:items-start gap-1.5 w-full">
                     <div>
                         <p className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Foto del Producto</p>
                         <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 leading-snug mt-0.5">Formato recomendado: PNG, JPG o WEBP (1:1).</p>
                     </div>
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-1 w-full">
                         <button 
                             type="button" 
                             onClick={() => fileInputRef.current?.click()} 
-                            className="px-3 py-2 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 rounded-xl font-black text-xs transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                            className="flex-1 sm:flex-none px-3 py-2 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 rounded-xl font-black text-xs transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
                         >
                             <Camera size={14} />
                             <span>{image ? 'Cambiar foto' : 'Subir imagen'}</span>
@@ -162,7 +162,7 @@ export default function ProductFormQuick({
                             <button 
                                 type="button" 
                                 onClick={() => setImage('')} 
-                                className="px-3 py-2 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/60 hover:bg-red-100 dark:hover:bg-red-900/60 rounded-xl font-black text-xs transition-all active:scale-95 flex items-center gap-1 cursor-pointer"
+                                className="flex-1 sm:flex-none px-3 py-2 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/60 hover:bg-red-100 dark:hover:bg-red-900/60 rounded-xl font-black text-xs transition-all active:scale-95 flex items-center justify-center gap-1 cursor-pointer"
                             >
                                 <X size={14} />
                                 <span>Eliminar</span>
@@ -290,13 +290,13 @@ export default function ProductFormQuick({
                                 <button key={pt.id}
                                     type="button"
                                     onClick={() => setPackagingType(pt.id)}
-                                    className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all active:scale-95 ${selected
+                                    className={`flex flex-col items-center gap-1 p-2 sm:p-3 rounded-xl border-2 transition-all active:scale-95 ${selected
                                         ? colorMap[pt.color]
                                         : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-slate-300'
                                         }`}>
-                                    <pt.Icon size={22} strokeWidth={2} className={selected ? textColor[pt.color] : 'text-slate-400'} />
+                                    <pt.Icon size={20} strokeWidth={2} className={selected ? textColor[pt.color] : 'text-slate-400'} />
                                     <span className={`text-[10px] font-black uppercase ${selected ? textColor[pt.color] : 'text-slate-500'}`}>{pt.label}</span>
-                                    <span className="text-[8px] text-slate-400 leading-tight text-center">{pt.desc}</span>
+                                    <span className="text-[8px] text-slate-400 leading-tight text-center hidden sm:block">{pt.desc}</span>
                                 </button>
                             );
                         })}
@@ -466,14 +466,14 @@ export default function ProductFormQuick({
                                 : 'bg-slate-50/80 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-700/60'
                         }`}>
                             {/* Cabecera con Tasa BCV oficial en tiempo real */}
-                            <div className="flex items-start justify-between gap-2">
-                                <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                                <div className="flex items-start gap-2.5 min-w-0">
                                     <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all ${
                                         has2 ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-xs ring-2 ring-blue-600/20' : 'bg-slate-200 dark:bg-slate-700 text-slate-400'
                                     }`}>
                                         <Building2 size={16} />
                                     </div>
-                                    <div className="min-w-0">
+                                    <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2 flex-wrap">
                                             <p className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">Precio en Bolívares / BCV</p>
                                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[9px] font-black rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700/50 shrink-0">
@@ -485,14 +485,14 @@ export default function ProductFormQuick({
                                 </div>
 
                                 {/* Selector de segmentos */}
-                                <div className="flex items-center bg-slate-200/70 dark:bg-slate-800 p-0.5 rounded-xl shrink-0 border border-slate-300/40 dark:border-slate-700/50">
+                                <div className="flex items-center bg-slate-200/70 dark:bg-slate-800 p-0.5 rounded-xl shrink-0 border border-slate-300/40 dark:border-slate-700/50 w-full sm:w-auto">
                                     <button
                                         type="button"
                                         onClick={() => {
                                             setIsPrice2Active(false);
                                             handlePrice2UsdChange('');
                                         }}
-                                        className={`px-2.5 py-1 text-[9px] font-black rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                                        className={`flex-1 sm:flex-none justify-center px-2.5 py-1.5 text-[9px] font-black rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
                                             !has2 ? 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 shadow-xs' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600'
                                         }`}
                                     >
@@ -508,7 +508,7 @@ export default function ProductFormQuick({
                                                 handlePrice2UsdChange(suggested);
                                             }
                                         }}
-                                        className={`px-2.5 py-1 text-[9px] font-black rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                                        className={`flex-1 sm:flex-none justify-center px-2.5 py-1.5 text-[9px] font-black rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
                                             has2 ? 'bg-blue-600 text-white shadow-xs ring-1 ring-blue-500/30' : 'text-slate-400 dark:text-slate-500 hover:text-blue-600'
                                         }`}
                                     >
@@ -524,11 +524,11 @@ export default function ProductFormQuick({
                                 const p2BsSugFormatted = p2BsSugNum.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                                 return (
                                     <div className="mt-3 space-y-2.5">
-                                        <div className="flex items-center justify-between gap-2 p-2.5 px-3 bg-blue-500/10 dark:bg-blue-900/30 border border-blue-200/80 dark:border-blue-700/50 rounded-xl">
-                                            <div className="flex items-center gap-2 min-w-0">
-                                                <TrendingUp size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />
-                                                <p className="text-xs font-extrabold text-blue-800 dark:text-blue-200 truncate">
-                                                    Sugerido (+{bcvMarginNum}% Tienda): <span className="font-black text-blue-950 dark:text-white">${p2UsdSug} USD</span> <span className="text-blue-500 font-black">➜</span> <span className="font-black text-blue-950 dark:text-white">Bs {p2BsSugFormatted}</span>
+                                        <div className="flex items-center justify-between gap-2 p-2 px-3 bg-blue-500/10 dark:bg-blue-900/30 border border-blue-200/80 dark:border-blue-700/50 rounded-xl">
+                                            <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                                                <TrendingUp size={13} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                                                <p className="text-[10px] sm:text-xs font-bold text-blue-800 dark:text-blue-200">
+                                                    Sugerido (+{bcvMarginNum}% Tienda): <span className="font-black text-blue-950 dark:text-white">${p2UsdSug} USD</span> <span className="text-blue-500 font-bold">➜</span> <span className="font-black text-blue-950 dark:text-white">Bs {p2BsSugFormatted}</span>
                                                 </p>
                                             </div>
                                             {!has2 && (
@@ -538,7 +538,7 @@ export default function ProductFormQuick({
                                                         setIsPrice2Active(true);
                                                         handlePrice2UsdChange(p2UsdSug);
                                                     }}
-                                                    className="text-[9px] font-black bg-blue-600 text-white px-2.5 py-1.5 rounded-lg hover:bg-blue-700 active:scale-95 transition-all cursor-pointer uppercase shrink-0 shadow-xs flex items-center gap-1"
+                                                    className="text-[9px] font-black bg-blue-600 text-white px-2 py-1 rounded-lg hover:bg-blue-700 active:scale-95 transition-all cursor-pointer uppercase shrink-0 shadow-xs flex items-center gap-1"
                                                 >
                                                     <CheckCircle size={10} /> Usar +{bcvMarginNum}%
                                                 </button>
@@ -573,7 +573,7 @@ export default function ProductFormQuick({
                                                         : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-blue-100 dark:hover:bg-blue-900/40 hover:text-blue-700'
                                                 }`}
                                             >
-                                                <SlidersHorizontal size={13} /> {customPctCalc !== null && customPctCalc > 0 ? `+${customPctCalc}% Custom` : 'Personalizado'}
+                                                <SlidersHorizontal size={13} /> {customPctCalc !== null && customPctCalc > 0 ? `+${customPctCalc}% Personalizado` : 'Personalizado'}
                                             </button>
 
                                             {showCustomPct && (

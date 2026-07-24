@@ -1432,8 +1432,15 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                     const isAgotado = stock <= 0;
                                     const isBajo = !isAgotado && stock <= minStock;
                                     const costVal = p.costUsd || p.costPrice || 0;
-                                    const profitUsd = Math.max(0, p.priceUsd - costVal);
-                                    const profitPct = p.priceUsd > 0 ? Math.round((profitUsd / p.priceUsd) * 100) : 0;
+                                    const bcvPriceUsd = (p.price2Usd && p.price2Usd > 0) ? p.price2Usd : p.priceUsd;
+                                    const bcvBsTotal = bcvPriceUsd * (bcvRate || 0);
+
+                                    const rawUsdt = rates?.usdt?.price ?? 0;
+                                    const usdtRateVal = (rawUsdt > (bcvRate || 0) && rawUsdt > 0) ? rawUsdt : (bcvRate || 0);
+
+                                    const realUsdtVal = (bcvBsTotal > 0 && usdtRateVal > 0) ? (bcvBsTotal / usdtRateVal) : bcvPriceUsd;
+                                    const realProfitUsd = realUsdtVal - costVal;
+                                    const realProfitPct = costVal > 0 ? Math.round((realProfitUsd / costVal) * 100) : (p.priceUsd > 0 ? Math.round((realProfitUsd / p.priceUsd) * 100) : 0);
 
                                     return (
                                         <div key={p.id} className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-4 sm:p-5 shadow-sm hover:shadow-md hover:border-emerald-500/30 dark:hover:border-emerald-500/30 transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 sm:gap-4">
@@ -1493,24 +1500,37 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
 
                                             {/* Sección de Datos Financieros + Stock Adjuster */}
                                             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 lg:gap-6 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100 dark:border-slate-800/60">
-                                                {/* Bloque Financiero: Costo, Venta, Ganancia en 3 Mini Cajas */}
-                                                <div className="grid grid-cols-3 gap-2 bg-slate-50/80 dark:bg-slate-800/30 p-2 rounded-2xl border border-slate-100 dark:border-slate-800/50 sm:bg-transparent sm:dark:bg-transparent sm:border-none sm:p-0 sm:gap-4 text-center sm:text-right">
+                                                {/* Bloque Financiero: Costo, Venta USD, Precio BCV (Bs), Ganancia Real (USDT) */}
+                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50/80 dark:bg-slate-800/30 p-2.5 rounded-2xl border border-slate-100 dark:border-slate-800/50 text-center sm:text-right">
                                                     {/* Costo */}
-                                                    <div className="flex flex-col justify-center">
+                                                    <div className="flex flex-col justify-center p-1 sm:p-0">
                                                         <span className="text-[8px] text-slate-400 uppercase font-black block">Costo</span>
-                                                        <span className="font-outfit text-xs font-black text-slate-500 tabular-nums">${(p.costUsd || p.costPrice || 0).toFixed(2)}</span>
+                                                        <span className="font-outfit text-xs font-black text-slate-500 tabular-nums">${costVal.toFixed(2)}</span>
                                                     </div>
-                                                    {/* Venta */}
-                                                    <div className="flex flex-col justify-center border-x border-slate-200/50 dark:border-slate-700/40 px-1 sm:border-none sm:px-0">
-                                                        <span className="text-[8px] text-slate-400 uppercase font-black block">Venta</span>
+                                                    {/* Venta (USD) */}
+                                                    <div className="flex flex-col justify-center border-l sm:border-l-0 border-slate-200/50 dark:border-slate-700/40 p-1 sm:p-0">
+                                                        <span className="text-[8px] text-slate-400 uppercase font-black block">Venta (USD)</span>
                                                         <span className="font-outfit text-xs font-black text-slate-800 dark:text-white tabular-nums block">${p.priceUsd.toFixed(2)}</span>
-                                                        <span className="font-outfit text-[8px] text-slate-400 block tabular-nums leading-none mt-0.5">{bcvRate ? `${formatBs(p.priceUsd * bcvRate)} Bs` : 'N/D'}</span>
                                                     </div>
-                                                    {/* Ganancia */}
-                                                    <div className="flex flex-col justify-center">
-                                                        <span className="text-[8px] text-slate-400 uppercase font-black block">Ganancia</span>
-                                                        <span className="font-outfit text-xs font-black text-blue-600 dark:text-blue-400 tabular-nums block">${profitUsd.toFixed(2)}</span>
-                                                        <span className="text-[8px] text-slate-400 block font-bold leading-none mt-0.5">+{profitPct}%</span>
+                                                    {/* Cobro BCV (Bs) */}
+                                                    <div className="flex flex-col justify-center border-t sm:border-t-0 border-slate-200/50 dark:border-slate-700/40 p-1 sm:p-0">
+                                                        <span className="text-[8px] text-emerald-600 dark:text-emerald-400 uppercase font-black block">Precio BCV (Bs)</span>
+                                                        <span className="font-outfit text-xs font-black text-emerald-600 dark:text-emerald-400 tabular-nums block">
+                                                            {bcvRate ? `${formatBs(bcvBsTotal)} Bs` : 'N/D'}
+                                                        </span>
+                                                        {p.price2Usd && p.price2Usd !== p.priceUsd && (
+                                                            <span className="font-outfit text-[8px] font-bold text-emerald-500 block leading-none mt-0.5">(${p.price2Usd.toFixed(2)} BCV)</span>
+                                                        )}
+                                                    </div>
+                                                    {/* Ganancia Real USDT */}
+                                                    <div className="flex flex-col justify-center border-t sm:border-t-0 border-l border-slate-200/50 dark:border-slate-700/40 p-1 sm:p-0 bg-blue-50/50 dark:bg-blue-950/20 sm:bg-transparent sm:dark:bg-transparent rounded-xl sm:rounded-none">
+                                                        <span className="text-[8px] text-blue-600 dark:text-blue-400 uppercase font-black block">Ganancia Real (USDT)</span>
+                                                        <span className="font-outfit text-xs font-black text-blue-600 dark:text-blue-400 tabular-nums block">
+                                                            {realProfitUsd >= 0 ? `+$${realProfitUsd.toFixed(2)}` : `-$${Math.abs(realProfitUsd).toFixed(2)}`} USDT
+                                                        </span>
+                                                        <span className="text-[8px] font-bold text-blue-500 dark:text-blue-300 block leading-none mt-0.5">
+                                                            {realProfitPct >= 0 ? `+${realProfitPct}%` : `${realProfitPct}%`}
+                                                        </span>
                                                     </div>
                                                 </div>
 
