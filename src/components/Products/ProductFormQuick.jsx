@@ -526,7 +526,6 @@ export default function ProductFormQuick({
                                     <div className="mt-3 space-y-2.5">
                                         <div className="flex items-center justify-between gap-2 p-2 px-3 bg-blue-500/10 dark:bg-blue-900/30 border border-blue-200/80 dark:border-blue-700/50 rounded-xl">
                                             <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                                                <TrendingUp size={13} className="text-blue-600 dark:text-blue-400 shrink-0" />
                                                 <p className="text-[10px] sm:text-xs font-bold text-blue-800 dark:text-blue-200">
                                                     Sugerido (+{bcvMarginNum}% Tienda): <span className="font-black text-blue-950 dark:text-white">${p2UsdSug} USD</span> <span className="text-blue-500 font-bold">➜</span> <span className="font-black text-blue-950 dark:text-white">Bs {p2BsSugFormatted}</span>
                                                 </p>
