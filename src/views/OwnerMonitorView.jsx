@@ -735,36 +735,38 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
             {/* Contenido Principal */}
             <main className="max-w-7xl mx-auto px-4 mt-6 space-y-6">
                 {/* Selector de Pestañas */}
-                <div className="flex bg-slate-200/60 dark:bg-slate-900/60 p-1 rounded-2xl w-full max-w-md shadow-sm overflow-x-auto custom-scrollbar">
+                <div className="flex bg-slate-200/60 dark:bg-slate-900/60 p-1 rounded-2xl w-full max-w-md shadow-sm">
                     <button
                         onClick={() => { triggerHaptic?.(); setViewTab('activo'); }}
-                        className={`flex-1 py-2 px-3 text-[10px] sm:text-xs font-black rounded-xl transition-all shrink-0 whitespace-nowrap ${
+                        className={`flex-1 py-2 px-2.5 text-center text-[10px] sm:text-xs font-black rounded-xl transition-all shrink-0 ${
                             viewTab === 'activo' 
                                 ? 'bg-white dark:bg-slate-800 text-slate-850 dark:text-white shadow-sm' 
                                 : 'text-slate-400 hover:text-slate-650 dark:hover:text-slate-200'
                         }`}
                     >
-                        Turno Activo (En Vivo)
+                        <span className="sm:hidden">Turno Activo</span>
+                        <span className="hidden sm:inline">Turno Activo (En Vivo)</span>
                     </button>
                     <button
                         onClick={() => { triggerHaptic?.(); setViewTab('cierres'); }}
-                        className={`flex-1 py-2 px-3 text-[10px] sm:text-xs font-black rounded-xl transition-all shrink-0 whitespace-nowrap ${
+                        className={`flex-1 py-2 px-2.5 text-center text-[10px] sm:text-xs font-black rounded-xl transition-all shrink-0 ${
                             viewTab === 'cierres' 
                                 ? 'bg-white dark:bg-slate-800 text-slate-850 dark:text-white shadow-sm' 
                                 : 'text-slate-400 hover:text-slate-650 dark:hover:text-slate-200'
                         }`}
                     >
-                        Cierres de Caja
+                        <span className="sm:hidden">Cierres</span>
+                        <span className="hidden sm:inline">Cierres de Caja</span>
                     </button>
                     <button
                         onClick={() => { triggerHaptic?.(); setViewTab('inventario'); }}
-                        className={`flex-1 py-2 px-3 text-[10px] sm:text-xs font-black rounded-xl transition-all shrink-0 whitespace-nowrap ${
+                        className={`flex-1 py-2 px-2.5 text-center text-[10px] sm:text-xs font-black rounded-xl transition-all shrink-0 ${
                             viewTab === 'inventario' 
                                 ? 'bg-white dark:bg-slate-800 text-slate-850 dark:text-white shadow-sm' 
                                 : 'text-slate-400 hover:text-slate-650 dark:hover:text-slate-200'
                         }`}
                     >
-                        Inventario
+                        <span>Inventario</span>
                     </button>
                 </div>
 
@@ -1223,6 +1225,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                                                         {(declaredCop - activeC.reconData.expectedCop).toLocaleString()}
                                                                     </span>
                                                                 </div>
+                                                            )}
                                                             </div>
                                                         </div>
                                                     )}
@@ -1362,52 +1365,52 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                             </div>
 
                             {/* Filtro de Segmentación de Stock */}
-                            <div className="flex flex-wrap items-center gap-2">
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto">
                                 <button
                                     onClick={() => {
                                         triggerHaptic?.();
                                         setRemoteEditingProduct(null);
                                         setShowRemoteForm(true);
                                     }}
-                                    className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all shrink-0"
+                                    className="w-full sm:w-auto px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs rounded-2xl flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all shrink-0"
                                 >
                                     <Plus size={15} />
                                     <span>Nuevo Producto</span>
                                 </button>
 
-                                <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-2xl border border-slate-200/60 dark:border-slate-850 shrink-0 shadow-inner">
-                                <button
-                                    onClick={() => { triggerHaptic?.(); setFilterStockInventario('todos'); }}
-                                    className={`px-3 py-1.5 text-[10px] sm:text-xs font-black rounded-xl transition-all ${
-                                        filterStockInventario === 'todos'
-                                            ? 'bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm'
-                                            : 'text-slate-450 hover:text-slate-650 dark:hover:text-slate-350'
-                                    }`}
-                                >
-                                    Todos ({inventoryMetrics.count})
-                                </button>
-                                <button
-                                    onClick={() => { triggerHaptic?.(); setFilterStockInventario('bajo'); }}
-                                    className={`px-3 py-1.5 text-[10px] sm:text-xs font-black rounded-xl transition-all flex items-center gap-1 ${
-                                        filterStockInventario === 'bajo'
-                                            ? 'bg-amber-500 text-white shadow-sm'
-                                            : 'text-amber-600 dark:text-amber-400 hover:text-amber-700'
-                                    }`}
-                                >
-                                    Bajo Stock ({inventoryMetrics.lowStockCount})
-                                </button>
-                                <button
-                                    onClick={() => { triggerHaptic?.(); setFilterStockInventario('agotado'); }}
-                                    className={`px-3 py-1.5 text-[10px] sm:text-xs font-black rounded-xl transition-all flex items-center gap-1 ${
-                                        filterStockInventario === 'agotado'
-                                            ? 'bg-rose-500 text-white shadow-sm'
-                                            : 'text-rose-600 dark:text-rose-400 hover:text-rose-700'
-                                    }`}
-                                >
-                                    Agotados ({inventoryMetrics.outOfStockCount})
-                                </button>
+                                <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-2xl border border-slate-200/60 dark:border-slate-850 w-full sm:w-auto overflow-x-auto custom-scrollbar shadow-inner">
+                                    <button
+                                        onClick={() => { triggerHaptic?.(); setFilterStockInventario('todos'); }}
+                                        className={`flex-1 shrink-0 whitespace-nowrap px-3 py-1.5 text-[10px] sm:text-xs font-black rounded-xl transition-all ${
+                                            filterStockInventario === 'todos'
+                                                ? 'bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm'
+                                                : 'text-slate-450 hover:text-slate-650 dark:hover:text-slate-350'
+                                        }`}
+                                    >
+                                        Todos ({inventoryMetrics.count})
+                                    </button>
+                                    <button
+                                        onClick={() => { triggerHaptic?.(); setFilterStockInventario('bajo'); }}
+                                        className={`flex-1 shrink-0 whitespace-nowrap px-3 py-1.5 text-[10px] sm:text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1 ${
+                                            filterStockInventario === 'bajo'
+                                                ? 'bg-amber-500 text-white shadow-sm'
+                                                : 'text-amber-600 dark:text-amber-400 hover:text-amber-700'
+                                        }`}
+                                    >
+                                        Bajo Stock ({inventoryMetrics.lowStockCount})
+                                    </button>
+                                    <button
+                                        onClick={() => { triggerHaptic?.(); setFilterStockInventario('agotado'); }}
+                                        className={`flex-1 shrink-0 whitespace-nowrap px-3 py-1.5 text-[10px] sm:text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1 ${
+                                            filterStockInventario === 'agotado'
+                                                ? 'bg-rose-500 text-white shadow-sm'
+                                                : 'text-rose-600 dark:text-rose-400 hover:text-rose-700'
+                                        }`}
+                                    >
+                                        Agotados ({inventoryMetrics.outOfStockCount})
+                                    </button>
+                                </div>
                             </div>
-                        </div>
                         </div>
 
                         {/* Listado de Productos */}
@@ -1434,78 +1437,102 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                         const profitPct = p.priceUsd > 0 ? Math.round((profitUsd / p.priceUsd) * 100) : 0;
 
                                         return (
-                                            <div key={p.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/10 transition-colors">
-                                                {/* Izquierda: Info de Producto */}
-                                                <div className="flex-1 min-w-0 pr-2">
-                                                    <div className="flex items-center gap-2 flex-wrap">
-                                                        <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase leading-tight truncate">{p.name}</h4>
-                                                        <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
-                                                            isAgotado 
-                                                                ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-400' 
-                                                                : isBajo 
-                                                                    ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400' 
-                                                                    : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400'
-                                                        }`}>
-                                                            {isAgotado ? 'Agotado' : isBajo ? 'Bajo Stock' : 'Disponible'}
-                                                        </span>
-                                                        {p.hasWarranty && (p.warrantyDays > 0 || p.warrantyDays === null) && (
-                                                            <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 flex items-center gap-1">
-                                                                <ShieldCheck size={9} />
-                                                                {p.warrantyDays ? `${p.warrantyDays}d Garantía` : 'Garantía'}
+                                            <div key={p.id} className="p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 sm:gap-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/10 transition-colors">
+                                                {/* Encabezado: Nombre, Badges y Acciones (Editar/Borrar) */}
+                                                <div className="flex items-start justify-between gap-3 min-w-0">
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            <h4 className="text-xs sm:text-sm font-black text-slate-800 dark:text-white uppercase leading-tight">{p.name}</h4>
+                                                            <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full shrink-0 ${
+                                                                isAgotado 
+                                                                    ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-400' 
+                                                                    : isBajo 
+                                                                        ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400' 
+                                                                        : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400'
+                                                            }`}>
+                                                                {isAgotado ? 'Agotado' : isBajo ? 'Bajo Stock' : 'Disponible'}
                                                             </span>
-                                                        )}
+                                                            {p.hasWarranty && (p.warrantyDays > 0 || p.warrantyDays === null) && (
+                                                                <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 flex items-center gap-1 shrink-0">
+                                                                    <ShieldCheck size={9} />
+                                                                    {p.warrantyDays ? `${p.warrantyDays}d Garantía` : 'Garantía'}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center gap-3 text-[10px] text-slate-400 mt-1 font-medium flex-wrap">
+                                                            {p.barcode && (
+                                                                <span className="flex items-center gap-1">
+                                                                    <Hash size={10} /> {p.barcode}
+                                                                </span>
+                                                            )}
+                                                            <span>Categoría: {toTitleCase(p.category || 'Varios')}</span>
+                                                        </div>
                                                     </div>
-                                                    <div className="flex items-center gap-3 text-[10px] text-slate-400 mt-1 font-medium">
-                                                        {p.barcode && (
-                                                            <span className="flex items-center gap-1">
-                                                                <Hash size={10} /> {p.barcode}
-                                                            </span>
-                                                        )}
-                                                        <span>Categoría: {toTitleCase(p.category || 'Varios')}</span>
+
+                                                    {/* Acciones Editar y Borrar en Móvil & Desktop */}
+                                                    <div className="flex items-center gap-1 shrink-0 bg-slate-100/70 dark:bg-slate-800/50 p-1 rounded-xl">
+                                                        <button
+                                                            onClick={() => {
+                                                                triggerHaptic?.();
+                                                                setRemoteEditingProduct(p);
+                                                                setShowRemoteForm(true);
+                                                            }}
+                                                            className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-500 hover:bg-white dark:hover:bg-slate-700 transition-colors"
+                                                            title="Editar producto remotamente"
+                                                        >
+                                                            <Pencil size={14} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteProduct(p)}
+                                                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-500 hover:bg-white dark:hover:bg-slate-700 transition-colors"
+                                                            title="Eliminar producto remotamente"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
                                                     </div>
                                                 </div>
 
-                                                {/* Derecha: Valores y Stock */}
-                                                <div className="flex flex-wrap sm:flex-nowrap items-center justify-between sm:justify-end gap-3 sm:gap-6 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800/60">
-                                                    {/* Costo, Venta, Margen */}
-                                                    <div className="grid grid-cols-3 gap-2 sm:gap-4 text-right flex-1 sm:flex-none">
+                                                {/* Sección de Datos Financieros + Stock Adjuster */}
+                                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 lg:gap-6 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100 dark:border-slate-800/60">
+                                                    {/* Bloque Financiero: Costo, Venta, Ganancia en 3 Mini Cajas */}
+                                                    <div className="grid grid-cols-3 gap-2 bg-slate-50/80 dark:bg-slate-800/30 p-2 rounded-2xl border border-slate-100 dark:border-slate-800/50 sm:bg-transparent sm:dark:bg-transparent sm:border-none sm:p-0 sm:gap-4 text-center sm:text-right">
                                                         {/* Costo */}
-                                                        <div>
+                                                        <div className="flex flex-col justify-center">
                                                             <span className="text-[8px] text-slate-400 uppercase font-black block">Costo</span>
                                                             <span className="font-outfit text-xs font-black text-slate-500 tabular-nums">${(p.costUsd || p.costPrice || 0).toFixed(2)}</span>
                                                         </div>
                                                         {/* Venta */}
-                                                        <div>
-                                                            <span className="text-[8px] text-slate-400 uppercase font-black block">Venta (USD/Bs)</span>
+                                                        <div className="flex flex-col justify-center border-x border-slate-200/50 dark:border-slate-700/40 px-1 sm:border-none sm:px-0">
+                                                            <span className="text-[8px] text-slate-400 uppercase font-black block">Venta</span>
                                                             <span className="font-outfit text-xs font-black text-slate-800 dark:text-white tabular-nums block">${p.priceUsd.toFixed(2)}</span>
                                                             <span className="font-outfit text-[8px] text-slate-400 block tabular-nums leading-none mt-0.5">{bcvRate ? `${formatBs(p.priceUsd * bcvRate)} Bs` : 'N/D'}</span>
                                                         </div>
                                                         {/* Ganancia */}
-                                                        <div>
+                                                        <div className="flex flex-col justify-center">
                                                             <span className="text-[8px] text-slate-400 uppercase font-black block">Ganancia</span>
                                                             <span className="font-outfit text-xs font-black text-blue-600 dark:text-blue-400 tabular-nums block">${profitUsd.toFixed(2)}</span>
-                                                            <span className="text-[8px] text-slate-400 block font-medium leading-none mt-0.5">{profitPct}%</span>
+                                                            <span className="text-[8px] text-slate-400 block font-bold leading-none mt-0.5">+{profitPct}%</span>
                                                         </div>
                                                     </div>
 
                                                     {/* Stock con controles +/- */}
-                                                    <div className="flex items-center gap-1.5">
+                                                    <div className="flex items-center justify-center sm:justify-end gap-2">
                                                         <button
                                                             onClick={() => handleStockAdjust(p, -1)}
-                                                            className="p-1 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 dark:bg-slate-800 dark:hover:bg-rose-950/40 dark:text-slate-400 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-700 transition-colors active:scale-90"
+                                                            className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 dark:bg-slate-800 dark:hover:bg-rose-950/40 dark:text-slate-300 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-700 transition-colors active:scale-90 flex items-center justify-center shrink-0"
                                                             title="Disminuir 1 stock en caja"
                                                         >
-                                                            <MinusCircle size={15} />
+                                                            <MinusCircle size={16} />
                                                         </button>
 
-                                                        <div className={`w-16 text-center py-1.5 px-2 rounded-2xl border ${
+                                                        <div className={`flex-1 sm:flex-initial w-20 text-center py-1 px-2 rounded-2xl border ${
                                                             isAgotado 
                                                                 ? 'bg-rose-50/50 border-rose-150/70 text-rose-700 dark:bg-rose-950/20 dark:border-rose-900/30 dark:text-rose-400' 
                                                                 : isBajo 
                                                                     ? 'bg-amber-50/50 border-amber-150/70 text-amber-700 dark:bg-amber-950/20 dark:border-amber-900/30 dark:text-amber-400' 
                                                                     : 'bg-slate-50 border-slate-150/70 text-slate-700 dark:bg-slate-850/60 dark:border-slate-800 dark:text-slate-300'
                                                         }`}>
-                                                            <span className="text-[7px] uppercase font-black block leading-none mb-0.5">Stock</span>
+                                                            <span className="text-[7px] uppercase font-black block leading-none mb-0.5 text-slate-400">Stock</span>
                                                             <span className="font-outfit text-xs font-black tabular-nums leading-none">
                                                                 {p.isWeight ? `${stock.toFixed(1)}k` : `${stock} u`}
                                                             </span>
@@ -1513,32 +1540,10 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
 
                                                         <button
                                                             onClick={() => handleStockAdjust(p, 1)}
-                                                            className="p-1 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-500 hover:text-emerald-600 dark:bg-slate-800 dark:hover:bg-emerald-950/40 dark:text-slate-400 dark:hover:text-emerald-400 border border-slate-200 dark:border-slate-700 transition-colors active:scale-90"
+                                                            className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-600 dark:bg-slate-800 dark:hover:bg-emerald-950/40 dark:text-slate-300 dark:hover:text-emerald-400 border border-slate-200 dark:border-slate-700 transition-colors active:scale-90 flex items-center justify-center shrink-0"
                                                             title="Aumentar 1 stock en caja"
                                                         >
-                                                            <PlusCircle size={15} />
-                                                        </button>
-                                                    </div>
-
-                                                    {/* Botones Editar y Borrar */}
-                                                    <div className="flex items-center gap-1 border-l border-slate-200 dark:border-slate-800 pl-2">
-                                                        <button
-                                                            onClick={() => {
-                                                                triggerHaptic?.();
-                                                                setRemoteEditingProduct(p);
-                                                                setShowRemoteForm(true);
-                                                            }}
-                                                            className="p-1.5 rounded-xl text-slate-400 hover:text-emerald-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                                                            title="Editar producto remotamente"
-                                                        >
-                                                            <Pencil size={14} />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDeleteProduct(p)}
-                                                            className="p-1.5 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                                                            title="Eliminar producto remotamente"
-                                                        >
-                                                            <Trash2 size={14} />
+                                                            <PlusCircle size={16} />
                                                         </button>
                                                     </div>
                                                 </div>
