@@ -1413,10 +1413,10 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                             </div>
                         </div>
 
-                        {/* Listado de Productos */}
-                        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 dark:border-slate-800 shadow-sm overflow-hidden">
+                        {/* Listado de Productos en Tarjetas Independientes */}
+                        <div className="space-y-3.5">
                             {filteredProducts.length === 0 ? (
-                                <div className="py-16 text-center text-slate-400 flex flex-col items-center justify-center space-y-3">
+                                <div className="py-16 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center space-y-3">
                                     <div className="p-4 bg-slate-50 dark:bg-slate-800/50 text-slate-300 dark:text-slate-600 rounded-full">
                                         <Package size={36} />
                                     </div>
@@ -1426,131 +1426,129 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                     </div>
                                 </div>
                             ) : (
-                                <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
-                                    {paginatedProducts.map((p) => {
-                                        const stock = p.stock || 0;
-                                        const minStock = p.minStock || 5;
-                                        const isAgotado = stock <= 0;
-                                        const isBajo = !isAgotado && stock <= minStock;
-                                        const costVal = p.costUsd || p.costPrice || 0;
-                                        const profitUsd = Math.max(0, p.priceUsd - costVal);
-                                        const profitPct = p.priceUsd > 0 ? Math.round((profitUsd / p.priceUsd) * 100) : 0;
+                                paginatedProducts.map((p) => {
+                                    const stock = p.stock || 0;
+                                    const minStock = p.minStock || 5;
+                                    const isAgotado = stock <= 0;
+                                    const isBajo = !isAgotado && stock <= minStock;
+                                    const costVal = p.costUsd || p.costPrice || 0;
+                                    const profitUsd = Math.max(0, p.priceUsd - costVal);
+                                    const profitPct = p.priceUsd > 0 ? Math.round((profitUsd / p.priceUsd) * 100) : 0;
 
-                                        return (
-                                            <div key={p.id} className="p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 sm:gap-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/10 transition-colors">
-                                                {/* Encabezado: Nombre, Badges y Acciones (Editar/Borrar) */}
-                                                <div className="flex items-start justify-between gap-3 min-w-0">
-                                                    <div className="min-w-0 flex-1">
-                                                        <div className="flex items-center gap-2 flex-wrap">
-                                                            <h4 className="text-xs sm:text-sm font-black text-slate-800 dark:text-white uppercase leading-tight">{p.name}</h4>
-                                                            <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full shrink-0 ${
-                                                                isAgotado 
-                                                                    ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-400' 
-                                                                    : isBajo 
-                                                                        ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400' 
-                                                                        : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400'
-                                                            }`}>
-                                                                {isAgotado ? 'Agotado' : isBajo ? 'Bajo Stock' : 'Disponible'}
+                                    return (
+                                        <div key={p.id} className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-4 sm:p-5 shadow-sm hover:shadow-md hover:border-emerald-500/30 dark:hover:border-emerald-500/30 transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 sm:gap-4">
+                                            {/* Encabezado: Nombre, Badges y Acciones (Editar/Borrar) */}
+                                            <div className="flex items-start justify-between gap-3 min-w-0">
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <h4 className="text-xs sm:text-sm font-black text-slate-800 dark:text-white uppercase leading-tight">{p.name}</h4>
+                                                        <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full shrink-0 ${
+                                                            isAgotado 
+                                                                ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-400' 
+                                                                : isBajo 
+                                                                    ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400' 
+                                                                    : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400'
+                                                        }`}>
+                                                            {isAgotado ? 'Agotado' : isBajo ? 'Bajo Stock' : 'Disponible'}
+                                                        </span>
+                                                        {p.hasWarranty && (p.warrantyDays > 0 || p.warrantyDays === null) && (
+                                                            <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 flex items-center gap-1 shrink-0">
+                                                                <ShieldCheck size={9} />
+                                                                {p.warrantyDays ? `${p.warrantyDays}d Garantía` : 'Garantía'}
                                                             </span>
-                                                            {p.hasWarranty && (p.warrantyDays > 0 || p.warrantyDays === null) && (
-                                                                <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 flex items-center gap-1 shrink-0">
-                                                                    <ShieldCheck size={9} />
-                                                                    {p.warrantyDays ? `${p.warrantyDays}d Garantía` : 'Garantía'}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <div className="flex items-center gap-3 text-[10px] text-slate-400 mt-1 font-medium flex-wrap">
-                                                            {p.barcode && (
-                                                                <span className="flex items-center gap-1">
-                                                                    <Hash size={10} /> {p.barcode}
-                                                                </span>
-                                                            )}
-                                                            <span>Categoría: {toTitleCase(p.category || 'Varios')}</span>
-                                                        </div>
+                                                        )}
                                                     </div>
-
-                                                    {/* Acciones Editar y Borrar en Móvil & Desktop */}
-                                                    <div className="flex items-center gap-1 shrink-0 bg-slate-100/70 dark:bg-slate-800/50 p-1 rounded-xl">
-                                                        <button
-                                                            onClick={() => {
-                                                                triggerHaptic?.();
-                                                                setRemoteEditingProduct(p);
-                                                                setShowRemoteForm(true);
-                                                            }}
-                                                            className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-500 hover:bg-white dark:hover:bg-slate-700 transition-colors"
-                                                            title="Editar producto remotamente"
-                                                        >
-                                                            <Pencil size={14} />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDeleteProduct(p)}
-                                                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-500 hover:bg-white dark:hover:bg-slate-700 transition-colors"
-                                                            title="Eliminar producto remotamente"
-                                                        >
-                                                            <Trash2 size={14} />
-                                                        </button>
+                                                    <div className="flex items-center gap-3 text-[10px] text-slate-400 mt-1 font-medium flex-wrap">
+                                                        {p.barcode && (
+                                                            <span className="flex items-center gap-1">
+                                                                <Hash size={10} /> {p.barcode}
+                                                            </span>
+                                                        )}
+                                                        <span>Categoría: {toTitleCase(p.category || 'Varios')}</span>
                                                     </div>
                                                 </div>
 
-                                                {/* Sección de Datos Financieros + Stock Adjuster */}
-                                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 lg:gap-6 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100 dark:border-slate-800/60">
-                                                    {/* Bloque Financiero: Costo, Venta, Ganancia en 3 Mini Cajas */}
-                                                    <div className="grid grid-cols-3 gap-2 bg-slate-50/80 dark:bg-slate-800/30 p-2 rounded-2xl border border-slate-100 dark:border-slate-800/50 sm:bg-transparent sm:dark:bg-transparent sm:border-none sm:p-0 sm:gap-4 text-center sm:text-right">
-                                                        {/* Costo */}
-                                                        <div className="flex flex-col justify-center">
-                                                            <span className="text-[8px] text-slate-400 uppercase font-black block">Costo</span>
-                                                            <span className="font-outfit text-xs font-black text-slate-500 tabular-nums">${(p.costUsd || p.costPrice || 0).toFixed(2)}</span>
-                                                        </div>
-                                                        {/* Venta */}
-                                                        <div className="flex flex-col justify-center border-x border-slate-200/50 dark:border-slate-700/40 px-1 sm:border-none sm:px-0">
-                                                            <span className="text-[8px] text-slate-400 uppercase font-black block">Venta</span>
-                                                            <span className="font-outfit text-xs font-black text-slate-800 dark:text-white tabular-nums block">${p.priceUsd.toFixed(2)}</span>
-                                                            <span className="font-outfit text-[8px] text-slate-400 block tabular-nums leading-none mt-0.5">{bcvRate ? `${formatBs(p.priceUsd * bcvRate)} Bs` : 'N/D'}</span>
-                                                        </div>
-                                                        {/* Ganancia */}
-                                                        <div className="flex flex-col justify-center">
-                                                            <span className="text-[8px] text-slate-400 uppercase font-black block">Ganancia</span>
-                                                            <span className="font-outfit text-xs font-black text-blue-600 dark:text-blue-400 tabular-nums block">${profitUsd.toFixed(2)}</span>
-                                                            <span className="text-[8px] text-slate-400 block font-bold leading-none mt-0.5">+{profitPct}%</span>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Stock con controles +/- */}
-                                                    <div className="flex items-center justify-center sm:justify-end gap-2">
-                                                        <button
-                                                            onClick={() => handleStockAdjust(p, -1)}
-                                                            className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 dark:bg-slate-800 dark:hover:bg-rose-950/40 dark:text-slate-300 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-700 transition-colors active:scale-90 flex items-center justify-center shrink-0"
-                                                            title="Disminuir 1 stock en caja"
-                                                        >
-                                                            <MinusCircle size={16} />
-                                                        </button>
-
-                                                        <div className={`flex-1 sm:flex-initial w-20 text-center py-1 px-2 rounded-2xl border ${
-                                                            isAgotado 
-                                                                ? 'bg-rose-50/50 border-rose-150/70 text-rose-700 dark:bg-rose-950/20 dark:border-rose-900/30 dark:text-rose-400' 
-                                                                : isBajo 
-                                                                    ? 'bg-amber-50/50 border-amber-150/70 text-amber-700 dark:bg-amber-950/20 dark:border-amber-900/30 dark:text-amber-400' 
-                                                                    : 'bg-slate-50 border-slate-150/70 text-slate-700 dark:bg-slate-850/60 dark:border-slate-800 dark:text-slate-300'
-                                                        }`}>
-                                                            <span className="text-[7px] uppercase font-black block leading-none mb-0.5 text-slate-400">Stock</span>
-                                                            <span className="font-outfit text-xs font-black tabular-nums leading-none">
-                                                                {p.isWeight ? `${stock.toFixed(1)}k` : `${stock} u`}
-                                                            </span>
-                                                        </div>
-
-                                                        <button
-                                                            onClick={() => handleStockAdjust(p, 1)}
-                                                            className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-600 dark:bg-slate-800 dark:hover:bg-emerald-950/40 dark:text-slate-300 dark:hover:text-emerald-400 border border-slate-200 dark:border-slate-700 transition-colors active:scale-90 flex items-center justify-center shrink-0"
-                                                            title="Aumentar 1 stock en caja"
-                                                        >
-                                                            <PlusCircle size={16} />
-                                                        </button>
-                                                    </div>
+                                                {/* Acciones Editar y Borrar en Móvil & Desktop */}
+                                                <div className="flex items-center gap-1 shrink-0 bg-slate-100/70 dark:bg-slate-800/50 p-1 rounded-xl">
+                                                    <button
+                                                        onClick={() => {
+                                                            triggerHaptic?.();
+                                                            setRemoteEditingProduct(p);
+                                                            setShowRemoteForm(true);
+                                                        }}
+                                                        className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-500 hover:bg-white dark:hover:bg-slate-700 transition-colors"
+                                                        title="Editar producto remotamente"
+                                                    >
+                                                        <Pencil size={14} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteProduct(p)}
+                                                        className="p-1.5 rounded-lg text-slate-500 hover:text-rose-500 hover:bg-white dark:hover:bg-slate-700 transition-colors"
+                                                        title="Eliminar producto remotamente"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
                                                 </div>
                                             </div>
-                                        );
-                                    })}
-                                </div>
+
+                                            {/* Sección de Datos Financieros + Stock Adjuster */}
+                                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 lg:gap-6 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100 dark:border-slate-800/60">
+                                                {/* Bloque Financiero: Costo, Venta, Ganancia en 3 Mini Cajas */}
+                                                <div className="grid grid-cols-3 gap-2 bg-slate-50/80 dark:bg-slate-800/30 p-2 rounded-2xl border border-slate-100 dark:border-slate-800/50 sm:bg-transparent sm:dark:bg-transparent sm:border-none sm:p-0 sm:gap-4 text-center sm:text-right">
+                                                    {/* Costo */}
+                                                    <div className="flex flex-col justify-center">
+                                                        <span className="text-[8px] text-slate-400 uppercase font-black block">Costo</span>
+                                                        <span className="font-outfit text-xs font-black text-slate-500 tabular-nums">${(p.costUsd || p.costPrice || 0).toFixed(2)}</span>
+                                                    </div>
+                                                    {/* Venta */}
+                                                    <div className="flex flex-col justify-center border-x border-slate-200/50 dark:border-slate-700/40 px-1 sm:border-none sm:px-0">
+                                                        <span className="text-[8px] text-slate-400 uppercase font-black block">Venta</span>
+                                                        <span className="font-outfit text-xs font-black text-slate-800 dark:text-white tabular-nums block">${p.priceUsd.toFixed(2)}</span>
+                                                        <span className="font-outfit text-[8px] text-slate-400 block tabular-nums leading-none mt-0.5">{bcvRate ? `${formatBs(p.priceUsd * bcvRate)} Bs` : 'N/D'}</span>
+                                                    </div>
+                                                    {/* Ganancia */}
+                                                    <div className="flex flex-col justify-center">
+                                                        <span className="text-[8px] text-slate-400 uppercase font-black block">Ganancia</span>
+                                                        <span className="font-outfit text-xs font-black text-blue-600 dark:text-blue-400 tabular-nums block">${profitUsd.toFixed(2)}</span>
+                                                        <span className="text-[8px] text-slate-400 block font-bold leading-none mt-0.5">+{profitPct}%</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Stock con controles +/- */}
+                                                <div className="flex items-center justify-center sm:justify-end gap-2">
+                                                    <button
+                                                        onClick={() => handleStockAdjust(p, -1)}
+                                                        className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 dark:bg-slate-800 dark:hover:bg-rose-950/40 dark:text-slate-300 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-700 transition-colors active:scale-90 flex items-center justify-center shrink-0"
+                                                        title="Disminuir 1 stock en caja"
+                                                    >
+                                                        <MinusCircle size={16} />
+                                                    </button>
+
+                                                    <div className={`flex-1 sm:flex-initial w-20 text-center py-1 px-2 rounded-2xl border ${
+                                                        isAgotado 
+                                                            ? 'bg-rose-50/50 border-rose-150/70 text-rose-700 dark:bg-rose-950/20 dark:border-rose-900/30 dark:text-rose-400' 
+                                                            : isBajo 
+                                                                ? 'bg-amber-50/50 border-amber-150/70 text-amber-700 dark:bg-amber-950/20 dark:border-amber-900/30 dark:text-amber-400' 
+                                                                : 'bg-slate-50 border-slate-150/70 text-slate-700 dark:bg-slate-850/60 dark:border-slate-800 dark:text-slate-300'
+                                                    }`}>
+                                                        <span className="text-[7px] uppercase font-black block leading-none mb-0.5 text-slate-400">Stock</span>
+                                                        <span className="font-outfit text-xs font-black tabular-nums leading-none">
+                                                            {p.isWeight ? `${stock.toFixed(1)}k` : `${stock} u`}
+                                                        </span>
+                                                    </div>
+
+                                                    <button
+                                                        onClick={() => handleStockAdjust(p, 1)}
+                                                        className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-600 dark:bg-slate-800 dark:hover:bg-emerald-950/40 dark:text-slate-300 dark:hover:text-emerald-400 border border-slate-200 dark:border-slate-700 transition-colors active:scale-90 flex items-center justify-center shrink-0"
+                                                        title="Aumentar 1 stock en caja"
+                                                    >
+                                                        <PlusCircle size={16} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })
                             )}
                         </div>
 
