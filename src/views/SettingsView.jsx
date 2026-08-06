@@ -41,7 +41,8 @@ export default function SettingsView({ onClose, theme, toggleTheme, triggerHapti
         tasaCop: calculatedTasaCop,
         effectiveRate,
         bcvMarginPctState,
-        setBcvMarginPct
+        setBcvMarginPct,
+        applyBcvMarginToAllProducts
     } = useProductContext();
 
     const { requireLogin, setRequireLogin, usuarioActivo } = useAuthStore();
@@ -310,6 +311,7 @@ export default function SettingsView({ onClose, theme, toggleTheme, triggerHapti
                                 setAllowNegativeStock={setAllowNegativeStock}
                                 bcvMarginPctState={bcvMarginPctState}
                                 setBcvMarginPct={setBcvMarginPct}
+                                applyBcvMarginToAllProducts={applyBcvMarginToAllProducts}
                                 handleSaveBusinessData={handleSaveBusinessData}
                                 forceHeartbeat={forceHeartbeat}
                                 showToast={showToast}

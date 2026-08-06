@@ -420,6 +420,26 @@ export function ProductProvider({ children, rates, rateDiscrepancyWarning }) {
         });
     }, []);
 
+    const applyBcvMarginToAllProducts = useCallback((pct) => {
+        const marginPct = parseFloat(pct);
+        if (isNaN(marginPct) || marginPct < 0) return 0;
+        const marginMult = 1 + marginPct / 100;
+
+        let updatedCount = 0;
+        const updated = products.map(p => {
+            const baseUsd = p.priceUsdt || p.priceUsd || 0;
+            if (baseUsd > 0) {
+                updatedCount++;
+                return { ...p, price2Usd: round0(baseUsd * marginMult) };
+            }
+            return p;
+        });
+
+        setProducts(updated);
+        storageService.setItem('bodega_products_v1', updated);
+        return updatedCount;
+    }, [products]);
+
     // HOOK-005: Envolver `value` en useMemo con deps correctas para evitar que
     // TODOS los consumidores se re-rendericen en cada render del Provider.
     // Las setters de useState son estables y no necesitan estar en deps.
@@ -442,6 +462,7 @@ export function ProductProvider({ children, rates, rateDiscrepancyWarning }) {
         bcvMarginPct,
         bcvMarginPctState,
         setBcvMarginPct,
+        applyBcvMarginToAllProducts,
         rates,
         rateDiscrepancyWarning,
         copEnabled,
@@ -468,6 +489,7 @@ export function ProductProvider({ children, rates, rateDiscrepancyWarning }) {
         effectiveRate,
         bcvMarginPct,
         bcvMarginPctState,
+        applyBcvMarginToAllProducts,
         rates,
         rateDiscrepancyWarning,
         copEnabled,

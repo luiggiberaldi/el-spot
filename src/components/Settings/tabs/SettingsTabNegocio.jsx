@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Store, Printer, Coins, Check, Tag, Landmark, Package, FileText, DollarSign, CreditCard } from 'lucide-react';
+import { Store, Printer, Coins, Check, Tag, Landmark, Package, FileText, DollarSign, CreditCard, RefreshCw } from 'lucide-react';
 import { SectionCard, Toggle } from '../../SettingsShared';
 import PaymentMethodsManager from '../PaymentMethodsManager';
 import CasheaIcon from '../../CasheaIcon';
+import ConfirmModal from '../../ConfirmModal';
 
 export default function SettingsTabNegocio({
     paperWidth, setPaperWidth,
@@ -28,6 +29,7 @@ export default function SettingsTabNegocio({
     effectiveRate,
     bcvMarginPctState,
     setBcvMarginPct,
+    applyBcvMarginToAllProducts,
     handleSaveBusinessData,
     forceHeartbeat,
     showToast,
@@ -38,6 +40,16 @@ export default function SettingsTabNegocio({
     const [receiptCurrency, setReceiptCurrency] = useState(() => localStorage.getItem('receipt_currency_mode') || 'bs');
     const [cashAdvanceEnabled, setCashAdvanceEnabled] = useState(() => localStorage.getItem('allow_cash_advance') === 'true');
     const [cashAdvancePct, setCashAdvancePct] = useState(() => localStorage.getItem('cash_advance_default_pct') || '10');
+    const [showConfirmApplyAll, setShowConfirmApplyAll] = useState(false);
+    const [isApplying, setIsApplying] = useState(false);
+
+    const handleApplyAll = () => {
+        setIsApplying(true);
+        const count = applyBcvMarginToAllProducts ? applyBcvMarginToAllProducts(bcvMarginPctState) : 0;
+        setIsApplying(false);
+        showToast?.(`Recargo del ${bcvMarginPctState}% aplicado a ${count} productos`, 'success');
+        triggerHaptic?.();
+    };
 
     return (
         <div className="space-y-6">
@@ -63,6 +75,27 @@ export default function SettingsTabNegocio({
                         <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
                             Este porcentaje se aplica sobre el precio base USD para sugerir el monto de cobro en Bolívares.
                         </p>
+
+                        <button
+                            type="button"
+                            onClick={() => setShowConfirmApplyAll(true)}
+                            disabled={isApplying}
+                            className="w-full mt-1 py-2.5 px-3 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-bold rounded-xl text-xs flex items-center justify-center gap-2 border border-blue-200/60 dark:border-blue-800/40 transition-all active:scale-95 disabled:opacity-50"
+                        >
+                            <RefreshCw size={13} className={isApplying ? 'animate-spin' : ''} />
+                            Aplicar este % a todos los productos
+                        </button>
+
+                        <ConfirmModal
+                            isOpen={showConfirmApplyAll}
+                            onClose={() => setShowConfirmApplyAll(false)}
+                            onConfirm={handleApplyAll}
+                            title={`¿Aplicar ${bcvMarginPctState}% a todo?`}
+                            message={`Se recalculará el precio de cobro en Bs (price2Usd) de todos los productos del inventario usando el ${bcvMarginPctState}% de recargo.`}
+                            confirmText="Aplicar a todos"
+                            cancelText="Cancelar"
+                            variant="warning"
+                        />
                     </div>
                 </SectionCard>
 
