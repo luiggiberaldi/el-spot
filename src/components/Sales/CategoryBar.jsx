@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Package, Calculator, ChevronDown, Clock, HelpCircle, Trash2, X, DollarSign, ShieldCheck, Landmark } from 'lucide-react';
 import { BODEGA_CATEGORIES, CATEGORY_ICONS, CATEGORY_COLORS } from '../../config/categories';
 import { formatCop, formatBs, formatUsd, getCop, getUsd } from '../../utils/calculatorUtils';
+import { mulR, ceilR } from '../../utils/dinero';
 
 const PAGE_SIZE = 30;
 
@@ -12,6 +13,8 @@ export default function CategoryBar({
     addToCart,
     triggerHaptic,
     searchTerm = '',
+    deferredSearchTerm = '',
+    posSearchViewMode = 'hybrid',
     onOpenCustomAmount,
     products = [],
     copEnabled,
@@ -45,10 +48,10 @@ export default function CategoryBar({
         setShowNoteInput(false);
     };
 
-    // Reset pagination when category changes
+    // Reset pagination when category, search term or view mode changes
     useEffect(() => {
         setVisibleCount(PAGE_SIZE);
-    }, [selectedCategory]);
+    }, [selectedCategory, deferredSearchTerm, posSearchViewMode]);
 
     // Wheel → scroll horizontal sin advertencia de evento pasivo
     useEffect(() => {
@@ -64,8 +67,22 @@ export default function CategoryBar({
         return () => el.removeEventListener('wheel', handler);
     }, []);
 
-    const visibleProducts = filteredByCategory.slice(0, visibleCount);
-    const hasMore = filteredByCategory.length > visibleCount;
+    // Filter products dynamically in grid when in hybrid or grid view mode
+    const searchFilteredProducts = useMemo(() => {
+        const term = (deferredSearchTerm || searchTerm || '').trim().toLowerCase();
+        if (!term || posSearchViewMode === 'list') {
+            return filteredByCategory;
+        }
+        return filteredByCategory.filter(p => {
+            const nameMatch = p.name?.toLowerCase().includes(term);
+            const barcodeMatch = p.barcode?.toLowerCase().includes(term);
+            const idMatch = String(p.id).toLowerCase().includes(term);
+            return nameMatch || barcodeMatch || idMatch;
+        });
+    }, [filteredByCategory, deferredSearchTerm, searchTerm, posSearchViewMode]);
+
+    const visibleProducts = searchFilteredProducts.slice(0, visibleCount);
+    const hasMore = searchFilteredProducts.length > visibleCount;
     const allowNegativeStock = localStorage.getItem('allow_negative_stock') === 'true';
 
     // Fallback to static config if no categories passed from context
@@ -75,7 +92,7 @@ export default function CategoryBar({
     const activeCategories = categoryList.filter(cat => cat.id === 'todos' || products.some(p => p.category === cat.id));
 
     return (
-        <div className={`relative ${searchTerm.length === 0 ? 'lg:flex-1 lg:overflow-hidden lg:flex lg:flex-col lg:min-h-0' : ''}`}>
+        <div className={`relative ${(posSearchViewMode !== 'list' || searchTerm.length === 0) ? 'lg:flex-1 lg:overflow-hidden lg:flex lg:flex-col lg:min-h-0' : ''}`}>
             
             {/* Category Chips Container with Mask */}
             <div className="relative horizontal-scroll-mask mb-1.5 shrink-0">
@@ -208,7 +225,7 @@ export default function CategoryBar({
             </div>
 
             {/* Product Grid */}
-            {searchTerm.length === 0 && (
+            {(posSearchViewMode !== 'list' || (searchTerm || '').trim().length === 0) && (
                 <div className="flex-1 overflow-y-auto min-h-0 pb-2">
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
                         {visibleProducts.map(p => {
@@ -268,7 +285,7 @@ export default function CategoryBar({
                                                     ${formatUsd(p.price2Usd)}
                                                 </p>
                                                 <p className="text-[10px] font-black text-amber-900 dark:text-amber-100 leading-none mt-0.5">
-                                                    {formatBs(p.price2Usd * (bcvRate || effectiveRate || 0))} Bs
+                                                    {formatBs(ceilR(mulR(p.price2Usd, bcvRate || effectiveRate || 0)))} Bs
                                                 </p>
                                             </div>
                                         </div>
@@ -301,15 +318,15 @@ export default function CategoryBar({
                                 className="flex items-center gap-1.5 px-5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-500 dark:text-slate-400 hover:border-brand hover:text-brand-dark transition-all active:scale-95 shadow-sm"
                             >
                                 <ChevronDown size={14} />
-                                Cargar Mas ({filteredByCategory.length - visibleCount} restantes)
+                                Cargar Mas ({searchFilteredProducts.length - visibleCount} restantes)
                             </button>
                         </div>
                     )}
 
-                    {filteredByCategory.length === 0 && (
+                    {searchFilteredProducts.length === 0 && (
                         <div className="text-center py-10">
                             <Package size={32} className="mx-auto text-slate-300 dark:text-slate-700 mb-2" />
-                            <p className="text-xs text-slate-400 font-medium">Sin productos en esta categoria</p>
+                            <p className="text-xs text-slate-400 font-medium">Sin productos encontrados</p>
                         </div>
                     )}
 

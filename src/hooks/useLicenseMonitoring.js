@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { supabase } from '../core/supabaseClient';
+import { isValidDeviceId } from '../utils/deviceId';
 
 const PRODUCT_ID = 'el-spot';
 
@@ -25,6 +26,12 @@ export function useLicenseMonitoring({
 }) {
     useEffect(() => {
         if (!deviceId || !import.meta.env.VITE_SUPABASE_URL) return;
+
+        // SYNC-010: validar deviceId antes de RPC/suscripción.
+        if (!isValidDeviceId(deviceId)) {
+            console.warn('[LicenseMonitoring] deviceId inválido, abort:', deviceId);
+            return;
+        }
 
         const verifyStatus = async () => {
             try {

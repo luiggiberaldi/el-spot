@@ -176,7 +176,7 @@ export function PayInvoiceModal({ supplier, bcvRate, tasaCop, copEnabled, copPri
 
                     {/* Input */}
                     <div>
-                        <div className="flex items-center w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-brand/50">
+                        <div className="flex items-center w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-brand/50">
                             <span className={`pl-4 text-lg font-black shrink-0 select-none ${currencyMode === 'BS' ? 'text-brand' : currencyMode === 'COP' ? 'text-amber-500' : 'text-emerald-500'}`}>
                                 {currencyMode === 'BS' ? 'Bs' : currencyMode === 'COP' ? 'COP' : 'USD'}
                             </span>

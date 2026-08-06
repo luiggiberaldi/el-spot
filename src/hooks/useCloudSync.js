@@ -2,6 +2,12 @@ import { useEffect, useRef } from 'react';
 import localforage from 'localforage';
 import { supabaseCloud } from '../config/supabaseCloud';
 import { useAuthStore } from './store/useAuthStore';
+import {
+    isSyncingFromCloud as isSyncingFromCloudGlobal,
+    registerCloudSyncSetter,
+    runWithoutEco,
+} from '../utils/syncFlags';
+import { isValidDeviceId } from '../utils/deviceId';
 
 const SYNC_KEYS = [
     'bodega_products_v1',
@@ -47,6 +53,12 @@ const LAST_PUSH_HASH_PREFIX = 'bodega_last_periodic_push_hash_';
 // ─── Estado Global del Motor ───────────────────────────────────────────────
 let globalSubscription = null;
 let isSyncingFromCloud = false; // true mientras aplicamos cambios de la nube → evita eco
+
+// SYNC-014: Sincroniza el flag local `isSyncingFromCloud` de este módulo con
+// `syncFlags.js`. Así, cualquier consumidor externo (ej: `useCloudBackup.runWithoutEco`)
+// que setee el flag global será respetado por `pushCloudSync` y `forcePushLocalData`.
+// El setter que registramos actualiza nuestra variable local cuando el flag global cambia.
+registerCloudSyncSetter((v) => { isSyncingFromCloud = v; });
 let pendingPush = {};           // Debounce: { [key]: timeoutId }
 let _currentDeviceId = '';      // Device ID activo para pushCloudSync
 let isCloudSyncActive = false;   // Evita empujar a la nube si el dispositivo no está autenticado/emparejado
@@ -83,9 +95,11 @@ function _debouncePush(key, value) {
 
 export const pushCloudSync = async (key, value) => {
     if (!supabaseCloud) return;
-    if (isSyncingFromCloud) return;          // Nunca re-emitir lo que llegó de la nube
+    if (isSyncingFromCloudGlobal()) return;   // SYNC-014: respeta flag global (local + externo)
     if (!SYNC_KEYS.includes(key)) return;
     if (!_currentDeviceId) return;
+    // SYNC-010: defensa en profundidad — no upsert si _currentDeviceId se corrompiò.
+    if (!isValidDeviceId(_currentDeviceId)) return;
 
     // SEC-002: jamás empujar `abasto-auth-storage` aunque accidentalmente lo pidan.
     if (key === 'abasto-auth-storage') return;
@@ -147,10 +161,15 @@ export const queueCloudSync = (key, value) => {
 /**
  * Aplica un documento recibido de la nube al almacenamiento local.
  * Garantiza que isSyncingFromCloud esté activo durante toda la operación.
+ * SYNC-014: Usa `runWithoutEco` del módulo neutro `syncFlags` para activar
+ * el flag global. El setter que registramos arriba mantiene nuestra variable
+ * local `isSyncingFromCloud` sincronizada con el global. Así `pushCloudSync`
+ * (que lee `isSyncingFromCloudGlobal()`) y `forcePushLocalData` (idem)
+ * respetan el flag, sin importar el origen que lo active (`_applyFromCloud`
+ * o `useCloudBackup.runWithoutEco` externo).
  */
 async function _applyFromCloud(docId, collection, payload) {
-    isSyncingFromCloud = true;
-    try {
+    return runWithoutEco(async () => {
         if (collection === 'local') {
             // Ignorar payload nulo/undefined para no escribir "undefined" en localStorage
             if (payload == null) return;
@@ -167,6 +186,17 @@ async function _applyFromCloud(docId, collection, payload) {
         } else {
             // Colección 'store' → IndexedDB directo, sin pasar por storageService.setItem
             const lf = localforage.createInstance({ name: 'ElSpotPOSApp', storeName: 'el_spot_app_data' });
+
+            // Guardarraíl BUG-C: Protección contra sobrescritura de inventario local más completo por la nube
+            if (docId === 'bodega_products_v1') {
+                const localCurrent = await lf.getItem(docId);
+                if (Array.isArray(localCurrent) && Array.isArray(payload) && localCurrent.length > payload.length) {
+                    console.warn(`[CloudSync] Guardarraíl activado: El inventario local (${localCurrent.length}) tiene más productos que el de la nube (${payload.length}). Preservando local y sincronizando a la nube.`);
+                    pushCloudSync(docId, localCurrent).catch(() => {});
+                    return;
+                }
+            }
+
             await lf.setItem(docId, payload);
 
             // Notificar a los componentes React que lean este store
@@ -176,9 +206,7 @@ async function _applyFromCloud(docId, collection, payload) {
         // Update local hash to prevent periodic push from re-uploading what we just downloaded
         const hashKey = LAST_PUSH_HASH_PREFIX + docId;
         localStorage.setItem(hashKey, quickHash(payload));
-    } finally {
-        isSyncingFromCloud = false;
-    }
+    });
 }
 
 // ─── Hook de React ─────────────────────────────────────────────────────────
@@ -194,6 +222,14 @@ export function useCloudSync(deviceId) {
                 isInitialized.current = false;
                 _currentDeviceId = '';
             }
+            return;
+        }
+
+        // SYNC-010: validar deviceId antes de pushCloudSync o suscripción.
+        // Previene que un deviceId corrupto se inserte en sync_documents.
+        if (!isValidDeviceId(deviceId)) {
+            console.warn('[CloudSync] deviceId inválido, abort init:', deviceId);
+            isCloudSyncActive = false;
             return;
         }
 
@@ -308,7 +344,7 @@ export function useCloudSync(deviceId) {
         // HOOK: solo re-sube una key si cambió desde el último push (evita gastar cuota de
         // Supabase/Realtime subiendo el mismo dato sin cambios cada 20s — ver quickHash arriba).
         const forcePushLocalData = async () => {
-            if (isSyncingFromCloud || !deviceId) return;
+            if (isSyncingFromCloudGlobal() || !deviceId) return;   // SYNC-014: flag unificado
             try {
                 const lf = localforage.createInstance({ name: 'ElSpotPOSApp', storeName: 'el_spot_app_data' });
                 const criticalKeys = ['bodega_sales_v1', 'bodega_products_v1', 'bodega_customers_v1', 'bodega_accounts_v2'];

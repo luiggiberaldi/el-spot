@@ -1,7 +1,8 @@
 import React from 'react';
 import { Tag, AlertTriangle, Minus, Plus, Pencil, Trash2, Package, Layers, Clock, Printer, ShieldCheck } from 'lucide-react';
 import { CATEGORY_COLORS, CATEGORY_ICONS, UNITS } from '../../config/categories';
-import { formatUsd, formatBs, formatCop, smartCashRounding, getCop, getUsd } from '../../utils/calculatorUtils';
+import { formatUsd, formatBs, formatBsInt, formatCop, smartCashRounding, getCop, getUsd } from '../../utils/calculatorUtils';
+import { mulR, ceilR, round0 } from '../../utils/dinero';
 import { showToast } from '../Toast';
 import { useProductContext } from '../../context/ProductContext';
 
@@ -45,8 +46,9 @@ export default function ProductCard({
     const usdtRateVal = (rawUsdt > bcvRateVal && rawUsdt > 0) ? rawUsdt : (bcvRateVal || streetRate || 0);
 
     // Si el producto tiene precio BCV (p.price2Usd), calculamos el valor y ganancia real al cobrar en Bs
-    const bcvBsTotal = (p.price2Usd && p.price2Usd > 0) ? (p.price2Usd * bcvRateVal) : 0;
-    const realUsdtVal = (bcvBsTotal > 0 && usdtRateVal > 0) ? (bcvBsTotal / usdtRateVal) : (p.price2Usd || effectiveUsd);
+    const displayPrice2Usd = (p.price2Usd && p.price2Usd > 0) ? round0(p.price2Usd) : 0;
+    const bcvBsTotal = (displayPrice2Usd > 0) ? ceilR(mulR(displayPrice2Usd, bcvRateVal)) : 0;
+    const realUsdtVal = (bcvBsTotal > 0 && usdtRateVal > 0) ? (bcvBsTotal / usdtRateVal) : (displayPrice2Usd || effectiveUsd);
     const realProfitUsd = realUsdtVal - costUsd;
     const realBsMarginPct = (costUsd > 0 && realUsdtVal > 0) ? (((realUsdtVal - costUsd) / costUsd) * 100) : null;
 
@@ -358,12 +360,12 @@ ${showSecondary ? `[PRECIO SECUNDARIO]
                                     BCV
                                 </span>
                                 <span className="text-sm font-black text-slate-800 dark:text-slate-100">
-                                    ${formatUsd(p.price2Usd)}
+                                    ${displayPrice2Usd}
                                 </span>
                             </div>
                             <div className="text-right">
                                 <span className="text-sm font-black text-slate-900 dark:text-slate-100">
-                                    {formatBs(bcvBsTotal)} Bs
+                                    {formatBsInt(bcvBsTotal)} Bs
                                 </span>
                                 <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 leading-none mt-0.5">
                                     Tasa: {formatBs(bcvRateVal)} Bs/$

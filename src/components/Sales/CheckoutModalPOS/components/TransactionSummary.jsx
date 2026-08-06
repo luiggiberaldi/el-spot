@@ -17,7 +17,7 @@ const TransactionSummary = ({ totalUSD, totalBS, discountData, tasaSegura }) => 
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
                         <div className="text-[11px] font-bold text-emerald-400">
-                            Bs {round2(totalBS).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                            Bs {Math.round(totalBS).toLocaleString('es-VE')}
                         </div>
                     </div>
                 </div>

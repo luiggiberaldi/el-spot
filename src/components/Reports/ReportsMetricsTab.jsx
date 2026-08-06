@@ -183,7 +183,7 @@ function TransactionRow({ sale: s, bcvRate, isExpanded, onToggle, onVoidSale, on
                                 const isCashea = p.methodId === 'cashea';
                                 
                                 return (
-                                    <div key={i} className={`flex justify-between items-center text-xs ${isCanceled ? 'text-slate-400 line-through' : isCashea ? 'text-purple-650 dark:text-purple-400 font-bold' : 'text-slate-600 dark:text-slate-300'}`}>
+                                    <div key={i} className={`flex justify-between items-center text-xs ${isCanceled ? 'text-slate-400 line-through' : isCashea ? 'text-purple-600 dark:text-purple-400 font-bold' : 'text-slate-600 dark:text-slate-300'}`}>
                                         <span className="flex items-center gap-1.5">
                                             {isCashea && <CasheaIcon size={12} />}
                                             {p.methodLabel || 'Pago'}

@@ -1,12 +1,12 @@
 import React from 'react';
 import { X } from 'lucide-react';
 
-export const Modal = ({ isOpen, onClose, title, children, className = '', size = 'max-w-sm' }) => {
+export const Modal = ({ isOpen, onClose, title, children, className = '', size = 'max-w-sm', zIndex = 'z-[100]' }) => {
   if (!isOpen) return null;
 
   return (
     // ✅ z-[100] asegura que esté por encima de la barra de navegación (z-30)
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200">
+    <div className={`fixed inset-0 ${zIndex} flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200`}>
       
       {/* Backdrop optimizado con aceleración por GPU */}
       <div 

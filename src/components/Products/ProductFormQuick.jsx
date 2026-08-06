@@ -3,6 +3,7 @@ import { Camera, X, AlertTriangle, Package, Tag, Scale, Droplets, ChevronDown, C
 import { useProductContext } from '../../context/ProductContext';
 import CustomSelect from '../CustomSelect';
 import { showToast } from '../Toast';
+import { round0, mulR, ceilR } from '../../utils/dinero';
 
 const PACKAGING_TYPES = [
     { id: 'suelto', label: 'Suelto', Icon: Tag, desc: 'Unidad individual', color: 'emerald' },
@@ -173,7 +174,7 @@ export default function ProductFormQuick({
             </div>
 
             {imageMatches && imageMatches.length > 0 && (
-                <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-150 dark:border-slate-700/50 rounded-2xl p-3 space-y-2 animate-in fade-in slide-in-from-top-1 duration-200 select-none">
+                <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/50 rounded-2xl p-3 space-y-2 animate-in fade-in slide-in-from-top-1 duration-200 select-none">
                     <div className="flex justify-between items-center px-0.5">
                         <span className="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1">
                             <Sparkles size={11} className="animate-pulse" /> Selecciona la foto correcta ({imageMatches.length})
@@ -444,33 +445,26 @@ export default function ProductFormQuick({
                 {/* ─── PRECIO EN BOLÍVARES / BCV ─── */}
                 {(() => {
                     const actualBcvRate = bcvRate || effectiveRate;
-                    const has2 = isPrice2Active || (price2Usd !== '' && price2Usd !== null && price2Usd !== undefined);
                     const parsedPrice2Bs = parseFloat(price2Bs);
                     const bcvBsDisplay = (parsedPrice2Bs > 0)
                         ? price2Bs
-                        : (price2Usd && parseFloat(price2Usd) > 0 ? (parseFloat(price2Usd) * actualBcvRate).toFixed(2) : '');
+                        : (price2Usd && parseFloat(price2Usd) > 0 ? ceilR(mulR(parseFloat(price2Usd), actualBcvRate)).toString() : '');
 
                     // Calcular si el recargo actual coincide con el de tienda o es custom
                     const priceUsdNum = parseFloat(priceUsd) || 0;
                     const currentP2Usd = parseFloat(price2Usd) || 0;
-                    const expectedStoreP2Usd = priceUsdNum > 0 ? parseFloat((priceUsdNum * (1 + bcvMarginNum / 100)).toFixed(2)) : 0;
-                    const isStoreMarginActive = has2 && expectedStoreP2Usd > 0 && Math.abs(currentP2Usd - expectedStoreP2Usd) < 0.01;
-                    const customPctCalc = (has2 && priceUsdNum > 0 && !isStoreMarginActive)
+                    const expectedStoreP2Usd = priceUsdNum > 0 ? round0(priceUsdNum * (1 + bcvMarginNum / 100)) : 0;
+                    const isStoreMarginActive = expectedStoreP2Usd > 0 && Math.abs(currentP2Usd - expectedStoreP2Usd) < 0.01;
+                    const customPctCalc = (priceUsdNum > 0 && !isStoreMarginActive && currentP2Usd > 0)
                         ? Math.round(((currentP2Usd / priceUsdNum) - 1) * 100)
                         : null;
 
                     return (
-                        <div className={`p-4 rounded-2xl border transition-all duration-300 ${
-                            has2
-                                ? 'bg-gradient-to-br from-blue-50/90 via-white to-indigo-50/50 dark:from-blue-950/30 dark:via-slate-900 dark:to-indigo-950/30 border-blue-400/60 dark:border-blue-500/50 shadow-md shadow-blue-500/5 ring-1 ring-blue-500/20'
-                                : 'bg-slate-50/80 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-700/60'
-                        }`}>
+                        <div className="p-4 rounded-2xl border transition-all duration-300 bg-gradient-to-br from-blue-50/90 via-white to-indigo-50/50 dark:from-blue-950/30 dark:via-slate-900 dark:to-indigo-950/30 border-blue-400/60 dark:border-blue-500/50 shadow-md shadow-blue-500/5 ring-1 ring-blue-500/20">
                             {/* Cabecera con Tasa BCV oficial en tiempo real */}
                             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                                 <div className="flex items-start gap-2.5 min-w-0">
-                                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all ${
-                                        has2 ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-xs ring-2 ring-blue-600/20' : 'bg-slate-200 dark:bg-slate-700 text-slate-400'
-                                    }`}>
+                                    <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-xs ring-2 ring-blue-600/20">
                                         <Building2 size={16} />
                                     </div>
                                     <div className="min-w-0 flex-1">
@@ -480,48 +474,21 @@ export default function ProductFormQuick({
                                                 <Landmark size={11} className="text-blue-600 dark:text-blue-400" /> Tasa BCV: {actualBcvRate} Bs
                                             </span>
                                         </div>
-                                        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Cobro en Bs con recargo sobre BCV</p>
+                                        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Cobro en Bs siempre activo con recargo sobre BCV</p>
                                     </div>
                                 </div>
 
-                                {/* Selector de segmentos */}
-                                <div className="flex items-center bg-slate-200/70 dark:bg-slate-800 p-0.5 rounded-xl shrink-0 border border-slate-300/40 dark:border-slate-700/50 w-full sm:w-auto">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setIsPrice2Active(false);
-                                            handlePrice2UsdChange('');
-                                        }}
-                                        className={`flex-1 sm:flex-none justify-center px-2.5 py-1.5 text-[9px] font-black rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
-                                            !has2 ? 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 shadow-xs' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600'
-                                        }`}
-                                    >
-                                        <CircleX size={11} className="text-slate-400" /> Sin Recargo Bs
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setIsPrice2Active(true);
-                                            if (!price2Usd || parseFloat(price2Usd) <= 0) {
-                                                const p1 = parseFloat(priceUsd) || 0;
-                                                const suggested = p1 > 0 ? (p1 * (1 + bcvMarginNum / 100)).toFixed(2) : '3.73';
-                                                handlePrice2UsdChange(suggested);
-                                            }
-                                        }}
-                                        className={`flex-1 sm:flex-none justify-center px-2.5 py-1.5 text-[9px] font-black rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
-                                            has2 ? 'bg-blue-600 text-white shadow-xs ring-1 ring-blue-500/30' : 'text-slate-400 dark:text-slate-500 hover:text-blue-600'
-                                        }`}
-                                    >
-                                        <Coins size={11} className={has2 ? 'text-white' : 'text-blue-500'} /> Con Precio Bs
-                                    </button>
+                                <div className="flex items-center gap-1.5 bg-blue-100/70 dark:bg-blue-900/40 px-2.5 py-1 rounded-xl text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/40 shrink-0">
+                                    <ShieldCheck size={13} className="text-blue-600 dark:text-blue-400" />
+                                    <span className="text-[10px] font-black uppercase">Siempre Activo</span>
                                 </div>
                             </div>
 
                             {/* Sugerencia automática & Chips rápidos */}
                             {parseFloat(priceUsd) > 0 && (() => {
-                                const p2UsdSug = (parseFloat(priceUsd) * (1 + bcvMarginNum / 100)).toFixed(2);
-                                const p2BsSugNum = parseFloat((parseFloat(p2UsdSug) * actualBcvRate).toFixed(2));
-                                const p2BsSugFormatted = p2BsSugNum.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                const p2UsdSug = round0(parseFloat(priceUsd) * (1 + bcvMarginNum / 100)).toString();
+                                const p2BsSugNum = ceilR(mulR(parseFloat(p2UsdSug), actualBcvRate));
+                                const p2BsSugFormatted = p2BsSugNum.toLocaleString('es-VE');
                                 return (
                                     <div className="mt-3 space-y-2.5">
                                         <div className="flex items-center justify-between gap-2 p-2 px-3 bg-blue-500/10 dark:bg-blue-900/30 border border-blue-200/80 dark:border-blue-700/50 rounded-xl">
@@ -530,18 +497,6 @@ export default function ProductFormQuick({
                                                     Sugerido (+{bcvMarginNum}% Tienda): <span className="font-black text-blue-950 dark:text-white">${p2UsdSug} USD</span> <span className="text-blue-500 font-bold">➜</span> <span className="font-black text-blue-950 dark:text-white">Bs {p2BsSugFormatted}</span>
                                                 </p>
                                             </div>
-                                            {!has2 && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setIsPrice2Active(true);
-                                                        handlePrice2UsdChange(p2UsdSug);
-                                                    }}
-                                                    className="text-[9px] font-black bg-blue-600 text-white px-2 py-1 rounded-lg hover:bg-blue-700 active:scale-95 transition-all cursor-pointer uppercase shrink-0 shadow-xs flex items-center gap-1"
-                                                >
-                                                    <CheckCircle size={10} /> Usar +{bcvMarginNum}%
-                                                </button>
-                                            )}
                                         </div>
 
                                         {/* Chips de Recargo Rápido */}
@@ -619,85 +574,83 @@ export default function ProductFormQuick({
                             })()}
 
                             {/* Campos de entrada bidireccionales con Alta Legibilidad */}
-                            {has2 && (
-                                <div className="pt-3.5 mt-3.5 border-t border-blue-500/20 dark:border-blue-500/25 space-y-2.5 animate-in fade-in duration-200">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <div>
-                                            <div className="flex items-center justify-between mb-1.5">
-                                                <span className="text-[10px] font-black text-slate-700 dark:text-slate-200 tracking-wide uppercase">Precio en Dólares (BCV)</span>
-                                                <span className="text-[9px] font-black px-2 py-0.5 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-md border border-blue-200/60 dark:border-blue-800/40">USD</span>
-                                            </div>
-                                            <div className="relative">
-                                                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-black text-blue-600 pointer-events-none">$</span>
-                                                <input
-                                                    type="number"
-                                                    inputMode="decimal"
-                                                    value={price2Usd}
-                                                    onChange={e => {
-                                                        setIsPrice2Active(true);
-                                                        handlePrice2UsdChange(e.target.value);
-                                                    }}
-                                                    placeholder="3.73"
-                                                    className="w-full bg-white dark:bg-slate-900 p-3 pl-8 rounded-xl font-black text-blue-950 dark:text-white text-sm sm:text-base outline-none border-2 border-blue-300 dark:border-blue-700 focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all shadow-2xs"
-                                                />
-                                            </div>
+                            <div className="pt-3.5 mt-3.5 border-t border-blue-500/20 dark:border-blue-500/25 space-y-2.5 animate-in fade-in duration-200">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <div className="flex items-center justify-between mb-1.5">
+                                            <span className="text-[10px] font-black text-slate-700 dark:text-slate-200 tracking-wide uppercase">Precio en Dólares (BCV)</span>
+                                            <span className="text-[9px] font-black px-2 py-0.5 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-md border border-blue-200/60 dark:border-blue-800/40">USD</span>
                                         </div>
-                                        <div>
-                                            <div className="flex items-center justify-between mb-1.5">
-                                                <span className="text-[10px] font-black text-emerald-800 dark:text-emerald-300 tracking-wide uppercase">Monto Final Bolívares</span>
-                                                <span className="text-[9px] font-black px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 rounded-md border border-emerald-200 dark:border-emerald-800/40 flex items-center gap-1">
-                                                    <Landmark size={10} /> Bs BCV
-                                                </span>
-                                            </div>
-                                            <div className="relative">
-                                                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-black text-emerald-700 dark:text-emerald-400 pointer-events-none">Bs</span>
-                                                <input
-                                                    type="number"
-                                                    inputMode="decimal"
-                                                    value={bcvBsDisplay}
-                                                    onChange={e => {
-                                                        setIsPrice2Active(true);
-                                                        handlePrice2BsChange(e.target.value);
-                                                    }}
-                                                    placeholder="2749.87"
-                                                    className="w-full bg-emerald-50/70 dark:bg-emerald-950/40 p-3 pl-10 rounded-xl font-black text-emerald-950 dark:text-emerald-100 text-sm sm:text-base outline-none border-2 border-emerald-400 dark:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 transition-all shadow-2xs"
-                                                />
-                                            </div>
+                                        <div className="relative">
+                                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-black text-blue-600 pointer-events-none">$</span>
+                                            <input
+                                                type="number"
+                                                inputMode="decimal"
+                                                value={price2Usd}
+                                                onChange={e => {
+                                                    setIsPrice2Active(true);
+                                                    handlePrice2UsdChange(e.target.value);
+                                                }}
+                                                placeholder="3.73"
+                                                className="w-full bg-white dark:bg-slate-900 p-3 pl-8 rounded-xl font-black text-blue-950 dark:text-white text-sm sm:text-base outline-none border-2 border-blue-300 dark:border-blue-700 focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all shadow-2xs"
+                                            />
                                         </div>
                                     </div>
-
-                                    {/* 💡 Tarjeta de Valor y Ganancia Real USDT (Reposición) */}
-                                    {usdtRate > 0 && parseFloat(bcvBsDisplay) > 0 && (() => {
-                                        const bsMonto = parseFloat(bcvBsDisplay) || 0;
-                                        const realUsdtValue = (bsMonto / usdtRate).toFixed(2);
-                                        const costUsdNum = parseFloat(costUsd) || 0;
-                                        const realProfitVal = (parseFloat(realUsdtValue) - costUsdNum).toFixed(2);
-                                        const realMarginPct = costUsdNum > 0 ? (((parseFloat(realUsdtValue) - costUsdNum) / costUsdNum) * 100).toFixed(1) : null;
-
-                                        return (
-                                            <div className="mt-3 p-3 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 dark:from-emerald-950/40 dark:via-teal-950/30 dark:to-emerald-950/40 border border-emerald-300 dark:border-emerald-700/60 rounded-xl flex flex-wrap items-center justify-between gap-2 shadow-2xs">
-                                                <div className="flex items-center gap-2">
-                                                    <Sparkles size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-                                                    <div>
-                                                        <p className="text-[10px] font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">Valor Real al cambiar Bs ➔ USDT</p>
-                                                        <p className="text-xs font-extrabold text-emerald-950 dark:text-emerald-100">
-                                                            ${realUsdtValue} USDT <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">(Tasa USDT: {usdtRate} Bs/$)</span>
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                {costUsdNum > 0 && (
-                                                    <div className="bg-white/80 dark:bg-slate-900/80 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800/50 text-right">
-                                                        <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 block uppercase">Ganancia Real USDT</span>
-                                                        <span className={`text-xs font-black ${parseFloat(realProfitVal) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}`}>
-                                                            {parseFloat(realProfitVal) >= 0 ? '+' : ''}${realProfitVal} USDT {realMarginPct !== null && `(${realMarginPct}%)`}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })()}
+                                    <div>
+                                        <div className="flex items-center justify-between mb-1.5">
+                                            <span className="text-[10px] font-black text-emerald-800 dark:text-emerald-300 tracking-wide uppercase">Monto Final Bolívares</span>
+                                            <span className="text-[9px] font-black px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 rounded-md border border-emerald-200 dark:border-emerald-800/40 flex items-center gap-1">
+                                                <Landmark size={10} /> Bs BCV
+                                            </span>
+                                        </div>
+                                        <div className="relative">
+                                            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-black text-emerald-700 dark:text-emerald-400 pointer-events-none">Bs</span>
+                                            <input
+                                                type="number"
+                                                inputMode="decimal"
+                                                value={bcvBsDisplay}
+                                                onChange={e => {
+                                                    setIsPrice2Active(true);
+                                                    handlePrice2BsChange(e.target.value);
+                                                }}
+                                                placeholder="2749.87"
+                                                className="w-full bg-emerald-50/70 dark:bg-emerald-950/40 p-3 pl-10 rounded-xl font-black text-emerald-950 dark:text-emerald-100 text-sm sm:text-base outline-none border-2 border-emerald-400 dark:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 transition-all shadow-2xs"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
-                            )}
+
+                                {/* 💡 Tarjeta de Valor y Ganancia Real USDT (Reposición) */}
+                                {usdtRate > 0 && parseFloat(bcvBsDisplay) > 0 && (() => {
+                                    const bsMonto = parseFloat(bcvBsDisplay) || 0;
+                                    const realUsdtValue = (bsMonto / usdtRate).toFixed(2);
+                                    const costUsdNum = parseFloat(costUsd) || 0;
+                                    const realProfitVal = (parseFloat(realUsdtValue) - costUsdNum).toFixed(2);
+                                    const realMarginPct = costUsdNum > 0 ? (((parseFloat(realUsdtValue) - costUsdNum) / costUsdNum) * 100).toFixed(1) : null;
+
+                                    return (
+                                        <div className="mt-3 p-3 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 dark:from-emerald-950/40 dark:via-teal-950/30 dark:to-emerald-950/40 border border-emerald-300 dark:border-emerald-700/60 rounded-xl flex flex-wrap items-center justify-between gap-2 shadow-2xs">
+                                            <div className="flex items-center gap-2">
+                                                <Sparkles size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                                <div>
+                                                    <p className="text-[10px] font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">Valor Real al cambiar Bs ➔ USDT</p>
+                                                    <p className="text-xs font-extrabold text-emerald-950 dark:text-emerald-100">
+                                                        ${realUsdtValue} USDT <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">(Tasa USDT: {usdtRate} Bs/$)</span>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            {costUsdNum > 0 && (
+                                                <div className="bg-white/80 dark:bg-slate-900/80 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800/50 text-right">
+                                                    <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 block uppercase">Ganancia Real USDT</span>
+                                                    <span className={`text-xs font-black ${parseFloat(realProfitVal) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}`}>
+                                                        {parseFloat(realProfitVal) >= 0 ? '+' : ''}${realProfitVal} USDT {realMarginPct !== null && `(${realMarginPct}%)`}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
+                            </div>
                         </div>
                     );
                 })()}

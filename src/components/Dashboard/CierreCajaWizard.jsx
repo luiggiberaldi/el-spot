@@ -423,7 +423,7 @@ export default function CierreCajaWizard({
                                                 <strong className="font-bold text-red-600 dark:text-red-400">-${totalAdvancesEfectivoUsd.toFixed(2)}</strong>
                                             </div>
                                         )}
-                                        <div className="flex justify-between items-center border-t border-slate-200/50 dark:border-slate-700/50 pt-2 text-sm text-emerald-600 dark:text-emerald-450">
+                                        <div className="flex justify-between items-center border-t border-slate-200/50 dark:border-slate-700/50 pt-2 text-sm text-emerald-600 dark:text-emerald-400">
                                             <span className="font-bold">Comisiones Ganadas:</span>
                                             <strong className="font-black">
                                                 {totalAdvancesComisionBs > 0 && `${formatBs(totalAdvancesComisionBs)} Bs`}

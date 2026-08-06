@@ -3,6 +3,7 @@ import { supabaseCloud } from '../config/supabaseCloud';
 import { storageService } from '../utils/storageService';
 import { IDB_KEYS, LS_KEYS } from '../config/backupKeys';
 import { compressString, isCompressionSupported } from '../utils/compression';
+import { isValidDeviceId } from '../utils/deviceId';
 
 async function collectAndUpload(deviceId) {
     // Recolectar datos locales
@@ -55,6 +56,12 @@ async function collectAndUpload(deviceId) {
 export function useRemoteBackupListener(deviceId) {
     useEffect(() => {
         if (!supabaseCloud || !deviceId) return;
+
+        // SYNC-010: validar deviceId antes de cualquier query/suscripción.
+        if (!isValidDeviceId(deviceId)) {
+            console.warn('[RemoteBackup] deviceId inválido, abort:', deviceId);
+            return;
+        }
 
         const handleRequest = async () => {
             try {

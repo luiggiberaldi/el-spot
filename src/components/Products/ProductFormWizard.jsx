@@ -176,7 +176,7 @@ export default function ProductFormWizard({
                     </div>
 
                     {imageMatches && imageMatches.length > 0 && (
-                        <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-150 dark:border-slate-700/50 rounded-2xl p-3 space-y-2 animate-in fade-in slide-in-from-top-1 duration-200 select-none">
+                        <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/50 rounded-2xl p-3 space-y-2 animate-in fade-in slide-in-from-top-1 duration-200 select-none">
                             <div className="flex justify-between items-center px-0.5">
                                 <span className="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1">
                                     <Sparkles size={11} className="animate-pulse" /> Selecciona la foto correcta ({imageMatches.length})

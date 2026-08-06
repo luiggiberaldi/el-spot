@@ -154,7 +154,7 @@ export default function SettingsTabSistema({
                         {uiScale !== 100 && (
                             <button
                                 onClick={() => { setUiScale(100); triggerHaptic?.(); }}
-                                className="text-xs font-bold text-slate-550 hover:text-brand flex items-center gap-1 transition-colors"
+                                className="text-xs font-bold text-slate-500 hover:text-brand flex items-center gap-1 transition-colors"
                             >
                                 <RotateCcw size={12} /> Restablecer
                             </button>

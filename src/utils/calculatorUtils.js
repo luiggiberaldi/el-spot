@@ -15,7 +15,9 @@ import { round2, mulR, divR } from './dinero';
 
 // Formateadores
 export const formatBs = (val) => new Intl.NumberFormat('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val || 0);
+export const formatBsInt = (val) => new Intl.NumberFormat('es-VE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(val || 0));
 export const formatUsd = (val) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val || 0);
+export const formatUsdInt = (val) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(val || 0));
 // COP es entero por convención; usamos parseInt sobre round2 (sin Math.round, prohibido en utils/).
 export const formatCop = (val) => parseInt(round2(val || 0), 10).toLocaleString('es-CO');
 

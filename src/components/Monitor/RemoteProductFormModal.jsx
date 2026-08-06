@@ -192,8 +192,8 @@ export default function RemoteProductFormModal({ isOpen, onClose, editingProduct
             priceCop,
             costUsd: form.costUsd,
             costBs: form.costBs,
-            stock: form.stock,
-            stockInLotes: form.stockInLotes,
+            stock: editingProduct ? undefined : form.stock,
+            stockInLotes: editingProduct ? undefined : form.stockInLotes,
             packagingType: form.packagingType,
             unitsPerPackage: form.unitsPerPackage,
             granelUnit: form.granelUnit,
@@ -224,6 +224,7 @@ export default function RemoteProductFormModal({ isOpen, onClose, editingProduct
             isOpen={isOpen}
             onClose={onClose}
             isEditing={Boolean(editingProduct)}
+            zIndex="z-[1100]"
             image={form.image}
             setImage={form.setImage}
             name={form.name}

@@ -1,10 +1,10 @@
 // FIN-017: Reemplaza Math.round(raw/safeRate*100)/100 por divR + round2 de dinero.js.
 // FIN-030: Mantiene `priceUsdt` (typo histórico) pero añade alias `priceUsd` (mismo valor)
 //          para migración gradual hacia el nombre canónico.
-import { round2, divR, mulR } from './dinero';
+import { round2, divR, mulR, round0 } from './dinero';
 import { CurrencyService } from '../services/CurrencyService'; // FIN-017-pattern: safeParse en vez de parseFloat.
 
-export function buildProductPayload(formData, effectiveRate) {
+export function buildProductPayload(formData, effectiveRate, globalMarginPct = 25) {
     const {
         name,
         barcode,
@@ -70,10 +70,11 @@ export function buildProductPayload(formData, effectiveRate) {
         finalStock = Math.round(parseFloat(stockInLotes) * parsedUnitsPerPkg);
     }
 
-    // FIN-P2: Segundo precio (Precio BCV), guardado siempre en USD para consistencia financiera.
+    // FIN-P2: Segundo precio (Precio BCV), siempre activo si hay precioUsd.
+    const marginMult = 1 + (parseFloat(globalMarginPct) >= 0 ? parseFloat(globalMarginPct) : 49) / 100;
     const finalPrice2Usd = formData.price2Usd && CurrencyService.safeParse(formData.price2Usd) > 0
-        ? round2(CurrencyService.safeParse(formData.price2Usd))
-        : null;
+        ? round0(CurrencyService.safeParse(formData.price2Usd))
+        : (finalPriceUsd > 0 ? round0(finalPriceUsd * marginMult) : null);
 
     return {
         name: formattedName,

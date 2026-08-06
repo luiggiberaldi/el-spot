@@ -435,7 +435,7 @@ export default function UsersManager({ triggerHaptic }) {
                         <div className="flex items-center justify-center gap-2 my-4">
                             <button
                                 onClick={() => setShowPin(!showPin)}
-                                className="text-[9px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1 hover:text-slate-650 transition-colors bg-slate-50 dark:bg-slate-800/40 px-2.5 py-1 rounded-full border border-slate-100 dark:border-slate-850"
+                                className="text-[9px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1 hover:text-slate-600 transition-colors bg-slate-50 dark:bg-slate-800/40 px-2.5 py-1 rounded-full border border-slate-100 dark:border-slate-800"
                             >
                                 {showPin ? <EyeOff size={11} className="text-slate-500" /> : <Eye size={11} className="text-slate-500" />}
                                 {showPin ? 'Ocultar PIN' : 'Mostrar PIN'}
@@ -473,7 +473,7 @@ export default function UsersManager({ triggerHaptic }) {
                                 <>
                                     <button
                                         onClick={() => { setChangePinStep(1); setShowPin(false); }}
-                                        className="flex-1 py-2.5 text-xs font-bold text-slate-500 bg-slate-150 dark:bg-slate-800 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 transition-all"
+                                        className="flex-1 py-2.5 text-xs font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 transition-all"
                                     >
                                         Atrás
                                     </button>
@@ -491,7 +491,7 @@ export default function UsersManager({ triggerHaptic }) {
                                 <>
                                     <button
                                         onClick={() => { setChangePinStep(2); setShowPin(false); }}
-                                        className="flex-1 py-2.5 text-xs font-bold text-slate-500 bg-slate-150 dark:bg-slate-800 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 transition-all"
+                                        className="flex-1 py-2.5 text-xs font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 transition-all"
                                     >
                                         Atrás
                                     </button>

@@ -7,6 +7,46 @@ export const Card = ({ children, className = "" }) => (
   </div>
 );
 
+export const KpiCard = ({ label, value, subvalue, icon: Icon, color = "emerald", className = "" }) => {
+  const iconColors = {
+    emerald: "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-500",
+    blue: "bg-blue-50 dark:bg-blue-950/20 text-blue-500",
+    slate: "bg-slate-50 dark:bg-slate-800/50 text-slate-500",
+    amber: "bg-amber-50 dark:bg-amber-950/20 text-amber-500",
+    rose: "bg-rose-50 dark:bg-rose-950/20 text-rose-500",
+  };
+  const valColors = {
+    emerald: "text-emerald-600 dark:text-emerald-400",
+    blue: "text-blue-600 dark:text-blue-400",
+    slate: "text-slate-800 dark:text-white",
+    amber: "text-amber-600 dark:text-amber-400",
+    rose: "text-rose-600 dark:text-rose-400",
+  };
+
+  return (
+    <div className={`bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-sm flex flex-col justify-between min-h-[105px] sm:min-h-[125px] ${className}`}>
+      <div className="flex items-center justify-between w-full">
+        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">{label}</span>
+        {Icon && (
+          <div className={`w-7 h-7 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 ${iconColors[color] || iconColors.emerald}`}>
+            <Icon size={16} aria-hidden="true" />
+          </div>
+        )}
+      </div>
+      <div className="mt-2.5 min-w-0">
+        <span className={`font-outfit text-base sm:text-xl lg:text-2xl font-black tabular-nums block break-words leading-none ${valColors[color] || valColors.slate}`}>
+          {value}
+        </span>
+        {subvalue && (
+          <span className="text-[10px] text-slate-400 block font-medium mt-1">
+            {subvalue}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export const Badge = ({ children, color = "slate", className = "" }) => {
   const colors = {
     slate: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",

@@ -11,16 +11,69 @@
  * - Centro Único/Individual (compensado): 29.50 mm (Calculado: LABEL_W/2 + 0.5)
  * ==========================================
  */
-import { round2, mulR, ceilR } from './dinero';
+import { round2, mulR, ceilR, round0 } from './dinero';
 import { getUsd } from './calculatorUtils';
 
 // Dimensiones de la etiqueta individual en mm
 const LABEL_W = 58;
 
-export const generarEtiquetas = async (productos, effectiveRate, copEnabled, tasaCop) => {
+/**
+ * Helper para calcular los textos de la etiqueta en el orden exacto:
+ * 1. Precio $ Efectivo (Oferta Cash)
+ * 2. Precio $ BCV (Con recargo sobre BCV)
+ * 3. Cantidad final en Bolívares (Bs)
+ */
+export function computeLabelPriceTexts(p, effectiveRate, copEnabled, tasaCop, bcvMarginPct = 25, labelCurrencyMode = 'mixto') {
+    const cashUsdRaw = getUsd(p, tasaCop);
+    const marginMult = 1 + (parseFloat(bcvMarginPct) >= 0 ? parseFloat(bcvMarginPct) : 25) / 100;
+    
+    // Si el producto tiene price2Usd personalizado se usa, si no, se auto-calcula con el % de tienda
+    const bcvUsdRaw = (p.price2Usd && parseFloat(p.price2Usd) > 0)
+        ? round0(parseFloat(p.price2Usd))
+        : round0(cashUsdRaw * marginMult);
+
+    const priceBsRaw = mulR(bcvUsdRaw, effectiveRate);
+
+    const textCashUsd = copEnabled && tasaCop > 0
+        ? `${(p.priceCop || round2(mulR(cashUsdRaw, tasaCop))).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} COP`
+        : `$${round2(cashUsdRaw)}`;
+
+    const textBcvUsd = `$${round0(bcvUsdRaw)}`;
+    const textBs = `Bs ${ceilR(priceBsRaw).toLocaleString('es-VE')}`;
+
+    let mainText = '';
+    let secondaryText = '';
+    let tertiaryText = '';
+    let promoTagText = '';
+    let mainTagText = ''; // Badge sobre el precio principal
+    let showSecondary = false;
+
+    if (labelCurrencyMode === 'bs') {
+        mainText = textBs;
+        showSecondary = false;
+    } else if (labelCurrencyMode === 'usd') {
+        mainText = textCashUsd;
+        showSecondary = false;
+    } else { // 'mixto': Precio normal arriba, luego badge promo, luego precio efectivo
+        mainText = textBcvUsd;      // 1er lugar (Gigante): Precio normal/BCV sin sufijo
+        mainTagText = 'PRECIO';     // Badge encima del precio normal
+        promoTagText = 'PROMO $ EFECTIVO';
+        
+        if (Math.abs(bcvUsdRaw - cashUsdRaw) > 0.009) {
+            secondaryText = textCashUsd; // 2do lugar (Grande): Precio efectivo/cash
+            showSecondary = true;
+        }
+        // Sin tertiaryText (Bs eliminados)
+        tertiaryText = '';
+    }
+
+    return { mainText, secondaryText, tertiaryText, promoTagText, mainTagText, showSecondary, cashUsdRaw, bcvUsdRaw, priceBsRaw };
+}
+
+export const generarEtiquetas = async (productos, effectiveRate, copEnabled, tasaCop, bcvMarginPct = 25) => {
     const paperWidthSetting = localStorage.getItem('printer_paper_width') || '58';
     if (paperWidthSetting === '80') {
-        return generarEtiquetas80(productos, effectiveRate, copEnabled, tasaCop);
+        return generarEtiquetas80(productos, effectiveRate, copEnabled, tasaCop, bcvMarginPct);
     }
 
     // Importación dinámica de jsPDF para optimizar carga inicial
@@ -164,33 +217,12 @@ export const generarEtiquetas = async (productos, effectiveRate, copEnabled, tas
         const footerStartY = hasSecondaryPrice ? footerY - 5.5 : footerY - 1.5;
 
         // Espacio libre central para diagramar el bloque de precios
-        const freeSpace = footerStartY - titleEndY;
+        const freeSpace = footerStartY - (titleEndY + 2.0);
 
         // --- 3. CÁLCULO DE PRECIOS CON CENTRADO VERTICAL RESPONSIVO ---
-        const priceUsdRaw = getUsd(p, tasaCop);
-        const priceBsRaw = mulR(priceUsdRaw, effectiveRate);
-        
-        const textUsd = copEnabled && tasaCop > 0
-            ? `${(p.priceCop || round2(mulR(priceUsdRaw, tasaCop))).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} COP`
-            : `$${round2(priceUsdRaw)}`;
-        const textBs = `Bs ${ceilR(priceBsRaw).toLocaleString('es-VE')}`;
-
-        // Determinar textos y tamaños según el modo de moneda
-        let mainText = '';
-        let secondaryText = '';
-        let showSecondary = false;
-
-        if (labelCurrencyMode === 'bs') {
-            mainText = textBs;
-            showSecondary = false;
-        } else if (labelCurrencyMode === 'usd') {
-            mainText = textUsd;
-            showSecondary = false;
-        } else { // mixto
-            mainText = textUsd;
-            secondaryText = textBs;
-            showSecondary = true;
-        }
+        const { mainText, secondaryText, tertiaryText, promoTagText, mainTagText, showSecondary } = computeLabelPriceTexts(
+            p, effectiveRate, copEnabled, tasaCop, bcvMarginPct, labelCurrencyMode
+        );
 
         // Sumar offset de tamaño de fuente al precio principal antes de medir
         let finalPriceFontSize = ((labelCurrencyMode === 'bs' || labelCurrencyMode === 'usd') ? 28 : 24) + offsetFontPrice;
@@ -212,6 +244,12 @@ export const generarEtiquetas = async (productos, effectiveRate, copEnabled, tas
         let finalSecondaryFontSize = 11 + offsetFontSecPrice;
         if (finalSecondaryFontSize < 5) finalSecondaryFontSize = 5;
 
+        let promoTagFontSize = promoTagText ? Math.max(3, 3.5 + offsetFontSecPrice) : 0;
+        let promoTagHeight = promoTagText ? promoTagFontSize * 0.3527 * 0.75 : 0;
+        // Badge PRECIO encima del precio principal (mismo tamaño que promoTag)
+        let mainTagFontSize = mainTagText ? Math.max(3, 3.5 + offsetFontSecPrice) : 0;
+        let mainTagHeight = mainTagText ? mainTagFontSize * 0.3527 * 0.75 : 0;
+
         // Ajuste horizontal continuo para el precio secundario final calibrado
         if (showSecondary) {
             doc.setFont('helvetica', 'normal');
@@ -227,61 +265,88 @@ export const generarEtiquetas = async (productos, effectiveRate, copEnabled, tas
         // Alturas físicas de las tipografías en mm (factor baseline de jsPDF ~0.75)
         let priceHeight = finalPriceFontSize * 0.3527 * 0.75;
         let secondaryHeight = finalSecondaryFontSize * 0.3527 * 0.75;
+        let tertiaryHeight = tertiaryText ? (finalSecondaryFontSize * 0.70) * 0.3527 * 0.75 : 0;
 
-        let priceBlockHeight = showSecondary
-            ? priceHeight + secondaryHeight + 3.5
-            : priceHeight;
+        let priceBlockHeight = priceHeight;
+        if (mainTagText) priceBlockHeight += mainTagHeight + 1.5;
+        if (promoTagText) priceBlockHeight += promoTagHeight + 2.2;
+        if (showSecondary) priceBlockHeight += secondaryHeight + 2.5;
+        if (tertiaryText) priceBlockHeight += tertiaryHeight + 1.8;
 
-        // Ajuste vertical proporcional continuo si el bloque excede el 82% del espacio libre
-        const maxAllowedBlockHeight = freeSpace * 0.82;
+        // Ajuste vertical proporcional continuo si el bloque excede el 84% del espacio libre
+        const maxAllowedBlockHeight = freeSpace * 0.84;
         if (priceBlockHeight > maxAllowedBlockHeight && maxAllowedBlockHeight > 4) {
             const scaleFactor = maxAllowedBlockHeight / priceBlockHeight;
             finalPriceFontSize = Math.max(5, finalPriceFontSize * scaleFactor);
             finalSecondaryFontSize = Math.max(5, finalSecondaryFontSize * scaleFactor);
+            promoTagFontSize = Math.max(4, promoTagFontSize * scaleFactor);
+            mainTagFontSize = Math.max(4, mainTagFontSize * scaleFactor);
             
             // Recalcular alturas físicas
             priceHeight = finalPriceFontSize * 0.3527 * 0.75;
             secondaryHeight = finalSecondaryFontSize * 0.3527 * 0.75;
-            priceBlockHeight = showSecondary
-                ? priceHeight + secondaryHeight + 3.5
-                : priceHeight;
+            promoTagHeight = promoTagText ? promoTagFontSize * 0.3527 * 0.75 : 0;
+            mainTagHeight = mainTagText ? mainTagFontSize * 0.3527 * 0.75 : 0;
+            tertiaryHeight = tertiaryText ? (finalSecondaryFontSize * 0.70) * 0.3527 * 0.75 : 0;
+            
+            priceBlockHeight = priceHeight;
+            if (mainTagText) priceBlockHeight += mainTagHeight + 1.5;
+            if (promoTagText) priceBlockHeight += promoTagHeight + 2.2;
+            if (showSecondary) priceBlockHeight += secondaryHeight + 2.5;
+            if (tertiaryText) priceBlockHeight += tertiaryHeight + 1.8;
         }
 
-        // Coordenada Y para centrar el bloque de precios en freeSpace
-        const priceY = titleEndY + ((freeSpace - priceBlockHeight) / 2) + priceHeight;
+        const startBlockY = (titleEndY + 2.0) + ((freeSpace - priceBlockHeight) / 2);
 
-        // Dibujar Precio Principal
-        centrarTexto(mainText, priceY, finalPriceFontSize, 'bold', [0, 0, 0], offsetPriceX, offsetPriceY);
+        // Render 58mm: badge PRECIO → mainText (BCV) → badge PROMO → secondaryText (efectivo)
+        let currentY = startBlockY;
 
-        // Dibujar Precio Secundario si corresponde
+        // 0. Badge PRECIO encima del precio normal
+        if (mainTagText) {
+            currentY += mainTagHeight;
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(mainTagFontSize);
+            const mtw = doc.getTextWidth(mainTagText);
+            const mbW = mtw + 4;
+            const mbH = mainTagHeight + 1.2;
+            const mbX = (centerX - mbW / 2) + offsetPriceX;
+            const mbY = currentY - mainTagHeight + offsetPriceY - 1.2;
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.3);
+            doc.roundedRect(mbX, mbY, mbW, mbH, 1, 1, 'S');
+            centrarTexto(mainTagText, currentY, mainTagFontSize, 'normal', [0, 0, 0], offsetPriceX, offsetPriceY - 1);
+            currentY += 1.5;
+        }
+
+        // 1. Precio normal (BCV) arriba, grande
+        currentY += priceHeight;
+        centrarTexto(mainText, currentY, finalPriceFontSize, 'bold', [0, 0, 0], offsetPriceX, offsetPriceY);
+
+        // 2. Badge PROMO $ EFECTIVO (debajo del precio normal)
+        if (promoTagText && showSecondary) {
+            currentY += 2.5;
+            currentY += promoTagHeight;
+            doc.setFont('helvetica', 'italic');
+            doc.setFontSize(promoTagFontSize);
+            const tw = doc.getTextWidth(promoTagText);
+            const badgeW = tw + 4;
+            const badgeH = promoTagHeight + 1.2;
+            const badgeX = (centerX - badgeW / 2) + offsetSecPriceX;
+            const badgeY = currentY - promoTagHeight + offsetSecPriceY - 1.2;
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.3);
+            doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 1, 1, 'S');
+            centrarTexto(promoTagText, currentY, promoTagFontSize, 'italic', [0, 0, 0], offsetSecPriceX, offsetSecPriceY - 1);
+            currentY += 2.2;
+        }
+
+        // 3. Precio efectivo (cash), grande
         if (showSecondary) {
-            const priceBsY = priceY + secondaryHeight + 3.5;
-            centrarTexto(secondaryText, priceBsY, finalSecondaryFontSize, 'normal', [0, 0, 0], offsetSecPriceX, offsetSecPriceY);
-
-            // Dibujar Tercer Precio (USD si está activo COP)
-            if (hasSecondaryPrice) {
-                const textSecondary = `USD ${round2(priceUsdRaw)}`;
-                const thirdPriceFontSize = Math.max(5, 8.5 + offsetFontSecPrice);
-                centrarTexto(textSecondary, priceBsY + 4.5, thirdPriceFontSize, 'normal', [100, 100, 100], offsetSecPriceX, offsetSecPriceY);
-            }
-        } else {
-            // Si el modo es USD puro pero COP está activo, podemos mostrar el precio secundario pequeño
-            if (labelCurrencyMode === 'usd' && hasSecondaryPrice) {
-                const textSecondary = `USD ${round2(priceUsdRaw)}`;
-                const thirdPriceFontSize = Math.max(5, 8.5 + offsetFontSecPrice);
-                centrarTexto(textSecondary, priceY + secondaryHeight + 4.5, thirdPriceFontSize, 'normal', [100, 100, 100], offsetSecPriceX, offsetSecPriceY);
-            }
+            currentY += secondaryHeight;
+            centrarTexto(secondaryText, currentY, finalSecondaryFontSize, 'bold', [0, 0, 0], offsetSecPriceX, offsetSecPriceY);
         }
 
-        // --- 4. FOOTER FIJO EN LA BASE ---
-        const d = new Date();
-        const fechaStr = `${d.getDate()}/${d.getMonth() + 1}/${String(d.getFullYear()).slice(-2)}`;
-        const infoExtra = p.barcode || (p.unit ? p.unit.toUpperCase() : 'UND');
-
-        let finalFooterFontSize = 6.5 + offsetFontFooter;
-        if (finalFooterFontSize < 3) finalFooterFontSize = 3;
-
-        centrarTexto(`${infoExtra}  |  ${fechaStr}`, footerY, finalFooterFontSize, 'normal', [80, 80, 80], offsetFooterX, offsetFooterY);
+        // --- 4. FOOTER FIJO EN LA BASE (REMOVIDO SEGÚN SOLICITUD) ---
     });
 
     // Disparar auto-impresión a través de iframe para flujo directo continuo y limpio
@@ -405,15 +470,22 @@ export const generarPreviewLabel = async (effectiveRate = 36.5, copEnabled = fal
 
     let mainText = '';
     let secondaryText = '';
+    let promoTagText = '';
     let showSecondary = false;
+
+    // Producto de muestra representativo: precio BCV arriba, efectivo abajo
+    // (margen ~25% sobre el precio efectivo)
+    const cashMarginMult = 1.25; // 25% de recargo sobre efectivo = precio BCV
 
     if (labelCurrencyMode === 'bs') {
         mainText = textBs;
     } else if (labelCurrencyMode === 'usd') {
         mainText = textUsd;
     } else {
-        mainText = textUsd;
-        secondaryText = textBs;
+        const bcvUsdSample = round2(priceUsdRaw * cashMarginMult);
+        mainText = `$${Math.round(bcvUsdSample)}`; // Precio BCV arriba, sin sufijo
+        promoTagText = 'PROMO $ EFECTIVO';
+        secondaryText = textUsd; // Precio efectivo abajo
         showSecondary = true;
     }
 
@@ -439,7 +511,7 @@ export const generarPreviewLabel = async (effectiveRate = 36.5, copEnabled = fal
 
     const footerY      = labelH - marginY - 2;
     const footerStartY = hasSecondaryPrice ? footerY - 5.5 : footerY - 1.5;
-    const freeSpace    = footerStartY - titleEndY;
+    const freeSpace    = footerStartY - (titleEndY + 2.0);
 
     let priceFontSize = ((labelCurrencyMode === 'bs' || labelCurrencyMode === 'usd') ? 28 : 24) + offsetFontPrice;
     if (priceFontSize < 5) priceFontSize = 5;
@@ -452,6 +524,10 @@ export const generarPreviewLabel = async (effectiveRate = 36.5, copEnabled = fal
 
     let secPriceFontSize = 11 + offsetFontSecPrice;
     if (secPriceFontSize < 5) secPriceFontSize = 5;
+
+    let promoTagFontSize = promoTagText ? Math.max(3, 3.5 + offsetFontSecPrice) : 0;
+    let promoTagHeight = promoTagText ? promoTagFontSize * 0.3527 * 0.75 : 0;
+
     if (showSecondary) {
         doc.setFontSize(secPriceFontSize);
         while (doc.getTextWidth(secondaryText) > printableWidth && secPriceFontSize > 6) {
@@ -462,29 +538,79 @@ export const generarPreviewLabel = async (effectiveRate = 36.5, copEnabled = fal
 
     let priceH_mm    = priceFontSize    * 0.3527 * 0.75;
     let secPriceH_mm = secPriceFontSize * 0.3527 * 0.75;
-    let blockH_mm    = showSecondary ? priceH_mm + secPriceH_mm + 3.5 : priceH_mm;
+    // Badge PRECIO preview
+    const previewMainTagText = isMixto ? 'PRECIO' : '';
+    let previewMainTagFontSize = previewMainTagText ? Math.max(3, 3.5 + offsetFontSecPrice) : 0;
+    let previewMainTagH = previewMainTagText ? previewMainTagFontSize * 0.3527 * 0.75 : 0;
+    let blockH_mm    = priceH_mm;
+    if (previewMainTagText) blockH_mm += previewMainTagH + 1.5;
+    if (promoTagText) blockH_mm += promoTagHeight + 2.2;
+    if (showSecondary) blockH_mm += secPriceH_mm + 2.5;
 
     const maxAllowed = freeSpace * 0.82;
     if (blockH_mm > maxAllowed && maxAllowed > 4) {
         const sf = maxAllowed / blockH_mm;
         priceFontSize    = Math.max(5, priceFontSize    * sf);
         secPriceFontSize = Math.max(5, secPriceFontSize * sf);
+        promoTagFontSize = Math.max(4, promoTagFontSize * sf);
+        previewMainTagFontSize = Math.max(4, previewMainTagFontSize * sf);
         priceH_mm    = priceFontSize    * 0.3527 * 0.75;
         secPriceH_mm = secPriceFontSize * 0.3527 * 0.75;
-        blockH_mm    = showSecondary ? priceH_mm + secPriceH_mm + 3.5 : priceH_mm;
+        promoTagHeight = promoTagText ? promoTagFontSize * 0.3527 * 0.75 : 0;
+        previewMainTagH = previewMainTagText ? previewMainTagFontSize * 0.3527 * 0.75 : 0;
+        blockH_mm    = priceH_mm;
+        if (previewMainTagText) blockH_mm += previewMainTagH + 1.5;
+        if (promoTagText) blockH_mm += promoTagHeight + 2.2;
+        if (showSecondary) blockH_mm += secPriceH_mm + 2.5;
     }
 
-    const priceY    = titleEndY + (freeSpace - blockH_mm) / 2 + priceH_mm;
-    const secPriceY = priceY + secPriceH_mm + 3.5;
+    // Render 58mm preview: badge PRECIO → mainText (BCV) → badge PROMO → secondaryText (efectivo)
+    let currentY = (titleEndY + 2.0) + (freeSpace - blockH_mm) / 2;
 
-    centrarTexto(mainText, priceY, priceFontSize, 'bold', [0, 0, 0], offsetPriceX, offsetPriceY);
+    // 0. Badge PRECIO encima del precio normal
+    if (previewMainTagText) {
+        currentY += previewMainTagH;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(previewMainTagFontSize);
+        const mtw = doc.getTextWidth(previewMainTagText);
+        const mbW = mtw + 4;
+        const mbH = previewMainTagH + 1.2;
+        const mbX = (centerX - mbW / 2) + offsetPriceX;
+        const mbY = currentY - previewMainTagH + offsetPriceY - 1.2;
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.3);
+        doc.roundedRect(mbX, mbY, mbW, mbH, 1, 1, 'S');
+        centrarTexto(previewMainTagText, currentY, previewMainTagFontSize, 'normal', [0, 0, 0], offsetPriceX, offsetPriceY - 1);
+        currentY += 1.5;
+    }
+
+    // 1. Precio normal (BCV) arriba, grande
+    currentY += priceH_mm;
+    centrarTexto(mainText, currentY, priceFontSize, 'bold', [0, 0, 0], offsetPriceX, offsetPriceY);
+
+    // 2. Badge PROMO $ EFECTIVO
+    if (promoTagText && showSecondary) {
+        currentY += 2.5;
+        currentY += promoTagHeight;
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(promoTagFontSize);
+        const tw = doc.getTextWidth(promoTagText);
+        const badgeW = tw + 4;
+        const badgeH = promoTagHeight + 1.2;
+        const badgeX = (centerX - badgeW / 2) + offsetSecPriceX;
+        const badgeY = currentY - promoTagHeight + offsetSecPriceY - 1.2;
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.3);
+        doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 1, 1, 'S');
+        centrarTexto(promoTagText, currentY, promoTagFontSize, 'italic', [0, 0, 0], offsetSecPriceX, offsetSecPriceY - 1);
+        currentY += 2.2;
+    }
+
+    // 3. Precio efectivo (cash), grande
     if (showSecondary) {
-        centrarTexto(secondaryText, secPriceY, secPriceFontSize, 'normal', [0, 0, 0], offsetSecPriceX, offsetSecPriceY);
+        currentY += secPriceH_mm;
+        centrarTexto(secondaryText, currentY, secPriceFontSize, 'bold', [0, 0, 0], offsetSecPriceX, offsetSecPriceY);
     }
-
-    let footerFontSize = 6.5 + offsetFontFooter;
-    if (footerFontSize < 3) footerFontSize = 3;
-    centrarTexto('7598973217556  |  9/7/26', footerY, footerFontSize, 'normal', [80, 80, 80], offsetFooterX, offsetFooterY);
 
     return doc.output('bloburl');
 };
@@ -498,7 +624,7 @@ export const generarPreviewLabel = async (effectiveRate = 36.5, copEnabled = fal
 //  - Centro Único/Individual (compensado): 45.50 mm (Calculado: width/2 + 5.5)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const generarEtiquetas80 = async (productos, effectiveRate, copEnabled, tasaCop) => {
+export const generarEtiquetas80 = async (productos, effectiveRate, copEnabled, tasaCop, bcvMarginPct = 25) => {
     const { default: jsPDF } = await import('jspdf');
 
     if (!productos || productos.length === 0) return;
@@ -607,30 +733,12 @@ export const generarEtiquetas80 = async (productos, effectiveRate, copEnabled, t
         // Footer Y
         const footerY = offsetY + labelH - marginY - 2;
         const footerStartY = hasSecondaryPrice ? footerY - 5.5 : footerY - 1.5;
-        const freeSpace = footerStartY - titleEndY;
+        const freeSpace = footerStartY - (titleEndY + 2.5);
 
         // Precios
-        const priceUsdRaw = getUsd(p, tasaCop);
-        const priceBsRaw = mulR(priceUsdRaw, effectiveRate);
-        
-        const textUsd = copEnabled && tasaCop > 0
-            ? `${(p.priceCop || round2(mulR(priceUsdRaw, tasaCop))).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} COP`
-            : `$${round2(priceUsdRaw)}`;
-        const textBs = `Bs ${ceilR(priceBsRaw).toLocaleString('es-VE')}`;
-
-        let mainText = '';
-        let secondaryText = '';
-        let showSecondary = false;
-
-        if (labelCurrencyMode === 'bs') {
-            mainText = textBs;
-        } else if (labelCurrencyMode === 'usd') {
-            mainText = textUsd;
-        } else {
-            mainText = textUsd;
-            secondaryText = textBs;
-            showSecondary = true;
-        }
+        const { mainText, secondaryText, tertiaryText, promoTagText, mainTagText, showSecondary } = computeLabelPriceTexts(
+            p, effectiveRate, copEnabled, tasaCop, bcvMarginPct, labelCurrencyMode
+        );
 
         // Precio principal
         let basePriceFontSize = isMixto ? 32 : 42;
@@ -652,6 +760,12 @@ export const generarEtiquetas80 = async (productos, effectiveRate, copEnabled, t
         let finalSecondaryFontSize = baseSecPriceFontSize + offsetFontSecPrice;
         if (finalSecondaryFontSize < 5) finalSecondaryFontSize = 5;
 
+        let promoTagFontSize = promoTagText ? Math.max(3, 4.5 + offsetFontSecPrice) : 0;
+        let promoTagHeight = promoTagText ? promoTagFontSize * 0.3527 * 0.75 : 0;
+        // Badge PRECIO encima del precio principal (80mm)
+        let mainTagFontSize80 = mainTagText ? Math.max(3, 4.5 + offsetFontSecPrice) : 0;
+        let mainTagHeight80 = mainTagText ? mainTagFontSize80 * 0.3527 * 0.75 : 0;
+
         if (showSecondary) {
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(finalSecondaryFontSize);
@@ -665,55 +779,87 @@ export const generarEtiquetas80 = async (productos, effectiveRate, copEnabled, t
 
         let priceHeight = finalPriceFontSize * 0.3527 * 0.75;
         let secondaryHeight = finalSecondaryFontSize * 0.3527 * 0.75;
+        let tertiaryHeight = tertiaryText ? (finalSecondaryFontSize * 0.70) * 0.3527 * 0.75 : 0;
 
-        let priceBlockHeight = showSecondary
-            ? priceHeight + secondaryHeight + 3.5
-            : priceHeight;
+        let priceBlockHeight = priceHeight;
+        if (mainTagText) priceBlockHeight += mainTagHeight80 + 2.0;
+        if (promoTagText) priceBlockHeight += promoTagHeight + 2.5;
+        if (showSecondary) priceBlockHeight += secondaryHeight + 3.0;
+        if (tertiaryText) priceBlockHeight += tertiaryHeight + 2.0;
 
         // Ajuste vertical
-        const maxAllowedBlockHeight = freeSpace * 0.82;
+        const maxAllowedBlockHeight = freeSpace * 0.84;
         if (priceBlockHeight > maxAllowedBlockHeight && maxAllowedBlockHeight > 4) {
             const scaleFactor = maxAllowedBlockHeight / priceBlockHeight;
             finalPriceFontSize = Math.max(5, finalPriceFontSize * scaleFactor);
             finalSecondaryFontSize = Math.max(5, finalSecondaryFontSize * scaleFactor);
+            promoTagFontSize = Math.max(4, promoTagFontSize * scaleFactor);
+            mainTagFontSize80 = Math.max(4, mainTagFontSize80 * scaleFactor);
             
             priceHeight = finalPriceFontSize * 0.3527 * 0.75;
             secondaryHeight = finalSecondaryFontSize * 0.3527 * 0.75;
-            priceBlockHeight = showSecondary
-                ? priceHeight + secondaryHeight + 3.5
-                : priceHeight;
+            promoTagHeight = promoTagText ? promoTagFontSize * 0.3527 * 0.75 : 0;
+            mainTagHeight80 = mainTagText ? mainTagFontSize80 * 0.3527 * 0.75 : 0;
+            tertiaryHeight = tertiaryText ? (finalSecondaryFontSize * 0.70) * 0.3527 * 0.75 : 0;
+            
+            priceBlockHeight = priceHeight;
+            if (mainTagText) priceBlockHeight += mainTagHeight80 + 2.0;
+            if (promoTagText) priceBlockHeight += promoTagHeight + 2.5;
+            if (showSecondary) priceBlockHeight += secondaryHeight + 3.0;
+            if (tertiaryText) priceBlockHeight += tertiaryHeight + 2.0;
         }
 
-        const priceY = titleEndY + ((freeSpace - priceBlockHeight) / 2) + priceHeight;
+        const startBlockY = (titleEndY + 2.5) + ((freeSpace - priceBlockHeight) / 2);
 
-        centrarTexto(mainText, priceY, finalPriceFontSize, 'bold', [0, 0, 0], offsetPriceX, offsetPriceY);
+        // Render 80mm: badge PRECIO → mainText (BCV) → badge PROMO → secondaryText (efectivo)
+        let currentY = startBlockY;
 
+        // 0. Badge PRECIO encima del precio normal
+        if (mainTagText) {
+            currentY += mainTagHeight80;
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(mainTagFontSize80);
+            const mtw = doc.getTextWidth(mainTagText);
+            const mbW = mtw + 5;
+            const mbH = mainTagHeight80 + 1.4;
+            const mbX = (centerX - mbW / 2) + offsetPriceX;
+            const mbY = currentY - mainTagHeight80 + offsetPriceY - 1.4;
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.35);
+            doc.roundedRect(mbX, mbY, mbW, mbH, 1.2, 1.2, 'S');
+            centrarTexto(mainTagText, currentY, mainTagFontSize80, 'normal', [0, 0, 0], offsetPriceX, offsetPriceY - 1);
+            currentY += 2.0;
+        }
+
+        // 1. Precio normal (BCV) arriba, grande
+        currentY += priceHeight;
+        centrarTexto(mainText, currentY, finalPriceFontSize, 'bold', [0, 0, 0], offsetPriceX, offsetPriceY);
+
+        // 2. Badge PROMO $ EFECTIVO
+        if (promoTagText && showSecondary) {
+            currentY += 3.0;
+            currentY += promoTagHeight;
+            doc.setFont('helvetica', 'italic');
+            doc.setFontSize(promoTagFontSize);
+            const tw = doc.getTextWidth(promoTagText);
+            const badgeW = tw + 5;
+            const badgeH = promoTagHeight + 1.4;
+            const badgeX = (centerX - badgeW / 2) + offsetSecPriceX;
+            const badgeY = currentY - promoTagHeight + offsetSecPriceY - 1.4;
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.35);
+            doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 1.2, 1.2, 'S');
+            centrarTexto(promoTagText, currentY, promoTagFontSize, 'italic', [0, 0, 0], offsetSecPriceX, offsetSecPriceY - 1);
+            currentY += 2.5;
+        }
+
+        // 3. Precio efectivo (cash), grande
         if (showSecondary) {
-            const priceBsY = priceY + secondaryHeight + 3.5;
-            centrarTexto(secondaryText, priceBsY, finalSecondaryFontSize, 'normal', [0, 0, 0], offsetSecPriceX, offsetSecPriceY);
-
-            if (hasSecondaryPrice) {
-                const textSecondary = `USD ${round2(priceUsdRaw)}`;
-                const thirdPriceFontSize = Math.max(5, 10 + offsetFontSecPrice);
-                centrarTexto(textSecondary, priceBsY + 6.5, thirdPriceFontSize, 'normal', [100, 100, 100], offsetSecPriceX, offsetSecPriceY);
-            }
-        } else {
-            if (labelCurrencyMode === 'usd' && hasSecondaryPrice) {
-                const textSecondary = `USD ${round2(priceUsdRaw)}`;
-                const thirdPriceFontSize = Math.max(5, 10 + offsetFontSecPrice);
-                centrarTexto(textSecondary, priceY + secondaryHeight + 6.5, thirdPriceFontSize, 'normal', [100, 100, 100], offsetSecPriceX, offsetSecPriceY);
-            }
+            currentY += secondaryHeight;
+            centrarTexto(secondaryText, currentY, finalSecondaryFontSize, 'bold', [0, 0, 0], offsetSecPriceX, offsetSecPriceY);
         }
 
-        // Footer
-        const d = new Date();
-        const fechaStr = `${d.getDate()}/${d.getMonth() + 1}/${String(d.getFullYear()).slice(-2)}`;
-        const infoExtra = p.barcode || (p.unit ? p.unit.toUpperCase() : 'UND');
-
-        let finalFooterFontSize = 8.5 + offsetFontFooter;
-        if (finalFooterFontSize < 3) finalFooterFontSize = 3;
-
-        centrarTexto(`${infoExtra}  |  ${fechaStr}`, footerY, finalFooterFontSize, 'normal', [80, 80, 80], offsetFooterX, offsetFooterY);
+        // Footer (Removido según solicitud)
     });
 
     doc.autoPrint();
@@ -784,7 +930,6 @@ export const generarPreviewLabel80 = async (effectiveRate = 36.5, copEnabled = f
     const offsetFontName     = parseFloat(localStorage.getItem(`label_offset_font_name${modeSuffix}`)      || defFontName);
     const offsetFontPrice    = parseFloat(localStorage.getItem(`label_offset_font_price${modeSuffix}`)     || defFontPrice);
     const offsetFontSecPrice = parseFloat(localStorage.getItem(`label_offset_font_sec_price${modeSuffix}`) || defFontSecPrice);
-    const offsetFontFooter   = parseFloat(localStorage.getItem(`label_offset_font_footer${modeSuffix}`)    || defFontFooter);
 
     const centrarTexto = (texto, y, fontSize, fontStyle = 'normal', color = [0, 0, 0], ox = 0, oy = 0) => {
         doc.setFont('helvetica', fontStyle);
@@ -810,13 +955,18 @@ export const generarPreviewLabel80 = async (effectiveRate = 36.5, copEnabled = f
     const textUsd     = `$${round2(priceUsdRaw)}`;
     const textBs      = `Bs ${ceilR(priceBsRaw).toLocaleString('es-VE')}`;
 
-    let mainText = '', secondaryText = '', showSecondary = false;
+    let mainText = '', secondaryText = '', promoTagText = '', showSecondary = false;
     if (labelCurrencyMode === 'bs') {
         mainText = textBs;
     } else if (labelCurrencyMode === 'usd') {
         mainText = textUsd;
     } else {
-        mainText = textUsd; secondaryText = textBs; showSecondary = true;
+        // Precio BCV arriba (precio de lista), efectivo abajo (precio promo)
+        const bcvUsdSample = Math.round(priceUsdRaw * 1.25);
+        mainText = `$${bcvUsdSample}`; // Precio BCV arriba, sin sufijo
+        promoTagText = 'PROMO $ EFECTIVO';
+        secondaryText = textUsd; // Precio efectivo abajo
+        showSecondary = true;
     }
 
     // Título
@@ -840,7 +990,7 @@ export const generarPreviewLabel80 = async (effectiveRate = 36.5, copEnabled = f
 
     const footerY      = labelH - marginY - 2;
     const footerStartY = hasSecondaryPrice ? footerY - 5.5 : footerY - 1.5;
-    const freeSpace    = footerStartY - titleEndY;
+    const freeSpace    = footerStartY - (titleEndY + 2.5);
 
     // Precio principal
     let basePriceFontSize = isMixto ? 32 : 42;
@@ -858,6 +1008,10 @@ export const generarPreviewLabel80 = async (effectiveRate = 36.5, copEnabled = f
     let baseSecPriceFontSize = isMixto ? 18 : 11;
     let secFontSize = baseSecPriceFontSize + offsetFontSecPrice;
     if (secFontSize < 5) secFontSize = 5;
+
+    let promoTagFontSize = promoTagText ? Math.max(3, 4.5 + offsetFontSecPrice) : 0;
+    let promoTagHeight = promoTagText ? promoTagFontSize * 0.3527 * 0.75 : 0;
+
     if (showSecondary) {
         doc.setFontSize(secFontSize);
         while (doc.getTextWidth(secondaryText) > printableWidth && secFontSize > 6) {
@@ -868,29 +1022,79 @@ export const generarPreviewLabel80 = async (effectiveRate = 36.5, copEnabled = f
 
     let priceH_mm    = priceFontSize * 0.3527 * 0.75;
     let secPriceH_mm = secFontSize   * 0.3527 * 0.75;
-    let blockH_mm    = showSecondary ? priceH_mm + secPriceH_mm + 3.5 : priceH_mm;
+    // Badge PRECIO encima del precio principal (80mm preview)
+    const prev80MainTagText = isMixto ? 'PRECIO' : '';
+    let prev80MainTagFontSize = prev80MainTagText ? Math.max(3, 4.5 + offsetFontSecPrice) : 0;
+    let prev80MainTagH = prev80MainTagText ? prev80MainTagFontSize * 0.3527 * 0.75 : 0;
+    let blockH_mm    = priceH_mm;
+    if (prev80MainTagText) blockH_mm += prev80MainTagH + 2.0;
+    if (promoTagText) blockH_mm += promoTagHeight + 2.5;
+    if (showSecondary) blockH_mm += secPriceH_mm + 3.5;
 
     const maxAllowed = freeSpace * 0.82;
     if (blockH_mm > maxAllowed && maxAllowed > 4) {
         const sf = maxAllowed / blockH_mm;
         priceFontSize = Math.max(5, priceFontSize * sf);
         secFontSize   = Math.max(5, secFontSize   * sf);
+        promoTagFontSize = Math.max(4, promoTagFontSize * sf);
+        prev80MainTagFontSize = Math.max(4, prev80MainTagFontSize * sf);
         priceH_mm    = priceFontSize * 0.3527 * 0.75;
         secPriceH_mm = secFontSize   * 0.3527 * 0.75;
-        blockH_mm    = showSecondary ? priceH_mm + secPriceH_mm + 3.5 : priceH_mm;
+        promoTagHeight = promoTagText ? promoTagFontSize * 0.3527 * 0.75 : 0;
+        prev80MainTagH = prev80MainTagText ? prev80MainTagFontSize * 0.3527 * 0.75 : 0;
+        blockH_mm    = priceH_mm;
+        if (prev80MainTagText) blockH_mm += prev80MainTagH + 2.0;
+        if (promoTagText) blockH_mm += promoTagHeight + 2.5;
+        if (showSecondary) blockH_mm += secPriceH_mm + 3.5;
     }
 
-    const priceY    = titleEndY + (freeSpace - blockH_mm) / 2 + priceH_mm;
-    const secPriceY = priceY + secPriceH_mm + 3.5;
+    // Render 80mm preview: badge PRECIO → mainText (BCV) → badge PROMO → secondaryText (efectivo)
+    let currentY = (titleEndY + 2.5) + (freeSpace - blockH_mm) / 2;
 
-    centrarTexto(mainText, priceY, priceFontSize, 'bold', [0, 0, 0], offsetPriceX, offsetPriceY);
+    // 0. Badge PRECIO encima del precio normal
+    if (prev80MainTagText) {
+        currentY += prev80MainTagH;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(prev80MainTagFontSize);
+        const mtw = doc.getTextWidth(prev80MainTagText);
+        const mbW = mtw + 5;
+        const mbH = prev80MainTagH + 1.4;
+        const mbX = (centerX - mbW / 2) + offsetPriceX;
+        const mbY = currentY - prev80MainTagH + offsetPriceY - 1.4;
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.35);
+        doc.roundedRect(mbX, mbY, mbW, mbH, 1.2, 1.2, 'S');
+        centrarTexto(prev80MainTagText, currentY, prev80MainTagFontSize, 'normal', [0, 0, 0], offsetPriceX, offsetPriceY - 1);
+        currentY += 2.0;
+    }
+
+    // 1. Precio normal (BCV) arriba, grande
+    currentY += priceH_mm;
+    centrarTexto(mainText, currentY, priceFontSize, 'bold', [0, 0, 0], offsetPriceX, offsetPriceY);
+
+    // 2. Badge PROMO $ EFECTIVO
+    if (promoTagText && showSecondary) {
+        currentY += 3.0;
+        currentY += promoTagHeight;
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(promoTagFontSize);
+        const tw = doc.getTextWidth(promoTagText);
+        const badgeW = tw + 5;
+        const badgeH = promoTagHeight + 1.4;
+        const badgeX = (centerX - badgeW / 2) + offsetSecPriceX;
+        const badgeY = currentY - promoTagHeight + offsetSecPriceY - 1.4;
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.35);
+        doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 1.2, 1.2, 'S');
+        centrarTexto(promoTagText, currentY, promoTagFontSize, 'italic', [0, 0, 0], offsetSecPriceX, offsetSecPriceY - 1);
+        currentY += 2.5;
+    }
+
+    // 3. Precio efectivo (cash), grande
     if (showSecondary) {
-        centrarTexto(secondaryText, secPriceY, secFontSize, 'normal', [0, 0, 0], offsetSecPriceX, offsetSecPriceY);
+        currentY += secPriceH_mm;
+        centrarTexto(secondaryText, currentY, secFontSize, 'bold', [0, 0, 0], offsetSecPriceX, offsetSecPriceY);
     }
-
-    let footerFontSize = 8.5 + offsetFontFooter;
-    if (footerFontSize < 3) footerFontSize = 3;
-    centrarTexto('7598973217556  |  9/7/26', footerY, footerFontSize, 'normal', [80, 80, 80], offsetFooterX, offsetFooterY);
 
     return doc.output('bloburl');
 };

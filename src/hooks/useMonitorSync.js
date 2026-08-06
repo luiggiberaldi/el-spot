@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabaseCloud } from '../config/supabaseCloud';
 import { runWithoutEco } from '../utils/syncFlags';
+import { isValidDeviceId } from '../utils/deviceId';
 import localforage from 'localforage';
 
 // Configurar localforage a nivel de módulo
@@ -43,6 +44,13 @@ export function useMonitorSync(pairedDeviceId) {
     const initMonitor = async () => {
         try {
             setLoading(true);
+
+            // SYNC-010: defensa en profundidad — si pairedDeviceId se invalida
+            // entre render y efecto, abortar antes de tocar Supabase.
+            if (!isValidDeviceId(pairedDeviceId)) {
+                setIsConnected(false);
+                return;
+            }
 
             // 1. Pull inicial de todos los datos desde sync_documents del equipo vinculado
             const { data: docs, error } = await supabaseCloud
@@ -103,6 +111,16 @@ export function useMonitorSync(pairedDeviceId) {
     useEffect(() => {
         if (!supabaseCloud || !pairedDeviceId) {
             setLoading(false);
+            return;
+        }
+
+        // SYNC-010: validar deviceId antes de abrir suscripción Realtime o hacer
+        // queries a sync_documents. Previene canales/queries arbitrarios si el
+        // pairing corrompe el valor.
+        if (!isValidDeviceId(pairedDeviceId)) {
+            console.warn('[MonitorSync] pairedDeviceId inválido, abort init:', pairedDeviceId);
+            setLoading(false);
+            setIsConnected(false);
             return;
         }
 

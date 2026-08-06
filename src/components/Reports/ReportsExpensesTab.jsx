@@ -103,11 +103,11 @@ export default function ReportsExpensesTab({
                     <div className="w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 flex items-center justify-center mb-2">
                         <TrendingDown size={16} />
                     </div>
-                    <p className="text-[10px] font-bold text-slate-650 dark:text-slate-400 uppercase">Total Egresos</p>
+                    <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase">Total Egresos</p>
                     <p className="text-xl md:text-2xl font-outfit font-semibold text-slate-900 dark:text-white mt-0.5">
                         {copEnabled && copPrimary && tasaCop > 0 ? `${formatCop(totalExpensesCop)} COP` : `$${expensesUsd.toFixed(2)}`}
                     </p>
-                    <p className="text-xs font-bold text-slate-650 dark:text-slate-400 mt-0.5">
+                    <p className="text-xs font-bold text-slate-600 dark:text-slate-400 mt-0.5">
                         {copEnabled && tasaCop > 0 ? (
                             copPrimary ? `$${expensesUsd.toFixed(2)} · ${formatBs(expensesBs)} Bs` : `${formatCop(totalExpensesCop)} COP · ${formatBs(expensesBs)} Bs`
                         ) : `${formatBs(expensesBs)} Bs`}
@@ -118,7 +118,7 @@ export default function ReportsExpensesTab({
                     <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 flex items-center justify-center mb-2">
                         <Package size={16} />
                     </div>
-                    <p className="text-[10px] font-bold text-slate-650 dark:text-slate-400 uppercase">Caja Chica</p>
+                    <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase">Caja Chica</p>
                     <p className="text-xl md:text-2xl font-outfit font-semibold text-slate-900 dark:text-white mt-0.5">
                         {(() => {
                             const cajaChicaUsd = expensesList.filter(g => g.tipo === 'GASTO_INTERNO').reduce((sum, g) => sum + Math.abs(g.totalUsd || 0), 0);
@@ -159,7 +159,7 @@ export default function ReportsExpensesTab({
                 
                 {/* Left Card: Category Breakdown */}
                 <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-                    <h3 className="text-xs font-bold text-slate-650 dark:text-slate-400 uppercase tracking-wider">
+                    <h3 className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
                         Distribución de Egresos
                     </h3>
                     
@@ -175,13 +175,13 @@ export default function ReportsExpensesTab({
                                 return (
                                     <div key={key} className="space-y-1.5">
                                         <div className="flex justify-between items-center text-xs">
-                                            <span className="font-bold text-slate-700 dark:text-slate-350 flex items-center gap-1.5">
+                                            <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                                                 <div className={`w-5 h-5 rounded flex items-center justify-center text-[10px] ${meta.bgIcon}`}>
                                                     <IconComp size={11} />
                                                 </div>
                                                 {meta.label}
                                             </span>
-                                            <span className="font-black text-slate-850 dark:text-white">
+                                            <span className="font-black text-slate-800 dark:text-white">
                                                 ${totalUsd.toFixed(2)}
                                                 <span className="text-[10px] font-normal text-slate-400 ml-1">({count})</span>
                                             </span>
@@ -283,7 +283,7 @@ export default function ReportsExpensesTab({
                                 return (
                                     <div 
                                         key={g.id} 
-                                        className="flex items-center justify-between p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-sm hover:border-slate-350 dark:hover:border-slate-700 transition-all"
+                                        className="flex items-center justify-between p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-sm hover:border-slate-300 dark:hover:border-slate-700 transition-all"
                                     >
                                         <div className="flex items-center gap-3.5 min-w-0">
                                             <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${meta.bgIcon}`}>

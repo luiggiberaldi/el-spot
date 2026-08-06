@@ -136,7 +136,7 @@ function AdjustRow({ p, qty, direction, adjUnit, tempPkgSize, onSetQty, onSetAdj
             <div className="flex items-center gap-3 mt-2.5 flex-wrap">
                 {/* Input inline de tamano de caja/bulto — siempre visible */}
                 <div className="flex items-center gap-1.5">
-                    <Edit3 size={10} className="text-slate-650 dark:text-slate-350 shrink-0" />
+                    <Edit3 size={10} className="text-slate-600 dark:text-slate-300 shrink-0" />
                     <span className="text-[10px] text-slate-700 dark:text-slate-200 font-extrabold">Uds/bulto:</span>
                     <input
                         type="number"
@@ -154,7 +154,7 @@ function AdjustRow({ p, qty, direction, adjUnit, tempPkgSize, onSetQty, onSetAdj
                                 onSetAdjUnit(p.id, 'uds');
                             }
                         }}
-                        className="w-12 h-6 text-center text-xs font-black bg-white dark:bg-slate-800 border border-slate-350 dark:border-slate-600 rounded-lg outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/50 transition-all text-slate-850 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="w-12 h-6 text-center text-xs font-black bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/50 transition-all text-slate-800 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                 </div>
 
@@ -401,8 +401,8 @@ export default function StockBatchModal({
                                     return (
                                         <div key={productId} className="py-2 border-b border-slate-100 dark:border-slate-800/40">
                                             <div className="flex items-start justify-between gap-3">
-                                                <span className="font-bold text-xs text-slate-650 dark:text-slate-300 truncate flex-1">{p?.name || '?'}</span>
-                                                <span className="font-black text-xs shrink-0 text-slate-700 dark:text-slate-350">
+                                                <span className="font-bold text-xs text-slate-600 dark:text-slate-300 truncate flex-1">{p?.name || '?'}</span>
+                                                <span className="font-black text-xs shrink-0 text-slate-700 dark:text-slate-300">
                                                     {stock} <span className={direction === 'ingreso' ? 'text-emerald-600 dark:text-emerald-400 font-black' : 'text-rose-600 dark:text-rose-400 font-black'}>→ {newStock}</span>
                                                 </span>
                                             </div>
@@ -461,7 +461,7 @@ export default function StockBatchModal({
                                     className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold rounded-xl transition-all ${
                                         direction === 'ingreso'
                                             ? 'bg-white dark:bg-slate-900 shadow-md text-emerald-600 dark:text-emerald-400 font-black'
-                                            : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-350'
+                                            : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                                     }`}
                                 >
                                     <TrendingUp size={16} strokeWidth={2.5} /> Ingreso
@@ -472,7 +472,7 @@ export default function StockBatchModal({
                                     className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold rounded-xl transition-all ${
                                         direction === 'egreso'
                                             ? 'bg-white dark:bg-slate-900 shadow-md text-red-500 font-black'
-                                            : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-350'
+                                            : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                                     }`}
                                 >
                                     <TrendingDown size={16} strokeWidth={2.5} /> Egreso
@@ -481,7 +481,7 @@ export default function StockBatchModal({
 
                             {/* Search Bar */}
                             <div className="relative shrink-0">
-                                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-450" />
+                                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
                                 <input
                                     type="text"
                                     placeholder="Buscar producto por nombre..."
@@ -528,7 +528,7 @@ export default function StockBatchModal({
                                                 }`}
                                             >
                                                 {cat.label}
-                                                <span className={`ml-1 text-[9px] ${isActive ? 'opacity-90' : 'text-slate-450 dark:text-slate-500'}`}>
+                                                <span className={`ml-1 text-[9px] ${isActive ? 'opacity-90' : 'text-slate-500 dark:text-slate-500'}`}>
                                                     - {count}
                                                 </span>
                                             </button>
@@ -574,7 +574,7 @@ export default function StockBatchModal({
 
                             {/* Product List */}
                             <div ref={listRef} className="max-h-[38vh] min-h-[22vh] overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col scrollbar-hide">
-                                <div className="divide-y divide-slate-100 dark:divide-slate-850">
+                                <div className="divide-y divide-slate-100 dark:divide-slate-800">
                                     {activeTab === 'catalog' ? (
                                         unselectedProducts.length === 0 ? (
                                             <div className="py-12 text-center text-xs text-slate-400 font-medium">

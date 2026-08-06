@@ -6,6 +6,8 @@ import { BODEGA_CATEGORIES } from '../config/categories';
 // explícitamente para que el cambio se propague a `sync_documents` (colección 'local').
 import { pushLocalSync, pushCloudSync } from '../hooks/useCloudSync';
 
+import { round0 } from '../utils/dinero';
+
 export const ProductContext = createContext();
 
 const normalizeCategories = (cats) => {
@@ -83,17 +85,17 @@ export function ProductProvider({ children, rates, rateDiscrepancyWarning }) {
         }
     };
 
-    // BCV MARGIN SURCHARGE LOGIC (% por defecto de la tienda en Bs)
+    // BCV MARGIN SURCHARGE LOGIC (% por defecto de fábrica en Bs: 25%)
     const [bcvMarginPctState, setBcvMarginPctState] = useState(() => {
         const saved = localStorage.getItem('bodega_bcv_margin_pct');
-        return saved && parseFloat(saved) >= 0 ? saved : '49';
+        return saved && parseFloat(saved) >= 0 ? saved : '25';
     });
     const setBcvMarginPct = useCallback((val) => {
         setBcvMarginPctState(val);
         localStorage.setItem('bodega_bcv_margin_pct', val);
         pushLocalSync('bodega_bcv_margin_pct', val);
     }, []);
-    const bcvMarginPct = parseFloat(bcvMarginPctState) >= 0 ? parseFloat(bcvMarginPctState) : 49;
+    const bcvMarginPct = parseFloat(bcvMarginPctState) >= 0 ? parseFloat(bcvMarginPctState) : 25;
 
     // AUTO COP LOGIC
     const [copEnabled, setCopEnabled] = useState(() => {
@@ -184,6 +186,58 @@ export function ProductProvider({ children, rates, rateDiscrepancyWarning }) {
         setProducts(migrated);
         localStorage.setItem('priceCop_migration_v1', 'done');
     }, [isLoadingProducts, products.length, copEnabled, tasaCop]);
+
+    // One-time batch migration: assign price2Usd (25% factory margin) to existing products that don't have it
+    useEffect(() => {
+        if (isLoadingProducts || products.length === 0) return;
+        if (localStorage.getItem('price2Usd_migration_v25') === 'done') return;
+
+        const needsMigration = products.some(p => (p.priceUsdt > 0 || p.priceUsd > 0) && (p.price2Usd == null || p.price2Usd <= 0));
+        if (!needsMigration) {
+            localStorage.setItem('price2Usd_migration_v25', 'done');
+            return;
+        }
+
+        const marginMult = 1 + 25 / 100;
+        const migrated = products.map(p => {
+            const baseUsd = p.priceUsdt || p.priceUsd || 0;
+            if (baseUsd > 0 && (p.price2Usd == null || p.price2Usd <= 0)) {
+                const price2Usd = round0(baseUsd * marginMult);
+                return { ...p, price2Usd };
+            }
+            return p;
+        });
+
+        setProducts(migrated);
+        storageService.setItem('bodega_products_v1', migrated);
+        localStorage.setItem('price2Usd_migration_v25', 'done');
+        console.log('[Batch Migration] Migrados productos con recargo de fábrica (25%) a price2Usd.');
+    }, [isLoadingProducts, products.length]);
+
+    // Batch migration: Redondear price2Usd existente a enteros para limpiar decimales viejos
+    useEffect(() => {
+        if (isLoadingProducts || products.length === 0) return;
+        if (localStorage.getItem('price2Usd_integer_rounding_v1') === 'done') return;
+
+        let hasChanges = false;
+        const cleanedProducts = products.map(p => {
+            if (p.price2Usd && p.price2Usd > 0) {
+                const roundedInt = round0(p.price2Usd);
+                if (roundedInt !== p.price2Usd) {
+                    hasChanges = true;
+                    return { ...p, price2Usd: roundedInt };
+                }
+            }
+            return p;
+        });
+
+        if (hasChanges) {
+            setProducts(cleanedProducts);
+            storageService.setItem('bodega_products_v1', cleanedProducts);
+            console.log('[Batch Migration] Redondeados precios BCV existentes a enteros.');
+        }
+        localStorage.setItem('price2Usd_integer_rounding_v1', 'done');
+    }, [isLoadingProducts, products.length]);
 
     // Set Initial Street Rate (from BCV)
     useEffect(() => {

@@ -141,6 +141,7 @@ export default function SettingsModal({ isOpen, onClose, products, onImport, tri
 
                 setImportStatus('success');
                 setStatusMessage('Datos restaurados. Recargando...');
+                localStorage.setItem('pda_backup_imported_flag', 'true');
                 setTimeout(() => window.location.reload(), 1200);
 
             } catch (error) {

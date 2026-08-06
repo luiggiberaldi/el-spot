@@ -294,7 +294,7 @@ export default function CartPanel({
                             ${cartTotalUsd.toFixed(2)}
                         </span>
                     </div>
-                    <div className="w-px bg-slate-200 dark:bg-slate-850" />
+                    <div className="w-px bg-slate-200 dark:bg-slate-800" />
                     <div className="flex-1 p-3 flex flex-col items-end">
                         <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 mb-0.5">BOLÍVARES</span>
                         <span className="text-xl sm:text-2xl font-black text-brand dark:text-brand leading-none">

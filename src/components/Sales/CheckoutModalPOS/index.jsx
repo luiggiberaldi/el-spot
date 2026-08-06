@@ -208,7 +208,7 @@ export default function CheckoutModalPOS({
         const actual = parseFloat(pagos[id] || 0);
         let valorFinal = 0;
         if (moneda === 'USD') valorFinal = round2(actual + faltaPorPagar);
-        if (moneda === 'BS') valorFinal = round2(actual + faltaPorPagarBS);
+        if (moneda === 'BS') valorFinal = Math.round(actual + faltaPorPagarBS);
         if (moneda === 'COP' && tasaCop > 0) valorFinal = round2(actual + (faltaPorPagar * tasaCop));
         setPagos(prev => ({ ...prev, [id]: valorFinal }));
     };

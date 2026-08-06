@@ -1,4 +1,5 @@
 import { useReducer, useCallback } from 'react';
+import { round0, mulR, ceilR } from '../utils/dinero';
 
 /**
  * Hook para el formulario de producto.
@@ -89,7 +90,7 @@ export function useProductForm() {
         dispatch({ type: 'RESET' });
     }, []);
 
-    const populateForm = useCallback((product, effectiveRate, bcvRate) => {
+    const populateForm = useCallback((product, effectiveRate, bcvRate, globalMarginPct = 25) => {
         // HOOK-029: usar PATCH para actualizar todos los campos en una sola
         // dispatch (un único re-render en vez de 17).
         const currentPriceUsd = product.priceUsdt || 0;
@@ -100,12 +101,17 @@ export function useProductForm() {
         // Siempre calcular price2Bs con bcvRate (tasa BCV oficial)
         const rateForPrice2 = bcvRate || effectiveRate;
 
+        const marginMult = 1 + (parseFloat(globalMarginPct) >= 0 ? parseFloat(globalMarginPct) : 25) / 100;
+        const effectivePrice2Usd = (product.price2Usd && parseFloat(product.price2Usd) > 0)
+            ? round0(parseFloat(product.price2Usd)).toString()
+            : (currentPriceUsd > 0 ? round0(currentPriceUsd * marginMult).toString() : '');
+
         const patch = {
             editingId: product.id,
             name: product.name,
             barcode: product.barcode || '',
             priceUsd: currentPriceUsd > 0 ? currentPriceUsd.toString() : '',
-            priceBs: currentPriceUsd > 0 ? (currentPriceUsd * effectiveRate).toFixed(2) : '',
+            priceBs: currentPriceUsd > 0 ? ceilR(mulR(currentPriceUsd, effectiveRate)).toString() : '',
             costUsd: currentCostUsd > 0 ? currentCostUsd.toFixed(2) : '',
             costBs: currentCostBs > 0 ? currentCostBs.toFixed(2) : '',
             stock: product.stock ?? '',
@@ -118,8 +124,8 @@ export function useProductForm() {
             image: product.image,
             hasWarranty: product.hasWarranty || false,
             warrantyDays: product.warrantyDays ? product.warrantyDays.toString() : '',
-            price2Usd: product.price2Usd ? product.price2Usd.toString() : '',
-            price2Bs: product.price2Usd ? (product.price2Usd * rateForPrice2).toFixed(2) : '',
+            price2Usd: effectivePrice2Usd,
+            price2Bs: effectivePrice2Usd ? ceilR(mulR(parseFloat(effectivePrice2Usd), rateForPrice2)).toString() : '',
         };
 
         // Derive packagingType from legacy unit

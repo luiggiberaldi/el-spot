@@ -861,7 +861,7 @@ function CustomerDetailSheet({ customer, isOpen, isAdmin, onClose, onAjustar, on
                                                     ? `-${formatCop(customer.deuda * tasaCop)} COP`
                                                     : `-$${formatUsd(customer.deuda)}`}
                                             </p>
-                                            <div className="mt-1 space-y-0.5 text-[9px] font-bold text-slate-400 dark:text-slate-550 leading-none">
+                                            <div className="mt-1 space-y-0.5 text-[9px] font-bold text-slate-400 dark:text-slate-500 leading-none">
                                                 {copEnabled && copPrimary && <p>-${formatUsd(customer.deuda)}</p>}
                                                 {bcvRate > 0 && <p>-{formatBs(customer.deuda * bcvRate)} Bs</p>}
                                                 {copEnabled && !copPrimary && tasaCop > 0 && <p>-{formatCop(customer.deuda * tasaCop)} COP</p>}
@@ -874,19 +874,19 @@ function CustomerDetailSheet({ customer, isOpen, isAdmin, onClose, onAjustar, on
                                             <p className="text-xl font-black text-purple-600 dark:text-purple-450 tracking-tight leading-tight">
                                                 -${formatUsd(customer.casheaDeuda)}
                                             </p>
-                                            {bcvRate > 0 && <p className="text-[9px] font-bold text-slate-400 dark:text-slate-550 mt-1 leading-none">-{formatBs(customer.casheaDeuda * bcvRate)} Bs</p>}
+                                            {bcvRate > 0 && <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 mt-1 leading-none">-{formatBs(customer.casheaDeuda * bcvRate)} Bs</p>}
                                         </div>
                                     )}
                                 </>
                             ) : customer.favor > 0 ? (
                                 <div className="flex-1 bg-emerald-500/[0.03] dark:bg-emerald-500/[0.05] border border-emerald-200 dark:border-emerald-900/40 rounded-2xl px-3 py-2.5 text-center shadow-sm">
-                                    <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-450 uppercase tracking-wider mb-1">Saldo a Favor</p>
+                                    <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-1">Saldo a Favor</p>
                                     <p className={`text-xl font-black ${copEnabled && copPrimary ? 'text-amber-700 dark:text-amber-450' : 'text-emerald-500'} tracking-tight leading-tight`}>
                                         {copEnabled && copPrimary && tasaCop > 0
                                             ? `+${formatCop(customer.favor * tasaCop)} COP`
                                             : `+$${formatUsd(customer.favor)}`}
                                     </p>
-                                    <div className="mt-1 space-y-0.5 text-[9px] font-bold text-slate-400 dark:text-slate-550 leading-none">
+                                    <div className="mt-1 space-y-0.5 text-[9px] font-bold text-slate-400 dark:text-slate-500 leading-none">
                                         {copEnabled && copPrimary && <p>+${formatUsd(customer.favor)}</p>}
                                         {bcvRate > 0 && <p>+{formatBs(customer.favor * bcvRate)} Bs</p>}
                                         {copEnabled && !copPrimary && tasaCop > 0 && <p>+{formatCop(customer.favor * tasaCop)} COP</p>}
@@ -894,7 +894,7 @@ function CustomerDetailSheet({ customer, isOpen, isAdmin, onClose, onAjustar, on
                                 </div>
                             ) : (
                                 <div className="flex-1 bg-emerald-500/[0.02] dark:bg-emerald-500/[0.04] border border-emerald-100 dark:border-emerald-900/30 rounded-2xl px-3 py-3 text-center shadow-sm">
-                                    <p className="text-[10px] font-black text-emerald-500 dark:text-emerald-450 uppercase tracking-wider mb-0.5">Estado Financiero</p>
+                                    <p className="text-[10px] font-black text-emerald-500 dark:text-emerald-400 uppercase tracking-wider mb-0.5">Estado Financiero</p>
                                     <p className="text-sm font-black text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1.5 mt-1.5">
                                         <CheckCircle2 size={15} className="text-emerald-500" aria-hidden="true" /> Al día
                                     </p>
@@ -1305,7 +1305,7 @@ export function TransactionDetailModal({ sale, bcvRate, tasaCop, copEnabled, cop
 
                 <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
                     {/* Resumen de Montos */}
-                    <div className="text-center p-4 bg-slate-50 dark:bg-slate-955 rounded-2xl border border-slate-100 dark:border-slate-850">
+                    <div className="text-center p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
                             {isCobro ? 'Abono Recibido' : isFiada ? 'Crédito Otorgado' : isCashea ? 'Venta Cashea' : 'Total Transacción'}
                         </p>
@@ -1379,7 +1379,7 @@ export function TransactionDetailModal({ sale, bcvRate, tasaCop, copEnabled, cop
                                     }
 
                                     return (
-                                        <div key={idx} className="flex justify-between items-center text-xs text-slate-650 dark:text-slate-350">
+                                        <div key={idx} className="flex justify-between items-center text-xs text-slate-600 dark:text-slate-300">
                                             <span>{label}</span>
                                             <span className="font-bold text-slate-800 dark:text-slate-200">
                                                 {formattedAmt} {p.currency !== 'USD' && <span className="text-[9px] text-slate-400 font-normal">(${p.amountUsd.toFixed(2)})</span>}
@@ -1407,7 +1407,7 @@ export function TransactionDetailModal({ sale, bcvRate, tasaCop, copEnabled, cop
                                 </div>
                             )}
                             {sale.note && (
-                                <div className="text-left text-xs bg-slate-50 dark:bg-slate-900/30 p-2.5 rounded-xl text-slate-550 dark:text-slate-400">
+                                <div className="text-left text-xs bg-slate-50 dark:bg-slate-900/30 p-2.5 rounded-xl text-slate-500 dark:text-slate-400">
                                     <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold block mb-0.5">Notas</span>
                                     {sale.note}
                                 </div>

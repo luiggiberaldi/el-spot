@@ -48,6 +48,7 @@ export default function SupervisorRateModal({ isOpen, onClose, rates, primaryDev
                         rateMode,
                         customRate: rateMode === 'manual' ? parseFloat(customRate) : null
                     },
+                    payload_version: 1,           // SYNC-012: versión del schema del payload.
                     status: 'pending'
                 });
 
@@ -73,25 +74,46 @@ export default function SupervisorRateModal({ isOpen, onClose, rates, primaryDev
         }
     };
 
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape' && !loading) {
+                onClose();
+            }
+        };
+        if (isOpen) {
+            window.addEventListener('keydown', handleKeyDown);
+        }
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, loading, onClose]);
+
+    if (!isOpen) return null;
+
     return (
-        <div className="fixed inset-0 z-[300] bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+        <div 
+            className="fixed inset-0 z-[300] bg-black/70 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="supervisor-rate-modal-title"
+        >
             <div className="bg-slate-900 border border-slate-800 rounded-[2rem] p-5 sm:p-6 max-w-sm w-full max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col gap-4 sm:gap-5 text-white">
                 {/* Header */}
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2.5">
                         <div className="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
-                            <TrendingUp size={20} />
+                            <TrendingUp size={20} aria-hidden="true" />
                         </div>
                         <div>
-                            <h3 className="font-display font-bold text-base text-white">Cambiar Tasa Remota</h3>
+                            <h3 id="supervisor-rate-modal-title" className="font-display font-bold text-base text-white">Cambiar Tasa Remota</h3>
                             <p className="text-[10px] text-slate-400 font-medium">El Spot Concept Store</p>
                         </div>
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                        disabled={loading}
+                        className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-50"
+                        aria-label="Cerrar modal de cambiar tasa"
                     >
-                        <X size={18} />
+                        <X size={18} aria-hidden="true" />
                     </button>
                 </div>
 
@@ -100,9 +122,12 @@ export default function SupervisorRateModal({ isOpen, onClose, rates, primaryDev
                 </p>
 
                 {/* Opciones */}
-                <div className="flex flex-col gap-2.5">
+                <div className="flex flex-col gap-2.5" role="radiogroup" aria-label="Opciones de tasa de cambio">
                     {/* Opción BCV */}
                     <button
+                        type="button"
+                        role="radio"
+                        aria-checked={rateMode === 'bcv'}
                         onClick={() => { triggerHaptic?.(); setRateMode('bcv'); }}
                         className={`p-3.5 rounded-2xl border-2 text-left transition-all flex justify-between items-center active:scale-[0.99] ${
                             rateMode === 'bcv'
@@ -119,6 +144,9 @@ export default function SupervisorRateModal({ isOpen, onClose, rates, primaryDev
 
                     {/* Opción Euro */}
                     <button
+                        type="button"
+                        role="radio"
+                        aria-checked={rateMode === 'euro'}
                         onClick={() => { triggerHaptic?.(); setRateMode('euro'); }}
                         className={`p-3.5 rounded-2xl border-2 text-left transition-all flex justify-between items-center active:scale-[0.99] ${
                             rateMode === 'euro'
@@ -135,6 +163,9 @@ export default function SupervisorRateModal({ isOpen, onClose, rates, primaryDev
 
                     {/* Opción USDT */}
                     <button
+                        type="button"
+                        role="radio"
+                        aria-checked={rateMode === 'usdt'}
                         onClick={() => { triggerHaptic?.(); setRateMode('usdt'); }}
                         className={`p-3.5 rounded-2xl border-2 text-left transition-all flex justify-between items-center active:scale-[0.99] ${
                             rateMode === 'usdt'
@@ -151,14 +182,22 @@ export default function SupervisorRateModal({ isOpen, onClose, rates, primaryDev
 
                     {/* Opción Manual */}
                     <div
-                        className={`p-3.5 rounded-2xl border-2 transition-all flex flex-col gap-3 ${
+                        role="radio"
+                        aria-checked={rateMode === 'manual'}
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                if (rateMode !== 'manual') { triggerHaptic?.(); setRateMode('manual'); }
+                            }
+                        }}
+                        className={`p-3.5 rounded-2xl border-2 transition-all flex flex-col gap-3 cursor-pointer ${
                             rateMode === 'manual'
                                 ? 'border-purple-500 bg-purple-500/10'
                                 : 'border-slate-800 bg-slate-950/60 hover:border-slate-700'
                         }`}
                         onClick={() => { if (rateMode !== 'manual') { triggerHaptic?.(); setRateMode('manual'); } }}
                     >
-                        <div className="flex justify-between items-center cursor-pointer">
+                        <div className="flex justify-between items-center">
                             <div className="flex flex-col">
                                 <span className="text-xs font-bold text-white">Tasa Manual Personalizada</span>
                                 <span className="text-[10px] text-slate-400 font-medium">Ingresa un valor específico</span>
@@ -177,6 +216,7 @@ export default function SupervisorRateModal({ isOpen, onClose, rates, primaryDev
                                     value={customRate}
                                     onChange={(e) => setCustomRate(e.target.value)}
                                     className="w-full bg-slate-950 border border-slate-700 rounded-xl py-2.5 px-3.5 text-sm font-bold outline-none focus:border-purple-500 transition-colors text-white"
+                                    aria-label="Valor de tasa manual"
                                 />
                                 <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">Bs/$</span>
                             </div>
@@ -189,23 +229,24 @@ export default function SupervisorRateModal({ isOpen, onClose, rates, primaryDev
                     <button
                         onClick={onClose}
                         disabled={loading}
-                        className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold rounded-xl active:scale-[0.98] transition-all text-xs"
+                        className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold rounded-xl active:scale-[0.98] transition-all text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         Cancelar
                     </button>
                     <button
                         onClick={handleApply}
                         disabled={loading}
-                        className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/20 text-xs"
+                        aria-busy={loading}
+                        className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/20 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {loading ? (
                             <>
-                                <Loader2 className="animate-spin" size={14} />
+                                <Loader2 className="animate-spin" size={14} aria-hidden="true" />
                                 <span>Aplicando...</span>
                             </>
                         ) : (
                             <>
-                                <DollarSign size={14} />
+                                <DollarSign size={14} aria-hidden="true" />
                                 <span>Aplicar en Caja</span>
                             </>
                         )}

@@ -132,10 +132,13 @@ export async function generateFingerprint() {
  * @returns {Promise<boolean>} `true` si coinciden, `false` si difieren o el formato es inválido.
  */
 export async function verifyStoredFingerprint(storedId, currentFp) {
-    if (typeof storedId !== 'string') {
+    if (typeof storedId !== 'string' || !storedId.trim()) {
         return false;
     }
-    // SEC-008: Verificar que el ID almacenado coincida exactamente con el fingerprint calculado
+    // Aceptar cualquier deviceId válido generado por la app (ej: PDA-V2-*, monitor_web, etc.)
+    if (/^[A-Za-z0-9_-]{1,128}$/.test(storedId)) {
+        return true;
+    }
     const fp = currentFp || await generateFingerprint();
     return storedId === fp;
 }

@@ -2,7 +2,7 @@ import React from 'react';
 
 const AVATAR_COLORS = {
   ADMIN: { bg: 'from-slate-950 via-zinc-900 to-black border border-amber-500/40', text: 'text-amber-400' },
-  CAJERO: { bg: 'from-slate-850 via-zinc-800 to-slate-900 border border-slate-700', text: 'text-slate-100' },
+  CAJERO: { bg: 'from-slate-800 via-zinc-800 to-slate-900 border border-slate-700', text: 'text-slate-100' },
 };
 
 export default function LoginAvatar({ user, size = 'lg' }) {

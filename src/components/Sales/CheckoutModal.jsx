@@ -455,7 +455,7 @@ export default function CheckoutModal({
                         disabled={isProcessing || rateError || copRateError || (!isPaid && casheaActive) || (!selectedCustomerId && remainingUsd > 0.01)}
                         className={`w-full py-4 text-white font-black text-base rounded-2xl shadow-lg transition-all tracking-wide flex items-center justify-center gap-2 ${
                             isProcessing || rateError || copRateError
-                                ? 'bg-slate-300 dark:bg-slate-800 text-slate-450 dark:text-slate-500 cursor-not-allowed shadow-none'
+                                ? 'bg-slate-300 dark:bg-slate-800 text-slate-500 dark:text-slate-500 cursor-not-allowed shadow-none'
                                 : isPaid
                                     ? casheaActive
                                         ? 'bg-purple-600 hover:bg-purple-700 shadow-purple-500/25 active:scale-[0.98]'

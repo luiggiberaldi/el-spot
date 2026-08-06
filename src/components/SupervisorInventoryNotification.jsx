@@ -37,10 +37,12 @@ export default function SupervisorInventoryNotification() {
 
     return (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[400] w-full max-w-sm px-4 animate-in fade-in slide-in-from-top-6 duration-300 pointer-events-auto">
-            <div
-                onPointerDown={() => setVisible(false)}
-                className="bg-slate-900 border border-cyan-500/30 text-white rounded-3xl p-4 shadow-2xl flex items-start gap-3 backdrop-blur-md relative overflow-hidden group cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all"
+            <button
+                type="button"
+                onClick={() => setVisible(false)}
+                className="bg-slate-900 border border-cyan-500/30 text-white rounded-3xl p-4 shadow-2xl flex items-start gap-3 backdrop-blur-md relative overflow-hidden group cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all w-full text-left"
                 title="Toca para cerrar"
+                aria-label="Cerrar notificación de inventario actualizado"
             >
                 <div className="absolute -top-12 -right-12 w-24 h-24 bg-cyan-500/10 rounded-full blur-xl group-hover:bg-cyan-500/20 transition-all duration-500" />
 
@@ -65,7 +67,7 @@ export default function SupervisorInventoryNotification() {
                 <div className="p-1 rounded-xl text-slate-400 group-hover:text-white transition-colors">
                     <X size={16} />
                 </div>
-            </div>
+            </button>
         </div>
     );
 }

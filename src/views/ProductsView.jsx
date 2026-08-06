@@ -218,13 +218,13 @@ export const ProductsView = ({ rates, triggerHaptic }) => {
 
     const handlePrintSelected = () => {
         const toPrint = products.filter(p => selectedIds.has(p.id));
-        generarEtiquetas(toPrint, effectiveRate, copEnabled, tasaCop);
+        generarEtiquetas(toPrint, effectiveRate, copEnabled, tasaCop, bcvMarginPct);
         setSelectedIds(new Set());
         showToast(`Generando ${toPrint.length} etiquetas`, 'success');
     };
 
     const handlePrintSingle = (p) => {
-        generarEtiquetas([p], effectiveRate, copEnabled, tasaCop);
+        generarEtiquetas([p], effectiveRate, copEnabled, tasaCop, bcvMarginPct);
     };
 
     // Form State (Product Edit/Create)
@@ -327,17 +327,15 @@ export const ProductsView = ({ rates, triggerHaptic }) => {
 
     const handlePriceUsdChange = (val) => {
         setPriceUsd(val);
-        if (!val || parseFloat(val) <= 0) { setPriceBs(''); setPriceCop(''); return; }
+        if (!val || parseFloat(val) <= 0) { setPriceBs(''); setPriceCop(''); setPrice2Usd(''); setPrice2Bs(''); return; }
         setPriceBs((parseFloat(val) * effectiveRate).toFixed(2));
         if (copEnabled && tasaCop > 0) setPriceCop(Math.round(parseFloat(val) * tasaCop).toString());
 
-        // Si Precio 2 (Bolívares / BCV) está activo, recalcular dinámicamente con recargo configurable de la tienda
-        if (price2Usd && parseFloat(price2Usd) > 0) {
-            const marginMult = 1 + (parseFloat(bcvMarginPct) >= 0 ? parseFloat(bcvMarginPct) : 49) / 100;
-            const p2UsdVal = (parseFloat(val) * marginMult).toFixed(2);
-            setPrice2Usd(p2UsdVal);
-            setPrice2Bs((parseFloat(p2UsdVal) * bcvRate).toFixed(2));
-        }
+        // Recalcular siempre Precio 2 (Bolívares / BCV) dinámicamente con recargo de la tienda
+        const marginMult = 1 + (parseFloat(bcvMarginPct) >= 0 ? parseFloat(bcvMarginPct) : 49) / 100;
+        const p2UsdVal = (parseFloat(val) * marginMult).toFixed(2);
+        setPrice2Usd(p2UsdVal);
+        setPrice2Bs((parseFloat(p2UsdVal) * bcvRate).toFixed(2));
     };
 
     const handlePriceBsChange = (val) => {
@@ -412,7 +410,7 @@ export const ProductsView = ({ rates, triggerHaptic }) => {
             name, barcode, priceUsd, priceBs, priceCop, costUsd, costBs, stock, stockInLotes,
             packagingType, unitsPerPackage, granelUnit, sellByUnit, unitPriceUsd, unitPriceCop,
             category, lowStockAlert, hasWarranty, warrantyDays, price2Usd
-        }, effectiveRate);
+        }, effectiveRate, bcvMarginPct);
 
         // Advertencia si el precio parece inusualmente alto
         const parsedPrice = parseFloat(priceUsd) || 0;

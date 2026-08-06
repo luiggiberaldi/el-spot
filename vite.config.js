@@ -13,10 +13,20 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   return {
     base: process.env.ELECTRON_BUILD === 'true' ? './' : '/',
+    server: {
+      port: 5173,
+      strictPort: false,
+      hmr: {
+        overlay: true,
+      },
+    },
     plugins: [
       react(),
     VitePWA({
       registerType: 'autoUpdate', // INFRA-007: Actualización silenciosa en background; recarga vía controllerchange.
+      devOptions: {
+        enabled: false, // INFRA-009: No habilitar Service Worker en dev server para evitar que intercepte /src/*.jsx
+      },
       includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png', 'pwa-192x192.png', 'pwa-512x512.png', 'logo.png', 'logodark.png'],
       workbox: {
         cleanupOutdatedCaches: true,

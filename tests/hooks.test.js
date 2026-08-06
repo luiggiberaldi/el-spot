@@ -65,9 +65,12 @@ vi.mock('localforage', () => {
 });
 
 // Mock de useCloudSync para evitar cadena de imports real (supabase, authStore).
-// Solo exportamos `pushCloudSync` como spy.
+// Exportamos `pushCloudSync` como spy y `queueCloudSync` como noop (storageService
+// la invoca al persistir, si no está en el mock se loguean errores en stderr).
 vi.mock('../src/hooks/useCloudSync', () => ({
   pushCloudSync: _pushCloudSyncSpy,
+  queueCloudSync: () => {},
+  pushLocalSync: () => {},
   useCloudSync: vi.fn(),
 }));
 

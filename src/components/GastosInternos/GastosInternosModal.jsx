@@ -82,7 +82,7 @@ const CATEGORY_META = {
         icon: FileText,
         activeClass: 'bg-slate-100 border-slate-300 dark:bg-slate-800/80 dark:border-slate-700 text-slate-700 dark:text-slate-300',
         iconColor: 'text-slate-500',
-        bgIcon: 'bg-slate-150 dark:bg-slate-800',
+        bgIcon: 'bg-slate-100 dark:bg-slate-800',
         hoverClass: 'hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50/50'
     }
 };
@@ -680,16 +680,16 @@ export default function GastosInternosModal({
                                 </label>
                                 <div className="flex bg-slate-50 dark:bg-slate-800/40 p-1 rounded-2xl border border-slate-200/20 dark:border-slate-700/20">
                                     <button type="button" onClick={() => { triggerHaptic && triggerHaptic(); setCurrency('USD'); }}
-                                        className={`flex-1 py-2.5 rounded-xl font-bold text-xs transition-all ${currency === 'USD' ? 'bg-white dark:bg-slate-700 text-brand shadow-sm font-black' : 'text-slate-500 hover:text-slate-850 dark:hover:text-slate-200'}`}>
+                                        className={`flex-1 py-2.5 rounded-xl font-bold text-xs transition-all ${currency === 'USD' ? 'bg-white dark:bg-slate-700 text-brand shadow-sm font-black' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}>
                                         $ USD
                                     </button>
                                     <button type="button" onClick={() => { triggerHaptic && triggerHaptic(); setCurrency('BS'); }}
-                                        className={`flex-1 py-2.5 rounded-xl font-bold text-xs transition-all ${currency === 'BS' ? 'bg-white dark:bg-slate-700 text-brand shadow-sm font-black' : 'text-slate-500 hover:text-slate-850 dark:hover:text-slate-200'}`}>
+                                        className={`flex-1 py-2.5 rounded-xl font-bold text-xs transition-all ${currency === 'BS' ? 'bg-white dark:bg-slate-700 text-brand shadow-sm font-black' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}>
                                         Bs Bolívares
                                     </button>
                                     {copEnabled && (
                                         <button type="button" onClick={() => { triggerHaptic && triggerHaptic(); setCurrency('COP'); }}
-                                            className={`flex-1 py-2.5 rounded-xl font-bold text-xs transition-all ${currency === 'COP' ? 'bg-white dark:bg-slate-700 text-brand shadow-sm font-black' : 'text-slate-500 hover:text-slate-850 dark:hover:text-slate-200'}`}>
+                                            className={`flex-1 py-2.5 rounded-xl font-bold text-xs transition-all ${currency === 'COP' ? 'bg-white dark:bg-slate-700 text-brand shadow-sm font-black' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'}`}>
                                             $ COP (Pesos)
                                         </button>
                                     )}
@@ -722,7 +722,7 @@ export default function GastosInternosModal({
                                             <Info size={11} />
                                             <span>Equivalencias de caja:</span>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-2 text-xs font-black text-slate-700 dark:text-slate-350 pl-4">
+                                        <div className="grid grid-cols-2 gap-2 text-xs font-black text-slate-700 dark:text-slate-300 pl-4">
                                             {currency !== 'USD' && <div>$ {equivalentUsd.toFixed(2)} USD</div>}
                                             {currency !== 'BS'  && <div>Bs {equivalentBs.toFixed(2)}</div>}
                                             {copEnabled && currency !== 'COP' && <div>{equivalentCop.toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 })} COP</div>}
@@ -843,7 +843,7 @@ export default function GastosInternosModal({
                                                 <IconComponent size={18} className={isVoided ? 'text-slate-400' : meta.iconColor} />
                                             </div>
                                             <div className="text-left">
-                                                <div className="text-xs font-black text-slate-850 dark:text-white leading-tight">
+                                                <div className="text-xs font-black text-slate-800 dark:text-white leading-tight">
                                                     {g.description}
                                                 </div>
                                                 <div className="text-[9px] font-bold text-slate-400 mt-1 flex items-center gap-1.5">

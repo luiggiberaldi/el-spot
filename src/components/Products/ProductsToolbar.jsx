@@ -217,7 +217,7 @@ const ProductsToolbar = ({
                 {/* Edit Categories Icon Button */}
                 <button
                     onClick={() => { triggerHaptic && triggerHaptic(); setIsCategoryManagerOpen(true); }}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 p-1.5 rounded-md bg-slate-100 dark:bg-slate-850 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-all active:scale-95 flex items-center justify-center border border-transparent z-10 shadow-sm"
+                    className="absolute right-0 top-1/2 -translate-y-1/2 p-1.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-all active:scale-95 flex items-center justify-center border border-transparent z-10 shadow-sm"
                     title="Gestionar Categorías"
                 >
                     <Pencil size={11} />

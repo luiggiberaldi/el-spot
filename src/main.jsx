@@ -26,21 +26,26 @@ if (navigator.storage?.persist) {
   navigator.storage.persist().catch(() => { /* denegado o no soportado: best-effort */ });
 }
 
-// ── Forzar actualización del Service Worker al cargar ──
+// ── Forzar actualización del Service Worker en Producción / Desregistrar en Dev ──
 if ('serviceWorker' in navigator) {
-  // Forzar chequeo de nueva versión en cada carga
-  navigator.serviceWorker.getRegistrations().then(regs => {
-    regs.forEach(reg => reg.update().catch(() => {/* Ignorar fallos en desarrollo o sin conexión */}));
-  });
+  if (import.meta.env.DEV) {
+    // En desarrollo, desregistrar SW previos de localhost para evitar interferencias con Vite HMR y /src/*.jsx
+    navigator.serviceWorker.getRegistrations().then(regs => {
+      regs.forEach(reg => reg.unregister().catch(() => {}));
+    });
+  } else {
+    // Forzar chequeo de nueva versión en cada carga en producción
+    navigator.serviceWorker.getRegistrations().then(regs => {
+      regs.forEach(reg => reg.update().catch(() => {/* Ignorar fallos */}));
+    });
 
-  // Cuando el nuevo SW toma control, recargar la página para servir el nuevo código.
-  // Sin esto, el usuario puede tener el SW actualizado pero seguir viendo el JS viejo.
-  let refreshing = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (refreshing) return;
-    refreshing = true;
-    window.location.reload();
-  });
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    });
+  }
 }
 
 // ── Evitar que la rueda del mouse cambie valores en inputs numéricos ──

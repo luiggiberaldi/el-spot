@@ -69,6 +69,22 @@ export default function SalesView({ triggerHaptic, isActive }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedIndex, setSelectedIndex] = useState(0);
     const [selectedCategory, setSelectedCategory] = useState('todos');
+    const [posSearchViewMode, setPosSearchViewMode] = useState(() => {
+        try {
+            return localStorage.getItem('pos_search_view_mode') || 'hybrid';
+        } catch {
+            return 'hybrid';
+        }
+    });
+
+    const handleSetPosSearchViewMode = (mode) => {
+        setPosSearchViewMode(mode);
+        try {
+            localStorage.setItem('pos_search_view_mode', mode);
+        } catch (e) {
+            console.error('Error al guardar pos_search_view_mode:', e);
+        }
+    };
 
     // Modals
     const [showCheckout, setShowCheckout] = useState(false);
@@ -632,10 +648,16 @@ export default function SalesView({ triggerHaptic, isActive }) {
             }
 
             // 3. Fallbacks de selección
-            if (searchResults[selectedIndex]) {
-                addToCart(searchResults[selectedIndex]);
-            } else if (searchResults.length === 1) {
-                addToCart(searchResults[0]);
+            if (posSearchViewMode === 'grid') {
+                if (searchResults.length > 0) {
+                    addToCart(searchResults[0]);
+                }
+            } else {
+                if (searchResults[selectedIndex]) {
+                    addToCart(searchResults[selectedIndex]);
+                } else if (searchResults.length === 1) {
+                    addToCart(searchResults[0]);
+                }
             }
         }
     };
@@ -793,6 +815,8 @@ export default function SalesView({ triggerHaptic, isActive }) {
                                         hierarchyPending={hierarchyPending} setHierarchyPending={setHierarchyPending}
                                         weightPending={weightPending} setWeightPending={setWeightPending}
                                         copEnabled={copEnabled} copPrimary={copPrimary} tasaCop={tasaCop}
+                                        posSearchViewMode={posSearchViewMode}
+                                        onViewModeChange={handleSetPosSearchViewMode}
                                     />
                                 </div>
 
@@ -821,6 +845,8 @@ export default function SalesView({ triggerHaptic, isActive }) {
                                     addToCart={addToCart}
                                     triggerHaptic={triggerHaptic}
                                     searchTerm={searchTerm}
+                                    deferredSearchTerm={deferredSearchTerm}
+                                    posSearchViewMode={posSearchViewMode}
                                     onOpenCustomAmount={() => setShowCustomAmountModal(true)}
                                     copEnabled={copEnabled}
                                     copPrimary={copPrimary}

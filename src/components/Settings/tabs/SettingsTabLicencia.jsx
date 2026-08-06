@@ -116,12 +116,12 @@ export default function SettingsTabLicencia({ deviceId, triggerHaptic }) {
 
                     <div className="grid grid-cols-2 gap-3 max-w-sm">
                         <div className="bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800 p-3.5 rounded-2xl">
-                            <span className="text-[10px] uppercase tracking-wider font-bold text-slate-550 dark:text-slate-450 block mb-1">Días Disponibles</span>
+                            <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500 dark:text-slate-500 block mb-1">Días Disponibles</span>
                             <span className="text-lg font-black text-slate-700 dark:text-white tabular-nums">{daysRemaining} {daysRemaining === 1 ? 'día' : 'días'}</span>
                         </div>
                         <div className="bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800 p-3.5 rounded-2xl">
-                            <span className="text-[10px] uppercase tracking-wider font-bold text-slate-550 dark:text-slate-450 block mb-1">Vence el</span>
-                            <span className="text-xs font-bold text-slate-650 dark:text-slate-200">{formatDate(expiresAt)}</span>
+                            <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500 dark:text-slate-500 block mb-1">Vence el</span>
+                            <span className="text-xs font-bold text-slate-600 dark:text-slate-200">{formatDate(expiresAt)}</span>
                         </div>
                     </div>
                 </div>
@@ -147,7 +147,7 @@ export default function SettingsTabLicencia({ deviceId, triggerHaptic }) {
 
                     <div className="bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800 p-3.5 rounded-2xl flex items-center justify-between">
                         <div>
-                            <span className="text-[10px] uppercase tracking-wider font-bold text-slate-550 dark:text-slate-450 block mb-0.5">Días Restantes</span>
+                            <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500 dark:text-slate-500 block mb-0.5">Días Restantes</span>
                             <span className="text-lg font-black text-slate-700 dark:text-white tabular-nums">{daysRemaining} {daysRemaining === 1 ? 'día' : 'días'}</span>
                         </div>
                         <div className="bg-brand-light dark:bg-surface-800/30 text-brand font-black text-xs px-3 py-1.5 rounded-xl">
@@ -157,15 +157,15 @@ export default function SettingsTabLicencia({ deviceId, triggerHaptic }) {
 
                     <div className="bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800 p-4 rounded-2xl space-y-3">
                         <div className="flex justify-between items-center text-xs">
-                            <span className="font-bold text-slate-550 dark:text-slate-450 flex items-center gap-1.5"><Calendar size={12} /> Fecha de Pago</span>
+                            <span className="font-bold text-slate-500 dark:text-slate-500 flex items-center gap-1.5"><Calendar size={12} /> Fecha de Pago</span>
                             <span className="font-bold text-slate-700 dark:text-slate-200">{formatDate(estimatedLastPayment)}</span>
                         </div>
                         <div className="flex justify-between items-center text-xs border-t border-slate-100 dark:border-slate-800 pt-3">
-                            <span className="font-bold text-slate-550 dark:text-slate-450 flex items-center gap-1.5"><ShieldAlert size={12} /> Fecha de Corte</span>
+                            <span className="font-bold text-slate-500 dark:text-slate-500 flex items-center gap-1.5"><ShieldAlert size={12} /> Fecha de Corte</span>
                             <span className="font-bold text-slate-700 dark:text-slate-200">{formatDate(expiresAt)}</span>
                         </div>
                         <div className="flex justify-between items-center text-xs border-t border-slate-100 dark:border-slate-800 pt-3">
-                            <span className="font-bold text-slate-550 dark:text-slate-450 flex items-center gap-1.5"><KeyRound size={12} /> Próximo Pago</span>
+                            <span className="font-bold text-slate-500 dark:text-slate-500 flex items-center gap-1.5"><KeyRound size={12} /> Próximo Pago</span>
                             <span className="font-bold text-brand-dark dark:text-brand">{formatDate(expiresAt)}</span>
                         </div>
                     </div>

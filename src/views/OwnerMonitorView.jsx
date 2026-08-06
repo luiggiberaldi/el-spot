@@ -1,20 +1,25 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useProductContext } from '../context/ProductContext';
 import { useMonitorSync } from '../hooks/useMonitorSync';
+import { useDeviceHeartbeat } from '../hooks/useDeviceHeartbeat';
+import { useSentCommandsStatus } from '../hooks/useSentCommandsStatus';
 import { storageService } from '../utils/storageService';
 import { supabaseCloud } from '../config/supabaseCloud';
 import { showToast } from '../components/Toast';
 import SupervisorRateModal from '../components/SupervisorRateModal';
 import RemoteProductFormModal from '../components/Monitor/RemoteProductFormModal';
+import CommandAuditModal from '../components/Monitor/CommandAuditModal';
 import { 
     TrendingUp, Package, Coins, Users, LogOut, 
     RefreshCw, Wifi, WifiOff, Clock, FileText, DollarSign,
     Wallet, CreditCard, Smartphone, Banknote, ArrowDownRight,
     ShieldCheck, Hash, AlertTriangle, Search, X, ChevronLeft, ChevronRight,
-    Pencil, Trash2, Plus, UploadCloud, MinusCircle, PlusCircle, Loader2
+    Pencil, Trash2, Plus, UploadCloud, MinusCircle, PlusCircle, Loader2, Activity
 } from 'lucide-react';
 import { formatBs, formatCop } from '../utils/calculatorUtils';
 import { getLocalISODate } from '../utils/dateHelpers';
+import EmptyState from '../components/EmptyState';
+import { KpiCard } from '../components/UI';
 
 const toTitleCase = (str) => {
     if (!str) return '';
@@ -55,14 +60,32 @@ const PENDING_KEY = 'pda_pending_inventory_changes_v1';
 
 export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) {
     const pairedDeviceId = localStorage.getItem('pda_paired_device_id');
+    const monitorDeviceId = localStorage.getItem('pda_device_id') || 'monitor_web';
     const { products, effectiveRate: bcvRate, copEnabled, tasaCop, rates } = useProductContext();
     const { isConnected, lastSync, loading: syncLoading, triggerRefresh } = useMonitorSync(pairedDeviceId);
+    // SYNC-015: heartbeat de la CAJA vinculada (last_seen + isAlive).
+    const { secondsAgo: cajaSecondsAgo, isAlive: cajaAlive } = useDeviceHeartbeat(pairedDeviceId);
+    // SYNC-011: estado individual de cada comando enviado (pending → applied/failed).
+    const sentCmdStatuses = useSentCommandsStatus(monitorDeviceId);
+
+    // ── Resumen de estado de comandos enviados (SYNC-011) ──
+    const sentSummary = (() => {
+        let pending = 0, processing = 0, applied = 0, failed = 0;
+        for (const v of sentCmdStatuses.values()) {
+            if (v.status === 'pending') pending++;
+            else if (v.status === 'processing') processing++;
+            else if (v.status === 'applied') applied++;
+            else if (v.status === 'failed') failed++;
+        }
+        return { pending, processing, applied, failed, total: sentCmdStatuses.size };
+    })();
 
     const [sales, setSales] = useState([]);
     const [activeCashier, setActiveCashier] = useState({ nombre: 'Ninguno', rol: '' });
     const [loadingData, setLoadingData] = useState(true);
     const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
     const [showRateModal, setShowRateModal] = useState(false);
+    const [showAuditModal, setShowAuditModal] = useState(false);
     const [viewTab, setViewTab] = useState('activo'); // 'activo', 'cierres', 'inventario'
     const [selectedCierreId, setSelectedCierreId] = useState(null);
     const [searchTermInventario, setSearchTermInventario] = useState('');
@@ -172,6 +195,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
         triggerHaptic?.();
         let next = [...pendingChanges];
         const idx = next.findIndex(c => c.productId === product.id && c.action === 'adjust_stock');
+        const expectedStock = Number(product.stock) || 0;
 
         if (idx >= 0) {
             const newDelta = (next[idx].data?.delta || 0) + delta;
@@ -180,7 +204,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
             } else {
                 next[idx] = {
                     ...next[idx],
-                    data: { delta: newDelta }
+                    data: { delta: newDelta, expectedStock }
                 };
             }
         } else {
@@ -188,7 +212,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                 id: crypto.randomUUID(),
                 action: 'adjust_stock',
                 productId: product.id,
-                data: { delta },
+                data: { delta, expectedStock },
                 productName: product.name,
                 timestamp: new Date().toISOString()
             });
@@ -230,23 +254,30 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
         triggerHaptic?.();
 
         try {
-            const monitorDeviceId = localStorage.getItem('pda_device_id') || 'monitor_web';
             const rows = pendingChanges.map(c => ({
+                id: c.id,
                 primary_device_id: pairedDeviceId,
                 monitor_device_id: monitorDeviceId,
                 command_type: 'inventory_update',
                 payload: { action: c.action, productId: c.productId, data: c.data },
+                payload_version: 1,           // SYNC-012: versión del schema del payload.
                 status: 'pending'
             }));
 
             const { error } = await supabaseCloud
                 .from('supervisor_commands')
-                .insert(rows);
+                .insert(rows, { onConflict: 'id' });
 
             if (error) throw error;
 
             persistPending([]);
-            showToast(`¡${rows.length} cambios enviados a la caja con éxito!`, 'success');
+            // SYNC-011 / SYNC-017: mensaje informativo contextual según la salud de la caja.
+            const isCajaOffline = !cajaAlive || (cajaSecondsAgo !== null && cajaSecondsAgo > 300);
+            if (isCajaOffline) {
+                showToast(`Comandos encolados (${rows.length} cambios). La CAJA está inactiva y los aplicará al reconectar.`, 'info');
+            } else {
+                showToast(`Enviado a la caja (${rows.length} cambios). Pendiente de aplicar en la CAJA.`, 'info');
+            }
         } catch (err) {
             console.error('[OwnerMonitorView] Error al enviar lote de comandos:', err);
             showToast('Error al subir cambios a la caja: ' + (err.message || ''), 'error');
@@ -595,6 +626,21 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
             .slice(0, 10);
     }, [products]);
 
+    // Listener global para cerrar modales con tecla Escape (UX-035)
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                if (confirmModalConfig) setConfirmModalConfig(null);
+                else if (showDisconnectConfirm) setShowDisconnectConfirm(false);
+                else if (showRateModal) setShowRateModal(false);
+                else if (showAuditModal) setShowAuditModal(false);
+                else if (showRemoteForm) setShowRemoteForm(false);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [confirmModalConfig, showDisconnectConfirm, showRateModal, showAuditModal, showRemoteForm]);
+
     // Desvincular Monitor
     const handleDisconnect = async () => {
         triggerHaptic?.();
@@ -657,7 +703,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                     />
                     <div className="hidden sm:flex flex-col border-l border-zinc-800 pl-3">
                         <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1">
-                            <ShieldCheck size={12} className="text-emerald-400" /> Modo Supervisor
+                            <ShieldCheck size={12} className="text-emerald-400" aria-hidden="true" /> Modo Supervisor
                         </span>
                         <p className="text-[10px] text-zinc-400 font-bold truncate max-w-[180px]">
                             {localStorage.getItem('business_name') || 'El Spot Concept Store'}
@@ -668,35 +714,59 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                 <div className="flex items-center gap-2.5">
                     {/* Badge Modo Supervisor en móvil */}
                     <div className="sm:hidden flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg text-[9px] font-black text-emerald-400 uppercase tracking-wider">
-                        <ShieldCheck size={11} /> Supervisor
+                        <ShieldCheck size={11} aria-hidden="true" /> Supervisor
                     </div>
 
-                    {/* Status Badge */}
-                    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black tracking-wider uppercase shadow-sm transition-colors duration-300 ${
-                        isConnected 
-                            ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400' 
-                            : 'bg-rose-500/10 border border-rose-500/30 text-rose-400 animate-pulse'
-                    }`}>
-                        {isConnected ? (
-                            <>
-                                <Wifi size={12} className="shrink-0 text-emerald-400" />
-                                <span>En Vivo</span>
-                            </>
-                        ) : (
-                            <>
-                                <WifiOff size={12} className="shrink-0 text-rose-400" />
-                                <span>Desconectado</span>
-                            </>
+                    {/* Status Badge — SYNC-015: ahora integra el heartbeat de la CAJA */}
+                    <div className="flex flex-col gap-0.5">
+                        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black tracking-wider uppercase shadow-sm transition-colors duration-300 ${
+                            isConnected && cajaAlive
+                                ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
+                                : (isConnected && cajaSecondsAgo !== null)
+                                    ? 'bg-amber-500/10 border border-amber-500/30 text-amber-400'
+                                    : 'bg-rose-500/10 border border-rose-500/30 text-rose-400 animate-pulse'
+                        }`} role="status" aria-live="polite">
+                            {isConnected && cajaAlive ? (
+                                <>
+                                    <Wifi size={12} className="shrink-0 text-emerald-400" aria-hidden="true" />
+                                    <span>En Vivo</span>
+                                </>
+                            ) : isConnected && cajaSecondsAgo !== null ? (
+                                <>
+                                    <Wifi size={12} className="shrink-0 text-amber-400" aria-hidden="true" />
+                                    <span>CAJA inactiva</span>
+                                </>
+                            ) : (
+                                <>
+                                    <WifiOff size={12} className="shrink-0 text-rose-400" aria-hidden="true" />
+                                    <span>Desconectado</span>
+                                </>
+                            )}
+                        </div>
+                        {/* Sub-texto "visto hace Xs" — feedbackSYNC-015 */}
+                        {cajaSecondsAgo !== null && (
+                            <span className="text-[10px] text-zinc-400 font-semibold text-center" aria-label={`Última conexión de la CAJA hace ${cajaSecondsAgo} segundos`}>
+                                CAJA vista hace {cajaSecondsAgo < 60 ? `${cajaSecondsAgo}s` : `${Math.floor(cajaSecondsAgo / 60)}m`}
+                            </span>
                         )}
                     </div>
 
                     <button 
                         onClick={() => { triggerHaptic?.(); setShowRateModal(true); }}
-                        className="px-3 py-1.5 rounded-xl text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 bg-emerald-500/10 transition-colors active:scale-95 flex items-center gap-1.5 text-xs font-bold shrink-0"
+                        className="px-3 py-2 rounded-xl text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 bg-emerald-500/10 transition-colors active:scale-[0.97] flex items-center gap-1.5 text-xs font-bold shrink-0 min-h-[44px]"
                         title="Cambiar Tasa Remota"
                     >
-                        <TrendingUp size={14} />
+                        <TrendingUp size={14} aria-hidden="true" />
                         <span className="hidden sm:inline">Cambiar Tasa</span>
+                    </button>
+
+                    <button 
+                        onClick={() => { triggerHaptic?.(); setShowAuditModal(true); }}
+                        className="px-3 py-2 rounded-xl text-purple-400 hover:bg-purple-500/20 border border-purple-500/30 bg-purple-500/10 transition-colors active:scale-[0.97] flex items-center gap-1.5 text-xs font-bold shrink-0 min-h-[44px]"
+                        title="Historial de Auditoría de Comandos"
+                    >
+                        <Activity size={14} aria-hidden="true" />
+                        <span className="hidden sm:inline">Auditoría</span>
                     </button>
 
                     <button 
@@ -706,18 +776,20 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                             showToast?.('Datos actualizados', 'success');
                         }}
                         disabled={syncLoading}
-                        className="p-2 rounded-xl text-zinc-400 hover:text-emerald-400 hover:bg-zinc-800 border border-zinc-800 bg-zinc-900 transition-colors disabled:opacity-50 active:scale-95"
+                        className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-zinc-400 hover:text-emerald-400 hover:bg-zinc-800 border border-zinc-800 bg-zinc-900 transition-colors disabled:opacity-50 active:scale-[0.93]"
                         title="Actualizar Datos"
+                        aria-label="Actualizar Datos"
                     >
-                        <RefreshCw size={15} className={syncLoading ? "animate-spin text-emerald-400" : ""} />
+                        <RefreshCw size={15} className={syncLoading ? "animate-spin text-emerald-400" : ""} aria-hidden="true" />
                     </button>
 
                     <button 
                         onClick={() => { triggerHaptic?.(); setShowDisconnectConfirm(true); }}
-                        className="p-2 rounded-xl text-zinc-400 hover:text-rose-400 hover:bg-zinc-800 border border-zinc-800 bg-zinc-900 transition-colors active:scale-95"
+                        className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-zinc-400 hover:text-rose-400 hover:bg-zinc-800 border border-zinc-800 bg-zinc-900 transition-colors active:scale-[0.93]"
                         title="Desvincular Dispositivo"
+                        aria-label="Desvincular Dispositivo"
                     >
-                        <LogOut size={15} />
+                        <LogOut size={15} aria-hidden="true" />
                     </button>
                 </div>
             </header>
@@ -740,8 +812,8 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                         onClick={() => { triggerHaptic?.(); setViewTab('activo'); }}
                         className={`flex-1 py-2 px-2.5 text-center text-[10px] sm:text-xs font-black rounded-xl transition-all shrink-0 ${
                             viewTab === 'activo' 
-                                ? 'bg-white dark:bg-slate-800 text-slate-850 dark:text-white shadow-sm' 
-                                : 'text-slate-400 hover:text-slate-650 dark:hover:text-slate-200'
+                                ? 'bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm' 
+                                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
                         }`}
                     >
                         <span className="sm:hidden">Turno Activo</span>
@@ -751,8 +823,8 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                         onClick={() => { triggerHaptic?.(); setViewTab('cierres'); }}
                         className={`flex-1 py-2 px-2.5 text-center text-[10px] sm:text-xs font-black rounded-xl transition-all shrink-0 ${
                             viewTab === 'cierres' 
-                                ? 'bg-white dark:bg-slate-800 text-slate-850 dark:text-white shadow-sm' 
-                                : 'text-slate-400 hover:text-slate-650 dark:hover:text-slate-200'
+                                ? 'bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm' 
+                                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
                         }`}
                     >
                         <span className="sm:hidden">Cierres</span>
@@ -762,8 +834,8 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                         onClick={() => { triggerHaptic?.(); setViewTab('inventario'); }}
                         className={`flex-1 py-2 px-2.5 text-center text-[10px] sm:text-xs font-black rounded-xl transition-all shrink-0 ${
                             viewTab === 'inventario' 
-                                ? 'bg-white dark:bg-slate-800 text-slate-850 dark:text-white shadow-sm' 
-                                : 'text-slate-400 hover:text-slate-650 dark:hover:text-slate-200'
+                                ? 'bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm' 
+                                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
                         }`}
                     >
                         <span>Inventario</span>
@@ -827,7 +899,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                             <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-sm flex flex-col justify-between min-h-[105px] sm:min-h-[125px]">
                                 <div className="flex items-center justify-between w-full">
                                     <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-slate-400">Cajero de Turno</span>
-                                    <div className="w-7 h-7 sm:w-9 sm:h-9 bg-slate-50 dark:bg-slate-800/50 rounded-xl flex items-center justify-center text-slate-450 shrink-0">
+                                    <div className="w-7 h-7 sm:w-9 sm:h-9 bg-slate-50 dark:bg-slate-800/50 rounded-xl flex items-center justify-center text-slate-500 shrink-0">
                                         <Users size={16} />
                                     </div>
                                 </div>
@@ -845,7 +917,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                         {/* Si la caja no está activa */}
                         {!isShiftActive ? (
                             <div className="py-16 px-6 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm space-y-4 max-w-lg mx-auto flex flex-col items-center">
-                                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 text-slate-450 rounded-full">
+                                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 text-slate-500 rounded-full">
                                     <Clock size={42} />
                                 </div>
                                 <div className="space-y-1">
@@ -911,7 +983,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                             <div className="py-8 text-center text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
                                                 <Wallet size={28} className="mx-auto text-slate-300 mb-2" />
                                                 <p className="text-xs font-black">Sin transacciones registradas</p>
-                                                <p className="text-[10px] text-slate-450 mt-1">El desglose por método de pago aparecerá aquí.</p>
+                                                <p className="text-[10px] text-slate-500 mt-1">El desglose por método de pago aparecerá aquí.</p>
                                             </div>
                                         ) : (
                                             <div className="space-y-2.5">
@@ -958,7 +1030,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                                         </span>
                                                     </div>
                                                     <div className="text-right">
-                                                        <span className="font-outfit text-sm font-black text-slate-850 dark:text-white tabular-nums">${activeShiftMetrics.totalUsd.toFixed(2)}</span>
+                                                        <span className="font-outfit text-sm font-black text-slate-800 dark:text-white tabular-nums">${activeShiftMetrics.totalUsd.toFixed(2)}</span>
                                                         <span className="font-outfit text-[10px] font-bold text-slate-400 ml-2">{formatBs(activeShiftMetrics.totalBs)} Bs</span>
                                                     </div>
                                                 </div>
@@ -966,7 +1038,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                                 {/* Ticket promedio */}
                                                 <div className="flex items-center justify-between px-1 mt-1">
                                                     <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Ticket Promedio</span>
-                                                    <span className="font-outfit text-xs font-black text-blue-650 dark:text-blue-400 tabular-nums">${activeShiftAvgTicket.toFixed(2)}</span>
+                                                    <span className="font-outfit text-xs font-black text-blue-600 dark:text-blue-400 tabular-nums">${activeShiftAvgTicket.toFixed(2)}</span>
                                                 </div>
                                             </div>
                                         )}
@@ -990,7 +1062,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                                 </div>
                                             ) : activeShiftSales.length === 0 ? (
                                                 <div className="py-12 text-center text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
-                                                    <Clock size={36} className="mx-auto text-slate-350 dark:text-slate-700 mb-2" />
+                                                    <Clock size={36} className="mx-auto text-slate-300 dark:text-slate-700 mb-2" />
                                                     <p className="text-xs font-black">No se han registrado ventas en este turno</p>
                                                     <p className="text-[10px] text-slate-400 mt-1">Las ventas de la caja activa aparecerán aquí al instante.</p>
                                                 </div>
@@ -1070,7 +1142,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                     <div>
                         {registerCloses.length === 0 ? (
                             <div className="py-16 px-6 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm space-y-4 max-w-lg mx-auto flex flex-col items-center">
-                                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 text-slate-450 rounded-full">
+                                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 text-slate-500 rounded-full">
                                     <ShieldCheck size={42} />
                                 </div>
                                 <div className="space-y-1">
@@ -1152,7 +1224,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                                                 ? 'bg-slate-100 dark:bg-slate-800 text-slate-500' 
                                                                 : isCuadrado 
                                                                     ? 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400' 
-                                                                    : 'bg-amber-100 dark:bg-amber-955/30 text-amber-700 dark:text-amber-400 animate-pulse'
+                                                                    : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 animate-pulse'
                                                         }`}>
                                                             {declaredUsd === null ? 'Sin Declarar' : isCuadrado ? 'Cuadrado' : 'Diferencia'}
                                                         </span>
@@ -1170,62 +1242,150 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                                             <p className="text-[10px] text-slate-500 mt-0.5">El cajero completó el cierre de caja sin declarar el saldo físico.</p>
                                                         </div>
                                                     ) : (
-                                                        <div className="border border-slate-100 dark:border-slate-800 rounded-2xl overflow-x-auto custom-scrollbar text-xs">
-                                                            <div className="min-w-[320px]">
-                                                                <div className="grid grid-cols-4 gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-850/50 text-[10px] font-black text-slate-400 uppercase border-b border-slate-150 dark:border-slate-800">
-                                                                <span>Moneda</span>
-                                                                <span className="text-center">Esperado</span>
-                                                                <span className="text-center">Declarado</span>
-                                                                <span className="text-right">Diferencia</span>
-                                                            </div>
-
-                                                            {/* USD Row */}
-                                                            <div className="grid grid-cols-4 gap-2 px-4 py-3 border-b border-slate-100 dark:border-slate-800 items-center">
-                                                                <span className="font-bold text-slate-700 dark:text-slate-200">Dólares ($)</span>
-                                                                <span className="font-outfit font-mono text-slate-400 text-center">${expectedUsd.toFixed(2)}</span>
-                                                                <span className="font-outfit font-mono font-black text-slate-700 dark:text-white text-center">${declaredUsd.toFixed(2)}</span>
-                                                                <span className={`font-outfit font-mono font-black text-right ${
-                                                                    diffUsd === 0 ? 'text-slate-400' : diffUsd > 0 ? 'text-emerald-600' : 'text-rose-600'
-                                                                }`}>
-                                                                    {diffUsd > 0 ? '+' : ''}{diffUsd.toFixed(2)}
-                                                                </span>
-                                                            </div>
-
-                                                            {/* Bs Row */}
-                                                            <div className="grid grid-cols-4 gap-2 px-4 py-3 border-b border-slate-100 dark:border-slate-800 items-center">
-                                                                <span className="font-bold text-slate-700 dark:text-slate-200">Bolívares (Bs)</span>
-                                                                <span className="font-outfit font-mono text-slate-400 text-center">{formatBs(activeC.reconData?.expectedBs || 0)}</span>
-                                                                <span className="font-outfit font-mono font-black text-slate-700 dark:text-white text-center">{formatBs(declaredBs)}</span>
-                                                                <span className={`font-outfit font-mono font-black text-right ${
-                                                                    (declaredBs - (activeC.reconData?.expectedBs || 0)) === 0 
-                                                                        ? 'text-slate-400' 
-                                                                        : (declaredBs - (activeC.reconData?.expectedBs || 0)) > 0 
-                                                                            ? 'text-emerald-600' 
-                                                                            : 'text-rose-600'
-                                                                }`}>
-                                                                    {(declaredBs - (activeC.reconData?.expectedBs || 0)) > 0 ? '+' : ''}
-                                                                    {formatBs(declaredBs - (activeC.reconData?.expectedBs || 0))}
-                                                                </span>
-                                                            </div>
-
-                                                            {/* COP Row si aplica */}
-                                                            {activeC.reconData?.expectedCop > 0 && (
-                                                                <div className="grid grid-cols-4 gap-2 px-4 py-3 items-center">
-                                                                    <span className="font-bold text-slate-700 dark:text-slate-200">Pesos (COP)</span>
-                                                                    <span className="font-outfit font-mono text-slate-400 text-center">{(activeC.reconData.expectedCop).toLocaleString()}</span>
-                                                                    <span className="font-outfit font-mono font-black text-slate-700 dark:text-white text-center">{(declaredCop).toLocaleString()}</span>
-                                                                    <span className={`font-outfit font-mono font-black text-right ${
-                                                                        (declaredCop - activeC.reconData.expectedCop) === 0 
-                                                                            ? 'text-slate-400' 
-                                                                            : (declaredCop - activeC.reconData.expectedCop) > 0 
-                                                                                ? 'text-emerald-600' 
-                                                                                : 'text-rose-600'
-                                                                    }`}>
-                                                                        {(declaredCop - activeC.reconData.expectedCop) > 0 ? '+' : ''}
-                                                                        {(declaredCop - activeC.reconData.expectedCop).toLocaleString()}
-                                                                    </span>
+                                                        <div className="border border-slate-100 dark:border-slate-800 rounded-2xl overflow-hidden text-xs">
+                                                            {/* Vista Móvil (<480px) — Cards Apiladas */}
+                                                            <div className="sm:hidden space-y-2.5 p-3 bg-slate-50/50 dark:bg-slate-800/30">
+                                                                {/* USD Card */}
+                                                                <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 space-y-1.5 shadow-sm">
+                                                                    <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-200">
+                                                                        <span>Dólares ($)</span>
+                                                                        <span className={`font-outfit font-mono font-black ${
+                                                                            diffUsd === 0 ? 'text-slate-400' : diffUsd > 0 ? 'text-emerald-600' : 'text-rose-600'
+                                                                        }`}>
+                                                                            Diff: {diffUsd > 0 ? '+' : ''}${diffUsd.toFixed(2)}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-slate-100 dark:border-slate-800/60">
+                                                                        <div>
+                                                                            <span className="text-[10px] text-slate-400 block font-semibold uppercase">Esperado</span>
+                                                                            <span className="font-outfit font-mono font-bold text-slate-500">${expectedUsd.toFixed(2)}</span>
+                                                                        </div>
+                                                                        <div>
+                                                                            <span className="text-[10px] text-slate-400 block font-semibold uppercase">Declarado</span>
+                                                                            <span className="font-outfit font-mono font-black text-slate-800 dark:text-white">${declaredUsd.toFixed(2)}</span>
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
-                                                            )}
+
+                                                                {/* Bs Card */}
+                                                                <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 space-y-1.5 shadow-sm">
+                                                                    {(() => {
+                                                                        const diffBs = declaredBs - (activeC.reconData?.expectedBs || 0);
+                                                                        return (
+                                                                            <>
+                                                                                <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-200">
+                                                                                    <span>Bolívares (Bs)</span>
+                                                                                    <span className={`font-outfit font-mono font-black ${
+                                                                                        diffBs === 0 ? 'text-slate-400' : diffBs > 0 ? 'text-emerald-600' : 'text-rose-600'
+                                                                                    }`}>
+                                                                                        Diff: {diffBs > 0 ? '+' : ''}{formatBs(diffBs)}
+                                                                                    </span>
+                                                                                </div>
+                                                                                <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-slate-100 dark:border-slate-800/60">
+                                                                                    <div>
+                                                                                        <span className="text-[10px] text-slate-400 block font-semibold uppercase">Esperado</span>
+                                                                                        <span className="font-outfit font-mono font-bold text-slate-500">{formatBs(activeC.reconData?.expectedBs || 0)}</span>
+                                                                                    </div>
+                                                                                    <div>
+                                                                                        <span className="text-[10px] text-slate-400 block font-semibold uppercase">Declarado</span>
+                                                                                        <span className="font-outfit font-mono font-black text-slate-800 dark:text-white">{formatBs(declaredBs)}</span>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </>
+                                                                        );
+                                                                    })()}
+                                                                </div>
+
+                                                                {/* COP Card si aplica */}
+                                                                {activeC.reconData?.expectedCop > 0 && (
+                                                                    <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800 space-y-1.5 shadow-sm">
+                                                                        {(() => {
+                                                                            const diffCop = declaredCop - activeC.reconData.expectedCop;
+                                                                            return (
+                                                                                <>
+                                                                                    <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-200">
+                                                                                        <span>Pesos (COP)</span>
+                                                                                        <span className={`font-outfit font-mono font-black ${
+                                                                                            diffCop === 0 ? 'text-slate-400' : diffCop > 0 ? 'text-emerald-600' : 'text-rose-600'
+                                                                                        }`}>
+                                                                                            Diff: {diffCop > 0 ? '+' : ''}{diffCop.toLocaleString()}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                    <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-slate-100 dark:border-slate-800/60">
+                                                                                        <div>
+                                                                                            <span className="text-[10px] text-slate-400 block font-semibold uppercase">Esperado</span>
+                                                                                            <span className="font-outfit font-mono font-bold text-slate-500">{activeC.reconData.expectedCop.toLocaleString()}</span>
+                                                                                        </div>
+                                                                                        <div>
+                                                                                            <span className="text-[10px] text-slate-400 block font-semibold uppercase">Declarado</span>
+                                                                                            <span className="font-outfit font-mono font-black text-slate-800 dark:text-white">{declaredCop.toLocaleString()}</span>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </>
+                                                                            );
+                                                                        })()}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Vista Desktop / Tablet (≥480px) — Tabla en cuadrícula */}
+                                                            <div className="hidden sm:block overflow-x-auto custom-scrollbar">
+                                                                <div className="min-w-[320px]">
+                                                                    <div className="grid grid-cols-4 gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-800/50 text-[10px] font-black text-slate-400 uppercase border-b border-slate-100 dark:border-slate-800">
+                                                                        <span>Moneda</span>
+                                                                        <span className="text-center">Esperado</span>
+                                                                        <span className="text-center">Declarado</span>
+                                                                        <span className="text-right">Diferencia</span>
+                                                                    </div>
+
+                                                                    {/* USD Row */}
+                                                                    <div className="grid grid-cols-4 gap-2 px-4 py-3 border-b border-slate-100 dark:border-slate-800 items-center">
+                                                                        <span className="font-bold text-slate-700 dark:text-slate-200">Dólares ($)</span>
+                                                                        <span className="font-outfit font-mono text-slate-400 text-center">${expectedUsd.toFixed(2)}</span>
+                                                                        <span className="font-outfit font-mono font-black text-slate-700 dark:text-white text-center">${declaredUsd.toFixed(2)}</span>
+                                                                        <span className={`font-outfit font-mono font-black text-right ${
+                                                                            diffUsd === 0 ? 'text-slate-400' : diffUsd > 0 ? 'text-emerald-600' : 'text-rose-600'
+                                                                        }`}>
+                                                                            {diffUsd > 0 ? '+' : ''}{diffUsd.toFixed(2)}
+                                                                        </span>
+                                                                    </div>
+
+                                                                    {/* Bs Row */}
+                                                                    <div className="grid grid-cols-4 gap-2 px-4 py-3 border-b border-slate-100 dark:border-slate-800 items-center">
+                                                                        <span className="font-bold text-slate-700 dark:text-slate-200">Bolívares (Bs)</span>
+                                                                        <span className="font-outfit font-mono text-slate-400 text-center">{formatBs(activeC.reconData?.expectedBs || 0)}</span>
+                                                                        <span className="font-outfit font-mono font-black text-slate-700 dark:text-white text-center">{formatBs(declaredBs)}</span>
+                                                                        <span className={`font-outfit font-mono font-black text-right ${
+                                                                            (declaredBs - (activeC.reconData?.expectedBs || 0)) === 0 
+                                                                                ? 'text-slate-400' 
+                                                                                : (declaredBs - (activeC.reconData?.expectedBs || 0)) > 0 
+                                                                                    ? 'text-emerald-600' 
+                                                                                    : 'text-rose-600'
+                                                                        }`}>
+                                                                            {(declaredBs - (activeC.reconData?.expectedBs || 0)) > 0 ? '+' : ''}
+                                                                            {formatBs(declaredBs - (activeC.reconData?.expectedBs || 0))}
+                                                                        </span>
+                                                                    </div>
+
+                                                                    {/* COP Row si aplica */}
+                                                                    {activeC.reconData?.expectedCop > 0 && (
+                                                                        <div className="grid grid-cols-4 gap-2 px-4 py-3 items-center">
+                                                                            <span className="font-bold text-slate-700 dark:text-slate-200">Pesos (COP)</span>
+                                                                            <span className="font-outfit font-mono text-slate-400 text-center">{(activeC.reconData.expectedCop).toLocaleString()}</span>
+                                                                            <span className="font-outfit font-mono font-black text-slate-700 dark:text-white text-center">{(declaredCop).toLocaleString()}</span>
+                                                                            <span className={`font-outfit font-mono font-black text-right ${
+                                                                                (declaredCop - activeC.reconData.expectedCop) === 0 
+                                                                                    ? 'text-slate-400' 
+                                                                                    : (declaredCop - activeC.reconData.expectedCop) > 0 
+                                                                                        ? 'text-emerald-600' 
+                                                                                        : 'text-rose-600'
+                                                                            }`}>
+                                                                                {(declaredCop - activeC.reconData.expectedCop) > 0 ? '+' : ''}
+                                                                                {(declaredCop - activeC.reconData.expectedCop).toLocaleString()}
+                                                                            </span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     )}
@@ -1240,7 +1400,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                                             const pct = activeC.totalUsd > 0 ? Math.round((data.totalUsd / activeC.totalUsd) * 100) : 0;
                                                             return (
                                                                 <div key={methodId} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800 rounded-2xl">
-                                                                    <div className="w-8 h-8 bg-white dark:bg-slate-800 border border-slate-150 dark:border-slate-700 rounded-lg flex items-center justify-center text-slate-500 dark:text-slate-400 shrink-0">
+                                                                    <div className="w-8 h-8 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg flex items-center justify-center text-slate-500 dark:text-slate-400 shrink-0">
                                                                         <IconComp size={14} />
                                                                     </div>
                                                                     <div className="flex-1 min-w-0">
@@ -1272,12 +1432,12 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                                                             </span>
                                                                             <span className="text-[9px] text-slate-400 font-bold">{formatTime(sale.timestamp)}</span>
                                                                         </div>
-                                                                        <p className="font-black text-slate-700 dark:text-slate-250 truncate mt-1">
+                                                                        <p className="font-black text-slate-700 dark:text-slate-200 truncate mt-1">
                                                                             {sale.items?.map(i => `${i.name} (x${i.qty})`).join(', ') || 'Venta de productos'}
                                                                         </p>
                                                                     </div>
                                                                     <div className="text-right shrink-0">
-                                                                        <span className="font-outfit font-black text-slate-850 dark:text-white block">${(sale.totalUsd || 0).toFixed(2)}</span>
+                                                                        <span className="font-outfit font-black text-slate-800 dark:text-white block">${(sale.totalUsd || 0).toFixed(2)}</span>
                                                                         <span className="font-outfit text-[9px] text-slate-400 block">{formatBs(sale.totalBs || 0)} Bs</span>
                                                                     </div>
                                                             </div>
@@ -1344,7 +1504,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                         <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-3xl border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
                             {/* Input de Búsqueda */}
                             <div className="relative flex-1">
-                                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-450">
+                                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
                                     <Search size={14} />
                                 </span>
                                 <input
@@ -1357,7 +1517,8 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                 {searchTermInventario && (
                                     <button 
                                         onClick={() => setSearchTermInventario('')}
-                                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-650"
+                                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                                        aria-label="Limpiar búsqueda"
                                     >
                                         <X size={14} />
                                     </button>
@@ -1378,13 +1539,13 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                     <span>Nuevo Producto</span>
                                 </button>
 
-                                <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-2xl border border-slate-200/60 dark:border-slate-850 w-full sm:w-auto overflow-x-auto custom-scrollbar shadow-inner">
+                                <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-2xl border border-slate-200/60 dark:border-slate-800 w-full sm:w-auto overflow-x-auto custom-scrollbar shadow-inner">
                                     <button
                                         onClick={() => { triggerHaptic?.(); setFilterStockInventario('todos'); }}
                                         className={`flex-1 shrink-0 whitespace-nowrap px-3 py-1.5 text-[10px] sm:text-xs font-black rounded-xl transition-all ${
                                             filterStockInventario === 'todos'
                                                 ? 'bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm'
-                                                : 'text-slate-450 hover:text-slate-650 dark:hover:text-slate-350'
+                                                : 'text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
                                         }`}
                                     >
                                         Todos ({inventoryMetrics.count})
@@ -1416,15 +1577,12 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                         {/* Listado de Productos en Tarjetas Independientes */}
                         <div className="space-y-3.5">
                             {filteredProducts.length === 0 ? (
-                                <div className="py-16 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center space-y-3">
-                                    <div className="p-4 bg-slate-50 dark:bg-slate-800/50 text-slate-300 dark:text-slate-600 rounded-full">
-                                        <Package size={36} />
-                                    </div>
-                                    <div className="space-y-0.5">
-                                        <p className="text-xs font-black text-slate-700 dark:text-slate-200">No se encontraron productos</p>
-                                        <p className="text-[10px] text-slate-450">Intenta buscando con otro término o cambiando los filtros.</p>
-                                    </div>
-                                </div>
+                                <EmptyState 
+                                    icon={Package} 
+                                    title="No se encontraron productos" 
+                                    description="Intenta buscando con otro término o cambiando los filtros."
+                                    compact={true}
+                                />
                             ) : (
                                 paginatedProducts.map((p) => {
                                     const stock = p.stock || 0;
@@ -1449,7 +1607,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                                 <div className="min-w-0 flex-1">
                                                     <div className="flex items-center gap-2 flex-wrap">
                                                         <h4 className="text-xs sm:text-sm font-black text-slate-800 dark:text-white uppercase leading-tight">{p.name}</h4>
-                                                        <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full shrink-0 ${
+                                                        <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full shrink-0 ${
                                                             isAgotado 
                                                                 ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-400' 
                                                                 : isBajo 
@@ -1459,8 +1617,8 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                                             {isAgotado ? 'Agotado' : isBajo ? 'Bajo Stock' : 'Disponible'}
                                                         </span>
                                                         {p.hasWarranty && (p.warrantyDays > 0 || p.warrantyDays === null) && (
-                                                            <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 flex items-center gap-1 shrink-0">
-                                                                <ShieldCheck size={9} />
+                                                            <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 flex items-center gap-1 shrink-0">
+                                                                <ShieldCheck size={11} aria-hidden="true" />
                                                                 {p.warrantyDays ? `${p.warrantyDays}d Garantía` : 'Garantía'}
                                                             </span>
                                                         )}
@@ -1468,7 +1626,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                                     <div className="flex items-center gap-3 text-[10px] text-slate-400 mt-1 font-medium flex-wrap">
                                                         {p.barcode && (
                                                             <span className="flex items-center gap-1">
-                                                                <Hash size={10} /> {p.barcode}
+                                                                <Hash size={10} aria-hidden="true" /> {p.barcode}
                                                             </span>
                                                         )}
                                                         <span>Categoría: {toTitleCase(p.category || 'Varios')}</span>
@@ -1483,17 +1641,19 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                                             setRemoteEditingProduct(p);
                                                             setShowRemoteForm(true);
                                                         }}
-                                                        className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-500 hover:bg-white dark:hover:bg-slate-700 transition-colors"
+                                                        className="p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-slate-500 hover:text-emerald-500 hover:bg-white dark:hover:bg-slate-700 transition-colors active:scale-[0.93]"
                                                         title="Editar producto remotamente"
+                                                        aria-label={`Editar ${p.name}`}
                                                     >
-                                                        <Pencil size={14} />
+                                                        <Pencil size={14} aria-hidden="true" />
                                                     </button>
                                                     <button
                                                         onClick={() => handleDeleteProduct(p)}
-                                                        className="p-1.5 rounded-lg text-slate-500 hover:text-rose-500 hover:bg-white dark:hover:bg-slate-700 transition-colors"
+                                                        className="p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-slate-500 hover:text-rose-500 hover:bg-white dark:hover:bg-slate-700 transition-colors active:scale-[0.93]"
                                                         title="Eliminar producto remotamente"
+                                                        aria-label={`Eliminar ${p.name}`}
                                                     >
-                                                        <Trash2 size={14} />
+                                                        <Trash2 size={14} aria-hidden="true" />
                                                     </button>
                                                 </div>
                                             </div>
@@ -1501,34 +1661,34 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                             {/* Sección de Datos Financieros + Stock Adjuster */}
                                             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 lg:gap-6 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100 dark:border-slate-800/60">
                                                 {/* Bloque Financiero: Costo, Venta USD, Precio BCV (Bs), Ganancia Real (USDT) */}
-                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50/80 dark:bg-slate-800/30 p-2.5 rounded-2xl border border-slate-100 dark:border-slate-800/50 text-center sm:text-right">
+                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50/80 dark:bg-slate-800/30 p-2.5 rounded-2xl border border-slate-100 dark:border-slate-800/50 text-center sm:text-right overflow-hidden">
                                                     {/* Costo */}
                                                     <div className="flex flex-col justify-center p-1 sm:p-0">
-                                                        <span className="text-[8px] text-slate-400 uppercase font-black block">Costo</span>
+                                                        <span className="text-[10px] text-slate-400 uppercase font-black block">Costo</span>
                                                         <span className="font-outfit text-xs font-black text-slate-500 tabular-nums">${costVal.toFixed(2)}</span>
                                                     </div>
                                                     {/* Venta (USD) */}
                                                     <div className="flex flex-col justify-center border-l sm:border-l-0 border-slate-200/50 dark:border-slate-700/40 p-1 sm:p-0">
-                                                        <span className="text-[8px] text-slate-400 uppercase font-black block">Venta (USD)</span>
+                                                        <span className="text-[10px] text-slate-400 uppercase font-black block">Venta (USD)</span>
                                                         <span className="font-outfit text-xs font-black text-slate-800 dark:text-white tabular-nums block">${p.priceUsd.toFixed(2)}</span>
                                                     </div>
                                                     {/* Cobro BCV (Bs) */}
                                                     <div className="flex flex-col justify-center border-t sm:border-t-0 border-slate-200/50 dark:border-slate-700/40 p-1 sm:p-0">
-                                                        <span className="text-[8px] text-emerald-600 dark:text-emerald-400 uppercase font-black block">Precio BCV (Bs)</span>
+                                                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase font-black block">Precio BCV (Bs)</span>
                                                         <span className="font-outfit text-xs font-black text-emerald-600 dark:text-emerald-400 tabular-nums block">
                                                             {bcvRate ? `${formatBs(bcvBsTotal)} Bs` : 'N/D'}
                                                         </span>
                                                         {p.price2Usd && p.price2Usd !== p.priceUsd && (
-                                                            <span className="font-outfit text-[8px] font-bold text-emerald-500 block leading-none mt-0.5">(${p.price2Usd.toFixed(2)} BCV)</span>
+                                                            <span className="font-outfit text-[10px] font-bold text-emerald-500 block leading-none mt-0.5">(${p.price2Usd.toFixed(2)} BCV)</span>
                                                         )}
                                                     </div>
                                                     {/* Ganancia Real USDT */}
                                                     <div className="flex flex-col justify-center border-t sm:border-t-0 border-l border-slate-200/50 dark:border-slate-700/40 p-1 sm:p-0 bg-blue-50/50 dark:bg-blue-950/20 sm:bg-transparent sm:dark:bg-transparent rounded-xl sm:rounded-none">
-                                                        <span className="text-[8px] text-blue-600 dark:text-blue-400 uppercase font-black block">Ganancia Real (USDT)</span>
+                                                        <span className="text-[10px] text-blue-600 dark:text-blue-400 uppercase font-black block">Ganancia Real (USDT)</span>
                                                         <span className="font-outfit text-xs font-black text-blue-600 dark:text-blue-400 tabular-nums block">
                                                             {realProfitUsd >= 0 ? `+$${realProfitUsd.toFixed(2)}` : `-$${Math.abs(realProfitUsd).toFixed(2)}`} USDT
                                                         </span>
-                                                        <span className="text-[8px] font-bold text-blue-500 dark:text-blue-300 block leading-none mt-0.5">
+                                                        <span className="text-[10px] font-bold text-blue-500 dark:text-blue-300 block leading-none mt-0.5">
                                                             {realProfitPct >= 0 ? `+${realProfitPct}%` : `${realProfitPct}%`}
                                                         </span>
                                                     </div>
@@ -1538,20 +1698,21 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                                 <div className="flex items-center justify-center sm:justify-end gap-2">
                                                     <button
                                                         onClick={() => handleStockAdjust(p, -1)}
-                                                        className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 dark:bg-slate-800 dark:hover:bg-rose-950/40 dark:text-slate-300 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-700 transition-colors active:scale-90 flex items-center justify-center shrink-0"
+                                                        className="w-11 h-11 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 dark:bg-slate-800 dark:hover:bg-rose-950/40 dark:text-slate-300 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-700 transition-colors active:scale-90 flex items-center justify-center shrink-0"
                                                         title="Disminuir 1 stock en caja"
+                                                        aria-label={`Disminuir stock de ${p.name}`}
                                                     >
-                                                        <MinusCircle size={16} />
+                                                        <MinusCircle size={18} aria-hidden="true" />
                                                     </button>
 
-                                                    <div className={`flex-1 sm:flex-initial w-20 text-center py-1 px-2 rounded-2xl border ${
+                                                    <div className={`flex-1 sm:flex-initial w-20 text-center py-1.5 px-2 rounded-2xl border ${
                                                         isAgotado 
                                                             ? 'bg-rose-50/50 border-rose-150/70 text-rose-700 dark:bg-rose-950/20 dark:border-rose-900/30 dark:text-rose-400' 
                                                             : isBajo 
                                                                 ? 'bg-amber-50/50 border-amber-150/70 text-amber-700 dark:bg-amber-950/20 dark:border-amber-900/30 dark:text-amber-400' 
-                                                                : 'bg-slate-50 border-slate-150/70 text-slate-700 dark:bg-slate-850/60 dark:border-slate-800 dark:text-slate-300'
+                                                                : 'bg-slate-50 border-slate-100/70 text-slate-700 dark:bg-slate-800/60 dark:border-slate-800 dark:text-slate-300'
                                                     }`}>
-                                                        <span className="text-[7px] uppercase font-black block leading-none mb-0.5 text-slate-400">Stock</span>
+                                                        <span className="text-[10px] uppercase font-black block leading-none mb-0.5 text-slate-400">Stock</span>
                                                         <span className="font-outfit text-xs font-black tabular-nums leading-none">
                                                             {p.isWeight ? `${stock.toFixed(1)}k` : `${stock} u`}
                                                         </span>
@@ -1559,10 +1720,11 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
 
                                                     <button
                                                         onClick={() => handleStockAdjust(p, 1)}
-                                                        className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-600 dark:bg-slate-800 dark:hover:bg-emerald-950/40 dark:text-slate-300 dark:hover:text-emerald-400 border border-slate-200 dark:border-slate-700 transition-colors active:scale-90 flex items-center justify-center shrink-0"
+                                                        className="w-11 h-11 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-600 dark:bg-slate-800 dark:hover:bg-emerald-950/40 dark:text-slate-300 dark:hover:text-emerald-400 border border-slate-200 dark:border-slate-700 transition-colors active:scale-90 flex items-center justify-center shrink-0"
                                                         title="Aumentar 1 stock en caja"
+                                                        aria-label={`Aumentar stock de ${p.name}`}
                                                     >
-                                                        <PlusCircle size={16} />
+                                                        <PlusCircle size={18} aria-hidden="true" />
                                                     </button>
                                                 </div>
                                             </div>
@@ -1583,14 +1745,15 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                         }
                                     }}
                                     disabled={currentPageInventario === 1}
-                                    className="p-2 rounded-xl text-slate-500 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-slate-800 dark:hover:text-emerald-450 border border-slate-200 dark:border-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-colors duration-150"
+                                    className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-slate-500 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-slate-800 dark:hover:text-emerald-400 border border-slate-200 dark:border-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-colors duration-150 active:scale-[0.93]"
+                                    aria-label="Página anterior"
                                 >
                                     <ChevronLeft size={16} />
                                 </button>
 
                                 <span className="text-xs font-black text-slate-500 dark:text-slate-400">
                                     Página {currentPageInventario} de {totalPagesInventario}
-                                    <span className="text-[10px] text-slate-450 font-medium ml-2">
+                                    <span className="text-[10px] text-slate-500 font-medium ml-2">
                                         ({filteredProducts.length} productos)
                                     </span>
                                 </span>
@@ -1603,7 +1766,8 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                         }
                                     }}
                                     disabled={currentPageInventario === totalPagesInventario}
-                                    className="p-2 rounded-xl text-slate-500 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-slate-800 dark:hover:text-emerald-450 border border-slate-200 dark:border-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-colors duration-150"
+                                    className="p-2 rounded-xl text-slate-500 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-slate-800 dark:hover:text-emerald-400 border border-slate-200 dark:border-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-colors duration-150"
+                                    aria-label="Página siguiente"
                                 >
                                     <ChevronRight size={16} />
                                 </button>
@@ -1615,13 +1779,18 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
 
             {/* Modal de Confirmación de Desvinculación */}
             {showDisconnectConfirm && (
-                <div className="fixed inset-0 z-[999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+                <div 
+                    className="fixed inset-0 z-[999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="disconnect-modal-title"
+                >
                     <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 max-w-sm w-full shadow-2xl space-y-5 animate-scale-in">
                         <div className="w-12 h-12 bg-rose-50 dark:bg-rose-950/20 rounded-2xl flex items-center justify-center text-rose-500 mx-auto">
-                            <LogOut size={22} />
+                            <LogOut size={22} aria-hidden="true" />
                         </div>
                         <div className="space-y-1.5 text-center">
-                            <h4 className="text-base font-black text-slate-800 dark:text-white">Desvincular Supervisor</h4>
+                            <h4 id="disconnect-modal-title" className="text-base font-black text-slate-800 dark:text-white">Desvincular Supervisor</h4>
                             <p className="text-xs font-semibold text-slate-500 leading-relaxed">
                                 ¿Estás seguro de que deseas desvincular este dispositivo? Se perderá el acceso en tiempo real a las transacciones de esta caja.
                             </p>
@@ -1629,7 +1798,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                         <div className="flex gap-3">
                             <button
                                 onClick={() => { triggerHaptic?.(); setShowDisconnectConfirm(false); }}
-                                className="flex-1 py-3 px-4 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-350 font-black text-xs rounded-2xl border border-slate-200 dark:border-slate-700 transition-colors"
+                                className="flex-1 py-3 px-4 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-black text-xs rounded-2xl border border-slate-200 dark:border-slate-700 transition-colors"
                             >
                                 Cancelar
                             </button>
@@ -1668,20 +1837,29 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
             {/* Barra Flotante de Cambios Pendientes en Borrador */}
             {pendingChanges.length > 0 && (
                 <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[250] w-full max-w-lg px-3 sm:px-4 animate-in slide-in-from-bottom-5 duration-300 pb-[env(safe-area-inset-bottom)]">
-                    <div className="bg-slate-900/95 border border-emerald-500/40 text-white rounded-3xl p-3.5 shadow-2xl backdrop-blur-xl flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-9 h-9 bg-emerald-500/20 text-emerald-400 rounded-xl flex items-center justify-center border border-emerald-500/30 shrink-0 font-black text-sm">
-                                {pendingChanges.length}
-                            </div>
-                            <div className="min-w-0">
-                                <h4 className="text-xs font-bold text-white truncate">
-                                    {pendingChanges.length === 1 ? '1 cambio pendiente en borrador' : `${pendingChanges.length} cambios pendientes en borrador`}
-                                </h4>
-                                <p className="text-[10px] text-slate-400 font-medium truncate">
-                                    Toca "Subir a Caja" para aplicarlos en el POS
-                                </p>
-                            </div>
+                <div className="bg-slate-900/95 border border-emerald-500/40 text-white rounded-3xl p-3.5 shadow-2xl backdrop-blur-xl flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-9 h-9 bg-emerald-500/20 text-emerald-400 rounded-xl flex items-center justify-center border border-emerald-500/30 shrink-0 font-black text-sm">
+                            {pendingChanges.length}
                         </div>
+                        <div className="min-w-0">
+                            <h4 className="text-xs font-bold text-white truncate">
+                                {pendingChanges.length === 1 ? '1 cambio pendiente en borrador' : `${pendingChanges.length} cambios pendientes en borrador`}
+                            </h4>
+                            <p className="text-[10px] text-slate-400 font-medium truncate">
+                                Toca "Subir a Caja" para aplicarlos en el POS
+                            </p>
+                            {/* SYNC-011: resumen de estado de comandos ya enviados */}
+                            {sentSummary.total > 0 && (
+                                <p className="text-[9px] text-slate-500 font-semibold mt-0.5 truncate" aria-live="polite">
+                                    {sentSummary.applied > 0 && <span className="text-emerald-400">{sentSummary.applied} aplicado(s) </span>}
+                                    {sentSummary.processing > 0 && <span className="text-amber-400">{sentSummary.processing} aplicando </span>}
+                                    {sentSummary.pending > 0 && <span className="text-sky-400">{sentSummary.pending} enviado(s) </span>}
+                                    {sentSummary.failed > 0 && <span className="text-rose-400">{sentSummary.failed} fallido(s)</span>}
+                                </p>
+                            )}
+                        </div>
+                    </div>
 
                         <div className="flex items-center gap-2 shrink-0">
                             <button
@@ -1689,15 +1867,16 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                 disabled={uploading}
                                 className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors text-xs font-bold"
                                 title="Descartar borrador"
+                                aria-label="Descartar borrador de cambios"
                             >
-                                <Trash2 size={16} />
+                                <Trash2 size={16} aria-hidden="true" />
                             </button>
                             <button
                                 onClick={handleUploadPendingChanges}
                                 disabled={uploading}
-                                className="py-2 px-3.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black rounded-2xl text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
+                                className="py-2 px-3.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black rounded-2xl text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 active:scale-[0.97] transition-all"
                             >
-                                {uploading ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />}
+                                {uploading ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <UploadCloud size={14} aria-hidden="true" />}
                                 <span>{uploading ? 'Subiendo...' : 'Subir a Caja'}</span>
                             </button>
                         </div>
@@ -1707,13 +1886,18 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
 
             {/* Modal Personalizado de Confirmación */}
             {confirmModalConfig && (
-                <div className="fixed inset-0 z-[350] bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+                <div 
+                    className="fixed inset-0 z-[1100] bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="confirm-dialog-title"
+                >
                     <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-5 text-center">
                         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto border ${confirmModalConfig.iconBg || 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
-                            <AlertTriangle size={24} />
+                            <AlertTriangle size={24} aria-hidden="true" />
                         </div>
                         <div className="space-y-1.5">
-                            <h3 className="text-base font-black text-slate-800 dark:text-white">{confirmModalConfig.title}</h3>
+                            <h3 id="confirm-dialog-title" className="text-base font-black text-slate-800 dark:text-white">{confirmModalConfig.title}</h3>
                             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
                                 {confirmModalConfig.message}
                             </p>
@@ -1739,6 +1923,13 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                     </div>
                 </div>
             )}
+
+            {/* Modal de Auditoría de Comandos Remotos (AUD-001) */}
+            <CommandAuditModal 
+                isOpen={showAuditModal}
+                onClose={() => setShowAuditModal(false)}
+                pairedDeviceId={pairedDeviceId}
+            />
         </div>
     );
 }

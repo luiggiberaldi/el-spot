@@ -49,7 +49,8 @@ export default function ProductFormModal({
     handleImageUpload,
     handleSave,
     categories,
-    productMovements
+    productMovements,
+    zIndex
 }) {
     const [formMode, setFormMode] = useState('quick'); // 'quick' o 'wizard'
     const [wizardStep, setWizardStep] = useState(1);
@@ -232,6 +233,7 @@ export default function ProductFormModal({
             title={isEditing ? "Editar Producto" : "Nuevo Producto"}
             size="max-w-md md:max-w-3xl"
             className={isFormShaking ? 'animate-shake border-red-500 shadow-xl shadow-red-500/20' : ''}
+            zIndex={zIndex}
         >
             <div className="space-y-4">
                 

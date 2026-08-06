@@ -7,39 +7,68 @@ export default function EmptyState({
   actionLabel, 
   onAction,
   secondaryActionLabel,
-  onSecondaryAction
+  onSecondaryAction,
+  compact = false,
+  variant = 'default',
+  className = ''
 }) {
+  const containerClasses = compact
+    ? "p-6 min-h-[140px] rounded-3xl"
+    : "p-8 min-h-[260px] rounded-3xl";
+
+  const iconBoxClasses = compact
+    ? "w-12 h-12 mb-3"
+    : "w-16 h-16 mb-4";
+
+  const iconClasses = compact
+    ? "w-6 h-6"
+    : "w-8 h-8";
+
+  const titleClasses = compact
+    ? "text-xs font-black text-slate-800 dark:text-white mb-1"
+    : "text-sm sm:text-base font-black text-slate-900 dark:text-slate-100 mb-1.5";
+
+  const descClasses = compact
+    ? "text-[10px] text-slate-500 dark:text-slate-400 max-w-xs"
+    : "text-xs text-slate-500 dark:text-slate-400 max-w-sm";
+
   return (
-    <div className="flex flex-col items-center justify-center p-8 text-center bg-white/50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 min-h-[300px]">
-      <div className="w-16 h-16 bg-slate-100 dark:bg-slate-900 rounded-full flex items-center justify-center mb-4 shadow-inner">
-        {Icon ? <Icon className="w-8 h-8 text-slate-500 dark:text-slate-400" /> : <div className="w-8 h-8 bg-slate-300 dark:bg-slate-600 rounded-full" />}
+    <div className={`flex flex-col items-center justify-center text-center bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm ${containerClasses} ${className}`}>
+      <div className={`bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center text-slate-400 ${iconBoxClasses}`}>
+        {Icon ? <Icon className={`${iconClasses} text-slate-400`} aria-hidden="true" /> : <div className={`${iconClasses} bg-slate-300 dark:bg-slate-600 rounded-full`} />}
       </div>
-      <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">
-        {title}
-      </h3>
-      <p className="text-sm text-slate-600 dark:text-slate-300 max-w-sm mb-6">
-        {description}
-      </p>
+      {title && (
+        <h3 className={titleClasses}>
+          {title}
+        </h3>
+      )}
+      {description && (
+        <p className={descClasses}>
+          {description}
+        </p>
+      )}
       
-      <div className="flex flex-col sm:flex-row gap-3">
-        {actionLabel && onAction && (
-          <button
-            onClick={onAction}
-            className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-medium rounded-xl shadow-lg shadow-emerald-500/20 active:scale-95 transition-all outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
-          >
-            {actionLabel}
-          </button>
-        )}
-        
-        {secondaryActionLabel && onSecondaryAction && (
-          <button
-            onClick={onSecondaryAction}
-            className="px-6 py-2.5 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-medium rounded-xl border border-slate-200 dark:border-slate-700 active:scale-95 transition-all outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
-          >
-            {secondaryActionLabel}
-          </button>
-        )}
-      </div>
+      {(actionLabel || secondaryActionLabel) && (
+        <div className="flex flex-col sm:flex-row gap-3 mt-4">
+          {actionLabel && onAction && (
+            <button
+              onClick={onAction}
+              className="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-emerald-500/20 active:scale-95 transition-all outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              {actionLabel}
+            </button>
+          )}
+          
+          {secondaryActionLabel && onSecondaryAction && (
+            <button
+              onClick={onSecondaryAction}
+              className="px-5 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl border border-slate-200 dark:border-slate-700 active:scale-95 transition-all outline-none focus:ring-2 focus:ring-slate-500"
+            >
+              {secondaryActionLabel}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

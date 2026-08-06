@@ -128,7 +128,7 @@ const PaymentLeftColumn = ({
                             <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400">Falta por Pagar</p>
                             <p className="text-4xl lg:text-5xl font-black text-slate-800 dark:text-white my-2">${faltaPorPagar.toFixed(2)}</p>
                             <div className="text-lg font-black text-brand dark:text-brand">
-                                Bs {faltaPorPagarBS.toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                                Bs {Math.round(faltaPorPagarBS).toLocaleString('es-VE')}
                             </div>
                         </div>
                     )}
@@ -139,7 +139,7 @@ const PaymentLeftColumn = ({
                             <p className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-700 dark:text-emerald-400">Vuelto</p>
                             <p className="text-4xl lg:text-5xl font-black text-emerald-700 dark:text-emerald-400 my-2">${cambioUSD.toFixed(2)}</p>
                             <div className="text-lg font-black text-emerald-600 dark:text-emerald-300">
-                                Bs {round2(cambioUSD * tasaSegura).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                                Bs {Math.round(cambioUSD * tasaSegura).toLocaleString('es-VE')}
                             </div>
                             {/* Distribución de vuelto */}
                             <div className="w-full mt-3 pt-3 border-t border-emerald-200/60 dark:border-emerald-800/30 flex gap-2">
@@ -211,7 +211,7 @@ const PaymentLeftColumn = ({
                             <p className="text-[10px] font-extrabold uppercase tracking-widest text-amber-700 dark:text-amber-500">Queda Debiendo</p>
                             <p className="text-4xl lg:text-5xl font-black text-amber-700 dark:text-amber-400 my-2">${deudaCliente.toFixed(2)}</p>
                             <div className="text-lg font-black text-amber-600 dark:text-amber-300">
-                                Bs {round2(deudaCliente * tasaSegura).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                                Bs {Math.round(deudaCliente * tasaSegura).toLocaleString('es-VE')}
                             </div>
                         </div>
                     )}

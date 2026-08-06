@@ -156,13 +156,16 @@ CREATE TABLE IF NOT EXISTS public.supervisor_commands (
     monitor_device_id  TEXT NOT NULL,
     command_type       TEXT NOT NULL CHECK (command_type IN ('rate_change', 'inventory_update')),
     payload            JSONB NOT NULL DEFAULT '{}'::jsonb,
-    status             TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'applied', 'failed')),
+    status             TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'applied', 'failed')),
     error_reason       TEXT,
     created_at         TIMESTAMPTZ DEFAULT now(),
+    claimed_at         TIMESTAMPTZ,
     applied_at         TIMESTAMPTZ
 );
 
 ALTER TABLE public.supervisor_commands ADD COLUMN IF NOT EXISTS error_reason TEXT;
+ALTER TABLE public.supervisor_commands ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMPTZ;
+ALTER TABLE public.supervisor_commands ADD COLUMN IF NOT EXISTS payload_version INTEGER DEFAULT 1;
 
 CREATE INDEX IF NOT EXISTS idx_supervisor_commands_pending
     ON public.supervisor_commands (primary_device_id, status, created_at);
@@ -209,5 +212,82 @@ BEGIN
         ALTER PUBLICATION supabase_realtime ADD TABLE public.supervisor_commands;
     END IF;
 END $$;
+
+-- ── RPC claim_command: transición atómica pending → processing ───────────────
+-- Solo un claimer gana; los demás reciben NULL y se saltan el comando.
+-- Resuelve SYNC-001, SYNC-002 (race condition Realtime ↔ catchUpPending).
+CREATE OR REPLACE FUNCTION public.claim_command(
+    p_command_id UUID,
+    p_claimer_id TEXT
+) RETURNS BOOLEAN AS $$
+DECLARE
+    claimed BOOLEAN;
+BEGIN
+    UPDATE public.supervisor_commands
+        SET status = 'processing',
+            claimed_at = now()
+        WHERE id = p_command_id
+          AND status = 'pending'
+    RETURNING TRUE INTO claimed;
+
+    RETURN COALESCE(claimed, FALSE);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION public.claim_command(UUID, TEXT) TO anon, authenticated;
+
+-- ── Tabla device_heartbeats (SYNC-015) ───────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.device_heartbeats (
+    device_id   TEXT PRIMARY KEY,
+    last_seen   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    app_version TEXT
+);
+
+ALTER TABLE public.device_heartbeats ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "device_heartbeats_pair_upsert" ON public.device_heartbeats;
+CREATE POLICY "device_heartbeats_pair_upsert" ON public.device_heartbeats
+    FOR INSERT TO anon WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.device_pairings dp
+            WHERE dp.primary_device_id = device_heartbeats.device_id
+               OR dp.monitor_device_id = device_heartbeats.device_id
+        )
+    );
+
+DROP POLICY IF EXISTS "device_heartbeats_pair_update" ON public.device_heartbeats;
+CREATE POLICY "device_heartbeats_pair_update" ON public.device_heartbeats
+    FOR UPDATE TO anon USING (
+        EXISTS (
+            SELECT 1 FROM public.device_pairings dp
+            WHERE dp.primary_device_id = device_heartbeats.device_id
+               OR dp.monitor_device_id = device_heartbeats.device_id
+        )
+    );
+
+DROP POLICY IF EXISTS "device_heartbeats_pair_select" ON public.device_heartbeats;
+CREATE POLICY "device_heartbeats_pair_select" ON public.device_heartbeats
+    FOR SELECT TO anon USING (
+        EXISTS (
+            SELECT 1 FROM public.device_pairings dp
+            WHERE dp.primary_device_id = device_heartbeats.device_id
+               OR dp.monitor_device_id = device_heartbeats.device_id
+        )
+    );
+
+GRANT SELECT, INSERT, UPDATE ON public.device_heartbeats TO anon, authenticated;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables
+        WHERE pubname = 'supabase_realtime'
+          AND schemaname = 'public'
+          AND tablename = 'device_heartbeats'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.device_heartbeats;
+    END IF;
+END $$;
+
 
 

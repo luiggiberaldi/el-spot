@@ -82,7 +82,7 @@ export default function ReceiptModal({ receipt, onClose, onShareWhatsApp, curren
                             );
                         })()}
 
-                        <div className="inline-flex items-center flex-wrap justify-center gap-1.5 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full text-xs font-bold text-slate-600 dark:text-slate-350 mt-2">
+                        <div className="inline-flex items-center flex-wrap justify-center gap-1.5 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full text-xs font-bold text-slate-600 dark:text-slate-300 mt-2">
                             {receipt.payments && receipt.payments.filter(p => p.methodId !== 'cashea' && !p.isCashea).map((p, i, arr) => (
                                 <span key={p.id} className="flex items-center gap-1">
                                     <Wallet size={12} /> {p.methodLabel} {i < arr.length - 1 ? ' • ' : ''}
@@ -105,13 +105,13 @@ export default function ReceiptModal({ receipt, onClose, onShareWhatsApp, curren
                                 <div className="space-y-3 text-sm">
                                     <div className="flex justify-between items-center border-b border-slate-200/50 pb-2">
                                         <span className="font-bold text-slate-600 dark:text-slate-400">Efectivo Entregado:</span>
-                                        <strong className="font-black text-slate-850 dark:text-slate-200">
+                                        <strong className="font-black text-slate-800 dark:text-slate-200">
                                             {receipt.currency === 'BS' ? `${formatBs(receipt.montoEfectivo)} Bs` : `$${receipt.montoEfectivo.toFixed(2)}`}
                                         </strong>
                                     </div>
                                     <div className="flex justify-between items-center border-b border-slate-200/50 pb-2">
                                         <span className="font-bold text-slate-600 dark:text-slate-400">Comisión ({receipt.comisionPct}%):</span>
-                                        <strong className="font-black text-emerald-600 dark:text-emerald-450">
+                                        <strong className="font-black text-emerald-600 dark:text-emerald-400">
                                             {receipt.currency === 'BS' ? `+${formatBs(receipt.montoComision)} Bs` : `+$${receipt.montoComision.toFixed(2)}`}
                                         </strong>
                                     </div>
@@ -135,20 +135,20 @@ export default function ReceiptModal({ receipt, onClose, onShareWhatsApp, curren
                                             <div className="flex justify-between items-center text-slate-500">
                                                 <span className="font-bold text-slate-700 block leading-tight">{item.name}</span>
                                             </div>
-                                            <div className="flex justify-between items-center text-slate-650 dark:text-slate-400">
+                                            <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
                                                 <span>Efectivo Entregado:</span>
                                                 <strong className="font-bold text-slate-800 dark:text-white">
                                                     {item.currency === 'BS' ? `${formatBs(item.montoEfectivo)} Bs` : `$${item.montoEfectivo.toFixed(2)}`}
                                                 </strong>
                                             </div>
-                                            <div className="flex justify-between items-center text-slate-650 dark:text-slate-400">
+                                            <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
                                                 <span>Comisión Recargo ({item.comisionPct}%):</span>
                                                 <strong className="font-black text-emerald-600 dark:text-emerald-400">
                                                     {item.currency === 'BS' ? `+${formatBs(item.montoComision)} Bs` : `+$${item.montoComision.toFixed(2)}`}
                                                 </strong>
                                             </div>
                                             <div className="flex justify-between items-center border-t border-slate-200/50 dark:border-slate-800/50 pt-1.5 text-sm">
-                                                <span className="font-bold text-slate-700 dark:text-slate-350">Total Cobrado:</span>
+                                                <span className="font-bold text-slate-700 dark:text-slate-300">Total Cobrado:</span>
                                                 <strong className="text-sm font-black text-brand">
                                                     {item.currency === 'BS' ? `${formatBs(item.montoEfectivo + item.montoComision)} Bs` : `$${(item.montoEfectivo + item.montoComision).toFixed(2)}`}
                                                 </strong>

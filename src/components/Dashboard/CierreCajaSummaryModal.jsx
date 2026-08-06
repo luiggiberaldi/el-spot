@@ -86,7 +86,7 @@ export default function CierreCajaSummaryModal({
                     <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Cuadre de Efectivo</span>
                     
                     <div className="border border-slate-100 dark:border-slate-800 rounded-2xl overflow-hidden text-xs">
-                        <div className="grid grid-cols-3 gap-0 px-3 py-2 bg-slate-50 dark:bg-slate-800/50 text-[10px] font-black text-slate-400 uppercase border-b border-slate-100 dark:border-slate-850">
+                        <div className="grid grid-cols-3 gap-0 px-3 py-2 bg-slate-50 dark:bg-slate-800/50 text-[10px] font-black text-slate-400 uppercase border-b border-slate-100 dark:border-slate-800">
                             <span>Moneda</span>
                             <span className="text-center">Esperado</span>
                             <span className="text-center">Declarado</span>
@@ -154,13 +154,13 @@ export default function CierreCajaSummaryModal({
                             {advances.totalEfectivoBs > 0 && (
                                 <div className="flex justify-between items-center text-slate-500 dark:text-slate-400">
                                     <span>Efectivo Bs dispensado:</span>
-                                    <strong className="text-slate-700 dark:text-slate-350">{formatBs(advances.totalEfectivoBs)} Bs</strong>
+                                    <strong className="text-slate-700 dark:text-slate-300">{formatBs(advances.totalEfectivoBs)} Bs</strong>
                                 </div>
                             )}
                             {advances.totalEfectivoUsd > 0 && (
                                 <div className="flex justify-between items-center text-slate-500 dark:text-slate-400">
                                     <span>Efectivo USD dispensado:</span>
-                                    <strong className="text-slate-700 dark:text-slate-350">${advances.totalEfectivoUsd.toFixed(2)}</strong>
+                                    <strong className="text-slate-700 dark:text-slate-300">${advances.totalEfectivoUsd.toFixed(2)}</strong>
                                 </div>
                             )}
                             <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 pt-1 border-t border-slate-200/50 dark:border-slate-800/50">

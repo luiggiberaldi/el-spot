@@ -1,15 +1,16 @@
 import React from "react";
 import { DollarSign, Landmark, X } from "lucide-react";
 import { formatBs, formatUsd } from "../../utils/calculatorUtils";
+import { mulR, ceilR, round0 } from "../../utils/dinero";
 
 export default function PricePickerModal({ product, effectiveRate, bcvRate, rates, onSelect, onClose }) {
     if (!product) return null;
 
     const actualBcvRate = bcvRate || rates?.bcv?.price || rates?.bcv || effectiveRate;
     const price1 = product.priceUsdt || product.priceUsd || 0;
-    const price2 = product.price2Usd || 0;
+    const price2 = product.price2Usd ? round0(product.price2Usd) : 0;
     const p1Bs = price1 * effectiveRate;
-    const p2Bs = price2 * actualBcvRate;
+    const p2Bs = ceilR(mulR(price2, actualBcvRate));
 
     return (
         <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm px-4 pb-4 sm:pb-0"

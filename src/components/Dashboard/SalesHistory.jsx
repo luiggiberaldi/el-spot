@@ -199,7 +199,7 @@ export default function SalesHistory({
                                             </div>
                                             <div className="flex justify-between items-center text-xs text-slate-600 dark:text-slate-400">
                                                 <span>Comisión Recargada ({s.comisionPct}%):</span>
-                                                <strong className="font-bold text-emerald-600 dark:text-emerald-450">
+                                                <strong className="font-bold text-emerald-600 dark:text-emerald-400">
                                                     {s.currency === 'BS' ? `+${formatBs(s.montoComision)} Bs` : `+$${s.montoComision.toFixed(2)}`}
                                                 </strong>
                                             </div>
@@ -257,12 +257,12 @@ export default function SalesHistory({
                                                 const isCashea = p.methodId === 'cashea';
                                                 
                                                 return (
-                                                    <div key={i} className={`flex justify-between items-center text-xs ${isCanceled ? 'text-slate-400 line-through' : isCashea ? 'text-purple-650 dark:text-purple-400 font-bold' : 'text-slate-600 dark:text-slate-350'}`}>
+                                                    <div key={i} className={`flex justify-between items-center text-xs ${isCanceled ? 'text-slate-400 line-through' : isCashea ? 'text-purple-600 dark:text-purple-400 font-bold' : 'text-slate-600 dark:text-slate-300'}`}>
                                                         <span className="flex items-center gap-1.5">
                                                             {isCashea && <CasheaIcon size={12} />}
                                                             {p.methodLabel || 'Pago'}
                                                         </span>
-                                                        <span className="font-semibold">{val} {p.methodId !== 'cashea' && p.amountUsd > 0 && <span className="text-[10px] font-normal text-slate-450">(${(p.amountUsd || 0).toFixed(2)})</span>}</span>
+                                                        <span className="font-semibold">{val} {p.methodId !== 'cashea' && p.amountUsd > 0 && <span className="text-[10px] font-normal text-slate-500">(${(p.amountUsd || 0).toFixed(2)})</span>}</span>
                                                     </div>
                                                 );
                                             })}

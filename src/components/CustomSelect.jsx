@@ -45,7 +45,7 @@ export default function CustomSelect({ value, onChange, options, className = '',
                             className={`w-full px-4 py-2.5 text-sm font-bold text-left hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-between ${
                                 opt.value === value 
                                     ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400' 
-                                    : 'text-slate-700 dark:text-slate-350'
+                                    : 'text-slate-700 dark:text-slate-300'
                             }`}
                         >
                             <span className="flex items-center gap-2.5 truncate">

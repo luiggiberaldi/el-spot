@@ -3,6 +3,7 @@ import { storageService } from '../utils/storageService';
 import { supabaseCloud } from '../config/supabaseCloud';
 import { IDB_KEYS, LS_KEYS } from '../config/backupKeys';
 import { compressString, isCompressionSupported } from '../utils/compression';
+import { isValidDeviceId } from '../utils/deviceId';
 
 
 // ─── Configuración optimizada ───────────────────────────────────────────────
@@ -158,6 +159,11 @@ export function useAutoBackup(isPremium, isDemo, deviceId) {
     // sin licencia (free/demo vencida) que nunca usarán el backup remoto forzado.
     useEffect(() => {
         if (!deviceId || !supabaseCloud || !isPremium) return;
+        // SYNC-010: validar deviceId antes de suscripción Realtime.
+        if (!isValidDeviceId(deviceId)) {
+            console.warn('[AutoBackup] deviceId inválido, abort suscripción:', deviceId);
+            return;
+        }
 
         let channel = null;
 

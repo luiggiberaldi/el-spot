@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import localforage from 'localforage';
-import { Share2, Download, X, Copy, Check, Loader2, AlertTriangle, Package, Users, ShoppingBag, Settings2, Database } from 'lucide-react';
+import { Share2, Download, X, Copy, Check, Loader2, AlertTriangle, Package, Users, ShoppingBag, Settings2, Database, WifiOff } from 'lucide-react';
 import { storageService } from '../utils/storageService';
+import { pushCloudSync } from '../hooks/useCloudSync';
+
+const FEATURE_ENABLED = false; // Habilitar cuando el backend /api/share esté disponible en producción
 
 // Grupos de datos compartibles
 const SHARE_GROUPS = [
@@ -159,6 +162,8 @@ export default function ShareInventoryModal({ isOpen, onClose }) {
             if (importResult.idb) {
                 for (const [key, value] of Object.entries(importResult.idb)) {
                     await localforage.setItem(key, value);
+                    // Push inmediato a la nube para garantizar persistencia
+                    await pushCloudSync(key, value);
                 }
             }
             if (importResult.ls) {
@@ -166,6 +171,7 @@ export default function ShareInventoryModal({ isOpen, onClose }) {
                     localStorage.setItem(key, value);
                 }
             }
+            localStorage.setItem('pda_backup_imported_flag', 'true');
             setTimeout(() => window.location.reload(), 300);
         } catch (err) {
             setError('Error al restaurar: ' + err.message);
@@ -237,7 +243,18 @@ export default function ShareInventoryModal({ isOpen, onClose }) {
                 {/* TAB: Exportar */}
                 {tab === 'export' && (
                     <div className="space-y-3">
-                        {!shareCode ? (
+                        {!FEATURE_ENABLED ? (
+                            <div className="text-center py-6 space-y-3">
+                                <div className="w-14 h-14 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto">
+                                    <WifiOff size={28} className="text-slate-400" />
+                                </div>
+                                <p className="text-sm font-bold text-slate-600 dark:text-slate-300">Función no disponible</p>
+                                <p className="text-xs text-slate-400 leading-relaxed">
+                                    La exportación por código estará disponible próximamente.<br/>
+                                    Por ahora usa la <strong>copia de seguridad en la nube</strong> desde Configuración.
+                                </p>
+                            </div>
+                        ) : !shareCode ? (
                             <>
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">¿Qué deseas compartir?</p>
 
@@ -304,7 +321,18 @@ export default function ShareInventoryModal({ isOpen, onClose }) {
                 {/* TAB: Importar */}
                 {tab === 'import' && (
                     <div className="space-y-4">
-                        {!importResult ? (
+                        {!FEATURE_ENABLED ? (
+                            <div className="text-center py-6 space-y-3">
+                                <div className="w-14 h-14 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto">
+                                    <WifiOff size={28} className="text-slate-400" />
+                                </div>
+                                <p className="text-sm font-bold text-slate-600 dark:text-slate-300">Función no disponible</p>
+                                <p className="text-xs text-slate-400 leading-relaxed">
+                                    La importación por código estará disponible próximamente.<br/>
+                                    Por ahora usa la <strong>restauración en la nube</strong> desde Configuración.
+                                </p>
+                            </div>
+                        ) : !importResult ? (
                             <>
                                 <p className="text-sm text-slate-500 dark:text-slate-400 text-center">
                                     Escribe el código de 6 dígitos para importar los datos.

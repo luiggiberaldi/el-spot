@@ -351,7 +351,7 @@ export default function PairingManager({ deviceId, triggerHaptic }) {
                         <div className="flex gap-3">
                             <button
                                 onClick={() => { triggerHaptic?.(); setShowConfirmUnpair(false); }}
-                                className="flex-1 py-3 px-4 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-350 font-black text-xs rounded-2xl border border-slate-200 dark:border-slate-700 transition-colors"
+                                className="flex-1 py-3 px-4 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-black text-xs rounded-2xl border border-slate-200 dark:border-slate-700 transition-colors"
                             >
                                 Cancelar
                             </button>

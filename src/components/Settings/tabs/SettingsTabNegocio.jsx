@@ -144,7 +144,7 @@ export default function SettingsTabNegocio({
                                         className={`py-2 rounded-xl text-xs font-bold transition-all border ${
                                             isSelected
                                                 ? 'bg-brand text-white border-transparent shadow-sm'
-                                                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-850 hover:border-brand/40'
+                                                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-brand/40'
                                         }`}
                                     >
                                         {opt.label}
