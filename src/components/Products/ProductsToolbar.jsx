@@ -51,19 +51,38 @@ const ProductsToolbar = ({
         return products.filter(p => p.category === catId).length;
     };
 
+    const inventoryValuation = React.useMemo(() => {
+        let totalCost = 0;
+        let totalRetail = 0;
+        if (Array.isArray(products)) {
+            for (const p of products) {
+                const stock = Math.max(0, p.stock || 0);
+                if (stock <= 0) continue;
+                totalCost += (p.costUsd || 0) * stock;
+                totalRetail += (p.priceUsdt || 0) * stock;
+            }
+        }
+        return { totalCost, totalRetail };
+    }, [products]);
+
     return (
         <div className="shrink-0 mb-2.5 space-y-1.5">
             {/* Row 1: Title & Stats + Search (desktop inline) + Actions & Toggle */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2">
                 {/* Title & Stats */}
                 <div className="flex items-center justify-between sm:justify-start gap-2 min-w-0">
-                    <div className="flex items-center gap-1.5 min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                         <Store size={20} className="text-brand shrink-0" />
                         <h2 className="text-base sm:text-lg font-black text-slate-800 dark:text-white tracking-tight truncate">
                             Inventario
                         </h2>
                         <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded-full shrink-0">
                             {products.length} uds
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 text-[10px] sm:text-[11px] font-extrabold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-xl border border-emerald-200/60 dark:border-emerald-800/40 shrink-0">
+                            <span>Valor: <strong className="font-mono">${inventoryValuation.totalCost.toFixed(2)}</strong> (Costo)</span>
+                            <span className="opacity-40">|</span>
+                            <span><strong className="font-mono">${inventoryValuation.totalRetail.toFixed(2)}</strong> (Venta)</span>
                         </span>
                     </div>
 

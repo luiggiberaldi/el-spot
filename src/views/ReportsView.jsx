@@ -246,6 +246,7 @@ export default function ReportsView({ rates, triggerHaptic, onNavigate, isActive
 
             {activeTab === 'metrics' && (
                 <ReportsMetricsTab
+                    products={products}
                     salesForStats={salesForStats}
                     salesForCashFlow={salesForCashFlow}
                     historySales={historySales}
