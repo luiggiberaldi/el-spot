@@ -326,7 +326,7 @@ export default function ReportsMetricsTab({
                         <StatCard icon={TrendingDown} label="Egresos" value={copEnabled && copPrimary && tasaCop > 0 ? `${formatCop(expensesUsd * tasaCop)} COP` : `$${expensesUsd.toFixed(2)}`} sub={copEnabled && tasaCop > 0 ? (copPrimary ? `$${expensesUsd.toFixed(2)} · ${formatBs(expensesBs)} Bs` : `${formatCop(expensesUsd * tasaCop)} COP · ${formatBs(expensesBs)} Bs`) : `${formatBs(expensesBs)} Bs`} color="rose" />
                         <StatCard icon={TrendingUp} label="Ganancia Neta" value={copEnabled && copPrimary && tasaCop > 0 ? `${formatCop(netProfitUsd * tasaCop)} COP` : `$${netProfitUsd.toFixed(2)}`} sub={copEnabled && tasaCop > 0 ? (copPrimary ? `$${netProfitUsd.toFixed(2)} · ${formatBs(netProfitBs)} Bs` : `${formatCop(netProfitUsd * tasaCop)} COP · ${formatBs(netProfitBs)} Bs`) : `${formatBs(netProfitBs)} Bs`} color="indigo" />
                         <StatCard icon={Package} label="Artículos" value={totalItems} color="amber" />
-                        <StatCard icon={Package} label="Valor Inventario" value={`$${invCost.toFixed(2)}`} sub={`Venta: $${invRetail.toFixed(2)}`} color="emerald" />
+                        <StatCard icon={Package} label="Valor Inventario" value={`$${invCost.toFixed(2)}`} sub={`Venta: $${invRetail.toFixed(2)} · Ganancia: $${(invRetail - invCost).toFixed(2)} (+${invCost > 0 ? (((invRetail - invCost) / invCost) * 100).toFixed(0) : 0}%)`} color="emerald" />
                     </div>
                 );
             })()}

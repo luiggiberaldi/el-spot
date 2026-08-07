@@ -62,7 +62,9 @@ const ProductsToolbar = ({
                 totalRetail += (p.priceUsdt || 0) * stock;
             }
         }
-        return { totalCost, totalRetail };
+        const profit = Math.max(0, totalRetail - totalCost);
+        const marginPct = totalCost > 0 ? ((totalRetail - totalCost) / totalCost) * 100 : 0;
+        return { totalCost, totalRetail, profit, marginPct };
     }, [products]);
 
     return (
@@ -79,10 +81,15 @@ const ProductsToolbar = ({
                         <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded-full shrink-0">
                             {products.length} uds
                         </span>
-                        <span className="inline-flex items-center gap-1.5 text-[10px] sm:text-[11px] font-extrabold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-xl border border-emerald-200/60 dark:border-emerald-800/40 shrink-0">
+                        <span className="inline-flex flex-wrap items-center gap-1.5 text-[10px] sm:text-[11px] font-extrabold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-xl border border-emerald-200/60 dark:border-emerald-800/40 shrink-0">
                             <span>Valor: <strong className="font-mono">${inventoryValuation.totalCost.toFixed(2)}</strong> (Costo)</span>
                             <span className="opacity-40">|</span>
                             <span><strong className="font-mono">${inventoryValuation.totalRetail.toFixed(2)}</strong> (Venta)</span>
+                            <span className="opacity-40">|</span>
+                            <span>Ganancia: <strong className="font-mono">${inventoryValuation.profit.toFixed(2)}</strong></span>
+                            <span className="bg-emerald-600 text-white font-black px-1.5 py-0.2 rounded-md text-[9px] ml-0.5">
+                                +{inventoryValuation.marginPct.toFixed(0)}%
+                            </span>
                         </span>
                     </div>
 
