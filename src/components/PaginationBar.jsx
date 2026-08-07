@@ -17,7 +17,7 @@ export default function PaginationBar({
     if (totalPages <= 1) return null;
 
     return (
-        <div className="flex items-center justify-between px-2 py-3 border-t border-surface-200 dark:border-surface-800 mt-2">
+        <div className="flex items-center justify-between px-2 pt-3 pb-20 sm:pb-24 border-t border-surface-200 dark:border-surface-800 mt-2">
             <span className="text-xs text-surface-400 dark:text-surface-500">
                 {startIndex}–{endIndex} de {totalItems} {label}
             </span>

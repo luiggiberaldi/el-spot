@@ -5,19 +5,26 @@ import {
 } from 'lucide-react';
 import { supabaseCloud } from '../../config/supabaseCloud';
 
-export default function CommandAuditModal({ isOpen, onClose, pairedDeviceId }) {
+export default function CommandAuditModal({ isOpen, onClose, pairedDeviceId, monitorDeviceId }) {
     const [commands, setCommands] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [retryingId, setRetryingId] = useState(null);
     const [filter, setFilter] = useState('all'); // 'all' | 'applied' | 'pending' | 'failed'
 
     const fetchAuditLogs = useCallback(async () => {
         if (!pairedDeviceId || !supabaseCloud) return;
         setLoading(true);
         try {
-            const { data, error } = await supabaseCloud
+            let query = supabaseCloud
                 .from('supervisor_commands')
-                .select('*')
-                .eq('primary_device_id', pairedDeviceId)
+                .select('id, status, command_type, payload, error_reason, created_at, applied_at')
+                .eq('primary_device_id', pairedDeviceId);
+
+            if (monitorDeviceId) {
+                query = query.eq('monitor_device_id', monitorDeviceId);
+            }
+
+            const { data, error } = await query
                 .order('created_at', { ascending: false })
                 .limit(50);
 
@@ -28,7 +35,54 @@ export default function CommandAuditModal({ isOpen, onClose, pairedDeviceId }) {
         } finally {
             setLoading(false);
         }
-    }, [pairedDeviceId]);
+    }, [pairedDeviceId, monitorDeviceId]);
+
+    const handleRetry = async (cmdId) => {
+        console.log(`[Re-encolar] 🔄 Solicitando re-encolar comando ID: ${cmdId}...`);
+        setRetryingId(cmdId);
+        try {
+            const target = commands.find(c => c.id === cmdId);
+            let updatedPayload = target?.payload;
+
+            if (target && target.command_type === 'inventory_update' && target.payload?.data?.expectedStock !== undefined) {
+                const newPayload = JSON.parse(JSON.stringify(target.payload));
+                delete newPayload.data.expectedStock;
+                updatedPayload = newPayload;
+                console.log(`[Re-encolar] 🧹 Removida restricción de expectedStock para permitir re-aplicación directa.`);
+            }
+
+            const updateFields = { status: 'pending', error_reason: null };
+            if (updatedPayload) updateFields.payload = updatedPayload;
+
+            const { data, error } = await supabaseCloud
+                .from('supervisor_commands')
+                .update(updateFields)
+                .eq('id', cmdId)
+                .select();
+            
+            if (error) {
+                console.warn(`[Re-encolar] ⚠️ Error en update con payload (${error.code || error.message}), intentando fallback...`, error);
+                const { data: fbData, error: fbError } = await supabaseCloud
+                    .from('supervisor_commands')
+                    .update({ status: 'pending', error_reason: null })
+                    .eq('id', cmdId)
+                    .select();
+                
+                if (fbError) {
+                    console.error(`[Re-encolar] ❌ Fallback falló:`, fbError);
+                } else {
+                    console.log(`[Re-encolar] ✅ Re-encolado con exito (fallback):`, fbData);
+                }
+            } else {
+                console.log(`[Re-encolar] ✅ Comando ${cmdId} cambiado a 'pending' en Supabase (payload actualizado):`, data);
+            }
+            await fetchAuditLogs();
+        } catch (err) {
+            console.error('[CommandAuditModal] ❌ Excepción al reintentar comando:', err);
+        } finally {
+            setRetryingId(null);
+        }
+    };
 
     useEffect(() => {
         if (isOpen) {
@@ -97,10 +151,10 @@ export default function CommandAuditModal({ isOpen, onClose, pairedDeviceId }) {
         }
         if (cmd.command_type === 'inventory_update') {
             const actionLabels = {
-                create: 'Crear producto',
+                add: 'Agregar producto',
                 edit: 'Editar producto',
                 delete: 'Eliminar producto',
-                stock: 'Ajuste de stock'
+                adjust_stock: 'Ajuste de stock'
             };
             const label = actionLabels[payload.action] || payload.action || 'Modificación';
             const prodName = payload.data?.name || payload.productId || '';
@@ -265,10 +319,33 @@ export default function CommandAuditModal({ isOpen, onClose, pairedDeviceId }) {
                                             </span>
                                         )}
 
-                                        {cmd.status === 'failed' && cmd.error_reason && (
-                                            <span className="font-semibold text-rose-400 flex items-center gap-1 truncate max-w-[250px]" title={cmd.error_reason}>
-                                                <AlertTriangle size={10} className="shrink-0" aria-hidden="true" /> {cmd.error_reason}
-                                            </span>
+                                        {cmd.status === 'failed' && (
+                                            <div className="flex items-center gap-2">
+                                                {cmd.error_reason && (
+                                                    <span className="font-semibold text-rose-400 flex items-center gap-1 truncate max-w-[200px]" title={cmd.error_reason}>
+                                                        <AlertTriangle size={10} className="shrink-0" aria-hidden="true" /> {cmd.error_reason}
+                                                    </span>
+                                                )}
+                                                <button
+                                                    onClick={() => handleRetry(cmd.id)}
+                                                    disabled={retryingId === cmd.id}
+                                                    className="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-lg font-bold text-[10px] flex items-center gap-1 transition-all active:scale-95 disabled:opacity-50"
+                                                >
+                                                    <RefreshCw size={10} className={retryingId === cmd.id ? "animate-spin" : ""} />
+                                                    Reintentar
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        {cmd.status === 'pending' && (
+                                            <button
+                                                onClick={() => handleRetry(cmd.id)}
+                                                disabled={retryingId === cmd.id}
+                                                className="px-2 py-1 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border border-sky-500/30 rounded-lg font-bold text-[10px] flex items-center gap-1 transition-all active:scale-95 disabled:opacity-50"
+                                            >
+                                                <RefreshCw size={10} className={retryingId === cmd.id ? "animate-spin" : ""} />
+                                                Re-encolar
+                                            </button>
                                         )}
                                     </div>
                                 </div>

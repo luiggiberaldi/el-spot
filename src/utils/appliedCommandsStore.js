@@ -1,7 +1,7 @@
 import localforage from 'localforage';
 
 const STORE_NAME = 'el_spot_applied_cmds';
-const TTL_MS = 60 * 24 * 60 * 60 * 1000;
+const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 días de retención para el historial de comandos aplicados
 const META_KEY = '__meta__';
 
 const store = localforage.createInstance({
@@ -62,6 +62,14 @@ export async function mark(commandId) {
     const now = Date.now();
     syncMem(commandId);
     await save(commandId, now);
+}
+
+export async function unmark(commandId) {
+    if (!commandId) return;
+    try {
+        await store.removeItem(commandId);
+    } catch {}
+    if (memCache) memCache.delete(commandId);
 }
 
 export async function bulkMark(ids) {

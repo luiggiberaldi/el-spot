@@ -17,7 +17,6 @@ export default function SupervisorRateModal({ isOpen, onClose, rates, primaryDev
         }
     }, [isOpen]);
 
-    if (!isOpen) return null;
 
     const bcvPrice = rates?.bcv?.price || 0;
     const euroPrice = rates?.euro?.price || 0;
@@ -48,7 +47,6 @@ export default function SupervisorRateModal({ isOpen, onClose, rates, primaryDev
                         rateMode,
                         customRate: rateMode === 'manual' ? parseFloat(customRate) : null
                     },
-                    payload_version: 1,           // SYNC-012: versión del schema del payload.
                     status: 'pending'
                 });
 

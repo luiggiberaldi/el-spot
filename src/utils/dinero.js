@@ -32,7 +32,10 @@ function _shiftRound(n, decimals) {
     const abs = Math.abs(n);
     // Si es extremadamente pequeño, redondea a 0 de forma segura
     if (abs < 1e-12) return 0;
-    const shifted = Number(`${abs}e${decimals}`);
+    // BUG-FIX: `${abs}e${decimals}` produce "5e-7e2" → NaN cuando abs está en
+    // notación científica. toExponential() siempre genera "XeY" parseable.
+    const [mantissa, exp] = abs.toExponential().split('e');
+    const shifted = Number(`${mantissa}e${parseInt(exp) + decimals}`);
     return sign * Number(`${Math.round(shifted)}e-${decimals}`);
 }
 

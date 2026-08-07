@@ -241,6 +241,13 @@ export default function PairingScanScreen({ onCancel, triggerHaptic }) {
             }
 
             if (resultData && resultData.success) {
+                const currentDeviceId = localStorage.getItem('pda_device_id');
+                if (currentDeviceId && resultData.primary_device_id === currentDeviceId) {
+                    setErrorMsg('No puedes vincular esta misma Caja como monitor de sí misma.');
+                    setLoading(false);
+                    return;
+                }
+
                 // Éxito: Guardar credenciales de emparejamiento
                 localStorage.setItem('pda_paired_device_id', resultData.primary_device_id);
                 localStorage.setItem('pda_pairing_mode', 'monitor');

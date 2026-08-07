@@ -7,8 +7,6 @@ import localforage from 'localforage';
 // Configurar localforage a nivel de módulo
 localforage.config({ name: 'ElSpotPOSApp', storeName: 'el_spot_app_data' });
 
-let monitorSubscription = null;
-
 export function useMonitorSync(pairedDeviceId) {
     const [isConnected, setIsConnected] = useState(false);
     const [lastSync, setLastSync] = useState(() => {
@@ -17,6 +15,7 @@ export function useMonitorSync(pairedDeviceId) {
     });
     const [loading, setLoading] = useState(true);
     const isInitialized = useRef(false);
+    const monitorSubRef = useRef(null);
 
     const applyDocToLocal = async (docId, collection, payload) => {
         if (payload == null) return;
@@ -52,12 +51,20 @@ export function useMonitorSync(pairedDeviceId) {
                 return;
             }
 
-            // 1. Pull inicial de todos los datos desde sync_documents del equipo vinculado
-            const { data: docs, error } = await supabaseCloud
+            // 1. Pull delta de datos desde sync_documents del equipo vinculado
+            const lastSyncStr = localStorage.getItem('monitor_last_sync');
+            let query = supabaseCloud
                 .from('sync_documents')
                 .select('collection, doc_id, data')
                 .eq('device_id', pairedDeviceId)
                 .in('collection', ['store', 'local']);
+
+            if (lastSyncStr) {
+                // Solo solicitar documentos modificados después de la última sync exitosa
+                query = query.gte('updated_at', lastSyncStr);
+            }
+
+            const { data: docs, error } = await query;
 
             if (error) throw error;
 
@@ -73,8 +80,8 @@ export function useMonitorSync(pairedDeviceId) {
             setIsConnected(true);
 
             // 2. Suscripción en Tiempo Real vía WebSocket
-            if (!monitorSubscription) {
-                monitorSubscription = supabaseCloud
+            if (!monitorSubRef.current) {
+                monitorSubRef.current = supabaseCloud
                     .channel(`monitor:${pairedDeviceId}`)
                     .on('postgres_changes', {
                         event: '*',
@@ -105,6 +112,8 @@ export function useMonitorSync(pairedDeviceId) {
     };
 
     const triggerRefresh = async () => {
+        localStorage.removeItem('monitor_last_sync');
+        setLastSync(null);
         await initMonitor();
     };
 
@@ -138,9 +147,9 @@ export function useMonitorSync(pairedDeviceId) {
         return () => {
             window.removeEventListener('online', handleOnline);
             window.removeEventListener('offline', handleOffline);
-            if (monitorSubscription) {
-                supabaseCloud.removeChannel(monitorSubscription).catch(() => {});
-                monitorSubscription = null;
+            if (monitorSubRef.current) {
+                supabaseCloud.removeChannel(monitorSubRef.current).catch(() => {});
+                monitorSubRef.current = null;
             }
             isInitialized.current = false;
         };

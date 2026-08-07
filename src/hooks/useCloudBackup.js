@@ -5,6 +5,7 @@ import { supabaseCloud } from '../config/supabaseCloud';
 import { IDB_KEYS, LS_KEYS } from '../config/backupKeys';
 import { runWithoutEco } from '../utils/syncFlags';
 import { compressString, decompressString, isCompressionSupported } from '../utils/compression';
+import { sanitizeSyncPayload } from './useCloudSync';
 
 
 /**
@@ -121,27 +122,35 @@ export function useCloudBackup({
         try {
             const syncPayloads = [];
             for (const [key, value] of Object.entries(backupData.data.idb || {})) {
+                if (key === 'abasto-auth-storage') continue;
+                const sanitized = sanitizeSyncPayload(key, value);
                 syncPayloads.push({
                     device_id: deviceId,
                     collection: 'store',
                     doc_id: key,
-                    data: { payload: value },
+                    data: { payload: sanitized },
                     updated_at: new Date().toISOString()
                 });
             }
             for (const [key, value] of Object.entries(backupData.data.ls || {})) {
+                if (key === 'abasto-auth-storage') continue;
                 let finalVal = value;
                 try { finalVal = JSON.parse(value); } catch { /* keep as string */ }
+                const sanitized = sanitizeSyncPayload(key, finalVal);
                 syncPayloads.push({
                     device_id: deviceId,
                     collection: 'local',
                     doc_id: key,
-                    data: { payload: finalVal },
+                    data: { payload: sanitized },
                     updated_at: new Date().toISOString()
                 });
             }
-            if (syncPayloads.length > 0) {
-                await supabaseCloud.from('sync_documents').upsert(syncPayloads, { onConflict: 'device_id,collection,doc_id' });
+            for (const payloadItem of syncPayloads) {
+                try {
+                    await supabaseCloud.from('sync_documents').upsert(payloadItem, { onConflict: 'device_id,collection,doc_id' });
+                } catch (itemErr) {
+                    console.warn(`[CloudBackup] Error inyectando ${payloadItem.doc_id} a sync_documents:`, itemErr);
+                }
             }
         } catch (syncErr) {
             console.warn('[CloudBackup] Fallo inicializando sync_documents:', syncErr);

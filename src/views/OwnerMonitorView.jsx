@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { sumR, mulR, subR } from '../utils/dinero';
 import { useProductContext } from '../context/ProductContext';
 import { useMonitorSync } from '../hooks/useMonitorSync';
 import { useDeviceHeartbeat } from '../hooks/useDeviceHeartbeat';
@@ -129,6 +130,11 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
             } else if (change.action === 'adjust_stock') {
                 list = list.map(p => {
                     if (p.id === change.productId) {
+                        if (change.data?.newStock !== undefined) {
+                            const newStock = Math.max(0, Number(change.data.newStock) || 0);
+                            return { ...p, stock: newStock, draftDelta: newStock - (Number(p.stock) || 0) };
+                        }
+                        // backward compat: delta
                         const currentStock = p.stock || 0;
                         const delta = change.data?.delta || 0;
                         return { ...p, stock: Math.max(0, currentStock + delta), draftDelta: (p.draftDelta || 0) + delta };
@@ -195,24 +201,24 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
         triggerHaptic?.();
         let next = [...pendingChanges];
         const idx = next.findIndex(c => c.productId === product.id && c.action === 'adjust_stock');
-        const expectedStock = Number(product.stock) || 0;
+        const baseStock = Number(product.stock) || 0;
 
         if (idx >= 0) {
-            const newDelta = (next[idx].data?.delta || 0) + delta;
-            if (newDelta === 0) {
-                next.splice(idx, 1);
+            // Acumular sobre el newStock del borrador previo
+            const prevNewStock = next[idx].data?.newStock ?? baseStock;
+            const newStock = Math.max(0, prevNewStock + delta);
+            if (newStock === baseStock) {
+                next.splice(idx, 1); // delta neto = 0 → cancelar cambio
             } else {
-                next[idx] = {
-                    ...next[idx],
-                    data: { delta: newDelta, expectedStock }
-                };
+                next[idx] = { ...next[idx], data: { newStock } };
             }
         } else {
+            const newStock = Math.max(0, baseStock + delta);
             next.push({
                 id: crypto.randomUUID(),
                 action: 'adjust_stock',
                 productId: product.id,
-                data: { delta, expectedStock },
+                data: { newStock },
                 productName: product.name,
                 timestamp: new Date().toISOString()
             });
@@ -260,13 +266,12 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                 monitor_device_id: monitorDeviceId,
                 command_type: 'inventory_update',
                 payload: { action: c.action, productId: c.productId, data: c.data },
-                payload_version: 1,           // SYNC-012: versión del schema del payload.
                 status: 'pending'
             }));
 
             const { error } = await supabaseCloud
                 .from('supervisor_commands')
-                .insert(rows, { onConflict: 'id' });
+                .upsert(rows, { onConflict: 'id' });
 
             if (error) throw error;
 
@@ -319,13 +324,18 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
 
     const inventoryMetrics = useMemo(() => {
         if (!products) {
-            return { totalCost: 0, totalRetail: 0, totalQty: 0, lowStockCount: 0, outOfStockCount: 0, expectedProfit: 0, count: 0 };
+            return { totalCost: 0, totalRetail: 0, totalRetailUsdt: 0, totalQty: 0, lowStockCount: 0, outOfStockCount: 0, expectedProfit: 0, expectedProfitUsdt: 0, count: 0 };
         }
         let totalCost = 0;
         let totalRetail = 0;
+        let totalRetailUsdt = 0;
         let totalQty = 0;
         let lowStockCount = 0;
         let outOfStockCount = 0;
+
+        // Misma lógica de conversión USDT que usa cada tarjeta de producto
+        const rawUsdt = rates?.usdt?.price ?? 0;
+        const usdtRateVal = (rawUsdt > (bcvRate || 0) && rawUsdt > 0) ? rawUsdt : (bcvRate || 0);
 
         products.forEach(p => {
             const stock = p.stock || 0;
@@ -333,8 +343,14 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
             const retail = p.priceUsd || 0;
             const minStock = p.minStock || 5;
 
-            totalCost += cost * stock;
-            totalRetail += retail * stock;
+            // Precio en Bs usando precio BCV del producto
+            const bcvPriceUsd = (p.price2Usd && p.price2Usd > 0) ? p.price2Usd : retail;
+            const bsPrice = bcvPriceUsd * (bcvRate || 0);
+            const usdtPrice = (bsPrice > 0 && usdtRateVal > 0) ? (bsPrice / usdtRateVal) : bcvPriceUsd;
+
+            totalCost = sumR([totalCost, mulR(cost, stock)]);
+            totalRetail = sumR([totalRetail, mulR(retail, stock)]);
+            totalRetailUsdt = sumR([totalRetailUsdt, mulR(usdtPrice, stock)]);
             totalQty += stock;
 
             if (stock <= 0) {
@@ -344,18 +360,21 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
             }
         });
 
-        const expectedProfit = Math.max(0, totalRetail - totalCost);
+        const expectedProfit = Math.max(0, subR(totalRetail, totalCost));
+        const expectedProfitUsdt = Math.max(0, subR(totalRetailUsdt, totalCost));
 
         return {
             totalCost,
             totalRetail,
+            totalRetailUsdt,
             totalQty,
             lowStockCount,
             outOfStockCount,
             expectedProfit,
+            expectedProfitUsdt,
             count: products.length
         };
-    }, [products]);
+    }, [products, bcvRate, rates]);
 
     const today = getLocalISODate();
 
@@ -426,12 +445,8 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
 
     // Métricas del turno activo
     const activeShiftMetrics = useMemo(() => {
-        let usd = 0;
-        let bs = 0;
-        activeShiftSales.forEach(s => {
-            usd += s.totalUsd || 0;
-            bs += s.totalBs || 0;
-        });
+        const usd = sumR(activeShiftSales.map(s => s.totalUsd || 0));
+        const bs = sumR(activeShiftSales.map(s => s.totalBs || 0));
 
         // Calcular ganancia estimada si los productos tienen costo
         let costSum = 0;
@@ -441,12 +456,12 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                 const prod = products.find(p => p.id === item.productId || p.id === item.id);
                 const costVal = prod?.costUsd || prod?.costPrice || 0;
                 if (costVal > 0) {
-                    costSum += costVal * item.qty;
+                    costSum = sumR([costSum, mulR(costVal, item.qty)]);
                 }
             });
         });
 
-        const profitUsd = Math.max(0, usd - costSum);
+        const profitUsd = Math.max(0, subR(usd, costSum));
 
         return {
             totalUsd: usd,
@@ -1120,7 +1135,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                                         <div key={prod.id} className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-800 last:border-0">
                                                             <div className="min-w-0 pr-2">
                                                                 <span className="text-xs font-bold text-slate-700 dark:text-slate-200 block truncate">{prod.name}</span>
-                                                                <span className="font-outfit text-[10px] text-slate-400">Precio: ${prod.price?.toFixed(2)}</span>
+                                                                <span className="font-outfit text-[10px] text-slate-400">Precio: ${prod.priceUsd?.toFixed(2)}</span>
                                                             </div>
                                                             <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-rose-50 dark:bg-rose-950/20 text-rose-600 shrink-0">
                                                                 Agotado
@@ -1467,6 +1482,18 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                     </span>
                                     <span className="text-[10px] text-slate-400 font-bold">{inventoryMetrics.totalQty} unds</span>
                                 </div>
+                                <div className="flex gap-2 mt-1.5">
+                                    {inventoryMetrics.outOfStockCount > 0 && (
+                                        <span className="text-[9px] font-black text-rose-500 bg-rose-50 dark:bg-rose-950/40 px-1.5 py-0.5 rounded-lg">
+                                            {inventoryMetrics.outOfStockCount} agotados
+                                        </span>
+                                    )}
+                                    {inventoryMetrics.lowStockCount > 0 && (
+                                        <span className="text-[9px] font-black text-amber-500 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded-lg">
+                                            {inventoryMetrics.lowStockCount} bajo mínimo
+                                        </span>
+                                    )}
+                                </div>
                             </div>
 
                             {/* Valorización Costo */}
@@ -1477,6 +1504,11 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                         ${inventoryMetrics.totalCost.toFixed(2)}
                                     </span>
                                 </div>
+                                {bcvRate > 0 && (
+                                    <span className="text-[9px] text-slate-400 font-bold mt-1">
+                                        ≈ {formatBs(inventoryMetrics.totalCost * bcvRate)} Bs
+                                    </span>
+                                )}
                             </div>
 
                             {/* Valorización Venta */}
@@ -1484,9 +1516,15 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                 <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-slate-400">Valor Estimado (Venta)</span>
                                 <div className="flex items-end justify-between mt-1">
                                     <span className="font-outfit text-xl sm:text-2xl font-black text-slate-800 dark:text-white tabular-nums leading-none">
-                                        ${inventoryMetrics.totalRetail.toFixed(2)}
+                                        ${inventoryMetrics.totalRetailUsdt.toFixed(2)}
                                     </span>
+                                    <span className="text-[9px] font-black text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-lg">USDT</span>
                                 </div>
+                                {bcvRate > 0 && (
+                                    <span className="text-[9px] text-slate-400 font-bold mt-1">
+                                        ≈ {formatBs(inventoryMetrics.totalRetailUsdt * (rates?.usdt?.price ?? bcvRate))} Bs
+                                    </span>
+                                )}
                             </div>
 
                             {/* Ganancia Potencial */}
@@ -1494,8 +1532,9 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                                 <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-slate-400">Ganancia en Stock</span>
                                 <div className="flex items-end justify-between mt-1">
                                     <span className="font-outfit text-xl sm:text-2xl font-black text-blue-600 dark:text-blue-400 tabular-nums leading-none">
-                                        ${inventoryMetrics.expectedProfit.toFixed(2)}
+                                        ${inventoryMetrics.expectedProfitUsdt.toFixed(2)}
                                     </span>
+                                    <span className="text-[9px] font-black text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-1.5 py-0.5 rounded-lg">USDT</span>
                                 </div>
                             </div>
                         </div>
@@ -1736,7 +1775,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
 
                         {/* Controles de Paginación */}
                         {totalPagesInventario > 1 && (
-                            <div className="flex items-center justify-between bg-white dark:bg-slate-900 px-4 py-3 sm:px-6 rounded-3xl border border-slate-200/60 dark:border-slate-800 shadow-sm mt-4">
+                            <div className="flex items-center justify-between bg-white dark:bg-slate-900 px-4 py-3 sm:px-6 rounded-3xl border border-slate-200/60 dark:border-slate-800 shadow-sm mt-4 mb-20 sm:mb-24">
                                 <button
                                     onClick={() => {
                                         if (currentPageInventario > 1) {
@@ -1929,6 +1968,7 @@ export default function OwnerMonitorView({ theme, toggleTheme, triggerHaptic }) 
                 isOpen={showAuditModal}
                 onClose={() => setShowAuditModal(false)}
                 pairedDeviceId={pairedDeviceId}
+                monitorDeviceId={monitorDeviceId}
             />
         </div>
     );

@@ -286,11 +286,11 @@ export default function CheckoutModalPOS({
                         amountInput: amount,
                         amountInputCurrency: currency,
                         amountUsd: currency === 'USD' ? amount
-                            : currency === 'COP' ? (tasaCop > 0 ? amount / tasaCop : 0)
-                            : (cartRate > 0 ? round2(amount / cartRate) : 0),
+                            : currency === 'COP' ? (tasaCop > 0 ? divR(amount, tasaCop) : 0)
+                            : (cartRate > 0 ? divR(amount, cartRate) : 0),
                         amountBs: currency === 'BS' ? amount
-                            : currency === 'COP' ? (tasaCop > 0 && cartRate > 0 ? round2((amount / tasaCop) * cartRate) : 0)
-                            : (cartRate > 0 ? round2(amount * cartRate) : 0),
+                            : currency === 'COP' ? (tasaCop > 0 && cartRate > 0 ? mulR(divR(amount, tasaCop), cartRate) : 0)
+                            : (cartRate > 0 ? mulR(amount, cartRate) : 0),
                         referencia: referencias[m.id] || '',
                     };
                 });
@@ -305,7 +305,7 @@ export default function CheckoutModalPOS({
                     amountInput: casheaAmountUsd,
                     amountInputCurrency: 'USD',
                     amountUsd: casheaAmountUsd,
-                    amountBs: casheaAmountUsd * tasaSegura,
+                    amountBs: mulR(casheaAmountUsd, tasaSegura),
                     isCashea: true,
                     casheaPercent: 100 - casheaPercent,
                 });

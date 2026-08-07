@@ -117,17 +117,20 @@ export async function applyInventoryCommand(payload) {
             return { success: true, productName: existing.name };
         }
 
+        const allowNeg = localStorage.getItem('allow_negative_stock') === 'true';
+        // Modo preferido: newStock absoluto — sin validación ni drift por deltas acumulados
+        if (data?.newStock !== undefined && data.newStock !== null) {
+            const newStockVal = Number(data.newStock);
+            if (isNaN(newStockVal) || newStockVal < 0) return { success: false, error: 'newStock inválido' };
+            const finalStock = allowNeg ? newStockVal : Math.max(0, newStockVal);
+            const updated = products.map(p => p.id === productId ? { ...p, stock: finalStock } : p);
+            await storageService.setItem(PRODUCTS_KEY, updated);
+            return { success: true, productName: existing.name };
+        }
+        // Backward compat: delta relativo (validación expectedStock ELIMINADA)
         const delta = Number(data?.delta);
         if (isNaN(delta) || delta === 0) return { success: false, error: 'Delta de stock inválido' };
-        const allowNeg = localStorage.getItem('allow_negative_stock') === 'true';
         const current = Number(existing.stock) || 0;
-        const expectedStock = data?.expectedStock;
-        if (expectedStock !== undefined && expectedStock !== null && Number(expectedStock) !== current) {
-            return {
-                success: false,
-                error: `Stock actual (${current}) no coincide con el esperado (${Number(expectedStock)}). La caja ha cambiado desde el ajuste.`
-            };
-        }
         const next = allowNeg ? current + delta : Math.max(0, current + delta);
         const updated = products.map(p => p.id === productId ? { ...p, stock: next } : p);
         await storageService.setItem(PRODUCTS_KEY, updated);
@@ -209,20 +212,26 @@ export async function applyInventoryBatch(payloads) {
             }
 
             if (action === 'adjust_stock') {
+                // Modo preferido: newStock absoluto — sin validación ni drift
+                if (data?.newStock !== undefined && data.newStock !== null) {
+                    const newStockVal = Number(data.newStock);
+                    if (isNaN(newStockVal) || newStockVal < 0) {
+                        results.push({ success: false, error: 'newStock inválido' });
+                        continue;
+                    }
+                    const finalStock = allowNeg ? newStockVal : Math.max(0, newStockVal);
+                    products = products.map(p => p.id === productId ? { ...p, stock: finalStock } : p);
+                    dirty = true;
+                    results.push({ success: true, productName: existing.name });
+                    continue;
+                }
+                // Backward compat: delta relativo (validación expectedStock ELIMINADA)
                 const delta = Number(data?.delta);
                 if (isNaN(delta) || delta === 0) {
                     results.push({ success: false, error: 'Delta de stock inválido' });
                     continue;
                 }
                 const current = Number(existing.stock) || 0;
-                const expectedStock = data?.expectedStock;
-                if (expectedStock !== undefined && expectedStock !== null && Number(expectedStock) !== current) {
-                    results.push({
-                        success: false,
-                        error: `Stock actual (${current}) no coincide con el esperado (${Number(expectedStock)})`
-                    });
-                    continue;
-                }
                 const next = allowNeg ? current + delta : Math.max(0, current + delta);
                 products = products.map(p => p.id === productId ? { ...p, stock: next } : p);
                 dirty = true;
@@ -253,11 +262,25 @@ export function coalesceCommands(commands) {
             if (!pid) return;
             const prev = adjustByProduct.get(pid);
             if (prev) {
-                const newDelta = (prev.payload.data?.delta || 0) + (payload.data?.delta || 0);
-                const expected = payload.data?.expectedStock ?? prev.payload.data?.expectedStock;
-                prev.payload.data = { delta: newDelta, expectedStock: expected };
+                if (payload.data?.newStock !== undefined) {
+                    // Absoluto: el último gana — no acumular
+                    prev.payload.data = { newStock: payload.data.newStock };
+                } else {
+                    // Delta backward-compat: acumular sin expectedStock
+                    const prevData = prev.payload.data;
+                    if (prevData?.newStock !== undefined) {
+                        // Previo era absoluto + llega delta encima
+                        prev.payload.data = { newStock: (Number(prevData.newStock) || 0) + (payload.data?.delta || 0) };
+                    } else {
+                        prev.payload.data = { delta: (prevData?.delta || 0) + (payload.data?.delta || 0) };
+                    }
+                }
+                prev._coalescedIds.push(cmd.id);
             } else {
-                adjustByProduct.set(pid, { ...cmd, payload: { ...payload, data: { ...payload.data } } });
+                const data = payload.data?.newStock !== undefined
+                    ? { newStock: payload.data.newStock }
+                    : { delta: payload.data?.delta || 0 };
+                adjustByProduct.set(pid, { ...cmd, _coalescedIds: [cmd.id], payload: { ...payload, data } });
             }
         } else if (cmd.command_type === 'rate_change') {
             rateChange.last = { ...cmd, payload: { ...payload } };
@@ -269,7 +292,9 @@ export function coalesceCommands(commands) {
 
     const out = [...rest];
     for (const adj of adjustByProduct.values()) {
-        if (adj.payload.data && adj.payload.data.delta !== 0) out.push(adj);
+        const d = adj.payload.data;
+        // Incluir si es newStock absoluto OR delta distinto de cero
+        if (d?.newStock !== undefined || (d?.delta !== undefined && d.delta !== 0)) out.push(adj);
     }
     if (rateChange.last) out.push(rateChange.last);
     return out;

@@ -4,7 +4,7 @@ import { Share2, Download, X, Copy, Check, Loader2, AlertTriangle, Package, User
 import { storageService } from '../utils/storageService';
 import { pushCloudSync } from '../hooks/useCloudSync';
 
-const FEATURE_ENABLED = false; // Habilitar cuando el backend /api/share esté disponible en producción
+const FEATURE_ENABLED = true; // Modal de exportación e importación activo
 
 // Grupos de datos compartibles
 const SHARE_GROUPS = [
@@ -116,16 +116,89 @@ export default function ShareInventoryModal({ isOpen, onClose }) {
                     if (val !== null) ls[key] = val;
                 }
             }
-            const res = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ idb, ls, groups: activeGroups.map(g => g.id) }),
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Error al compartir');
-            setShareCode(data.code);
+
+            const payloadData = { idb, ls, groups: activeGroups.map(g => g.id) };
+
+            // Intentar con la API del servidor /api/share primero
+            let generatedCode = null;
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payloadData),
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.code) generatedCode = data.code;
+                }
+            } catch (e) {
+                console.warn('[ShareModal] /api/share no disponible en este entorno:', e);
+            }
+
+            // Fallback: Generar código de 6 dígitos usando Supabase Cloud / LocalStorage
+            if (!generatedCode) {
+                const rawDigits = String(Math.floor(100000 + Math.random() * 900000));
+                generatedCode = `${rawDigits.slice(0, 3)}-${rawDigits.slice(3)}`;
+
+                // Guardar en Supabase Cloud si está disponible
+                if (supabaseCloud) {
+                    try {
+                        await supabaseCloud.from('sync_documents').upsert({
+                            device_id: 'SHARE_' + rawDigits,
+                            collection: 'store',
+                            doc_id: 'shared_data',
+                            data: { payload: payloadData },
+                            updated_at: new Date().toISOString()
+                        }, { onConflict: 'device_id,collection,doc_id' });
+                    } catch (cloudErr) {
+                        console.warn('[ShareModal] Error guardando código en Supabase Cloud:', cloudErr);
+                    }
+                }
+
+                // Guardar en localStorage para pruebas locales en el mismo equipo/navegador
+                try {
+                    localStorage.setItem('share_code_' + rawDigits, JSON.stringify(payloadData));
+                } catch (lsErr) {
+                    console.warn('[ShareModal] Error guardando código en localStorage local:', lsErr);
+                }
+            }
+
+            setShareCode(generatedCode);
         } catch (err) {
-            setError(err.message);
+            setError('Error al generar código: ' + err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDownloadFile = async () => {
+        const activeGroups = SHARE_GROUPS.filter(g => selected[g.id]);
+        if (activeGroups.length === 0) return;
+        setLoading(true);
+        try {
+            const idb = {};
+            const ls = {};
+            for (const g of activeGroups) {
+                for (const key of g.idbKeys) {
+                    const val = await storageService.getItem(key, null);
+                    if (val !== null) idb[key] = val;
+                }
+                for (const key of g.lsKeys) {
+                    const val = localStorage.getItem(key);
+                    if (val !== null) ls[key] = val;
+                }
+            }
+            const exportData = { version: 1, date: new Date().toISOString(), groups: activeGroups.map(g => g.id), idb, ls };
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `el_spot_respaldo_${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            setError('');
+        } catch (err) {
+            setError('Error al generar archivo: ' + err.message);
         } finally {
             setLoading(false);
         }
@@ -144,15 +217,60 @@ export default function ShareInventoryModal({ isOpen, onClose }) {
         setError('');
         setImportResult(null);
         try {
+            // 1. Revisar localStorage local primero
+            const localData = localStorage.getItem('share_code_' + clean);
+            if (localData) {
+                try {
+                    const parsed = JSON.parse(localData);
+                    setImportResult(parsed);
+                    setLoading(false);
+                    return;
+                } catch { }
+            }
+
+            // 2. Revisar Supabase Cloud
+            if (supabaseCloud) {
+                const { data, error: cloudErr } = await supabaseCloud
+                    .from('sync_documents')
+                    .select('data')
+                    .eq('device_id', 'SHARE_' + clean)
+                    .eq('doc_id', 'shared_data')
+                    .maybeSingle();
+
+                if (data?.data?.payload) {
+                    setImportResult(data.data.payload);
+                    setLoading(false);
+                    return;
+                }
+            }
+
+            // 3. Intentar /api/share
             const res = await fetch(`${API_URL}?code=${clean}`);
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Error al importar');
+            if (!res.ok) throw new Error(data.error || 'Código no encontrado o expirado');
             setImportResult(data);
         } catch (err) {
-            setError(err.message);
+            setError(err.message || 'Código no encontrado o expirado');
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleFileUpload = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setError('');
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const data = JSON.parse(event.target.result);
+                if (!data.idb && !data.ls) throw new Error('El archivo no contiene datos de respaldo válidos');
+                setImportResult(data);
+            } catch (err) {
+                setError('Error en el archivo JSON: ' + err.message);
+            }
+        };
+        reader.readAsText(file);
     };
 
     const confirmImport = async () => {
@@ -243,18 +361,7 @@ export default function ShareInventoryModal({ isOpen, onClose }) {
                 {/* TAB: Exportar */}
                 {tab === 'export' && (
                     <div className="space-y-3">
-                        {!FEATURE_ENABLED ? (
-                            <div className="text-center py-6 space-y-3">
-                                <div className="w-14 h-14 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto">
-                                    <WifiOff size={28} className="text-slate-400" />
-                                </div>
-                                <p className="text-sm font-bold text-slate-600 dark:text-slate-300">Función no disponible</p>
-                                <p className="text-xs text-slate-400 leading-relaxed">
-                                    La exportación por código estará disponible próximamente.<br/>
-                                    Por ahora usa la <strong>copia de seguridad en la nube</strong> desde Configuración.
-                                </p>
-                            </div>
-                        ) : !shareCode ? (
+                        {!shareCode ? (
                             <>
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">¿Qué deseas compartir?</p>
 
@@ -321,18 +428,7 @@ export default function ShareInventoryModal({ isOpen, onClose }) {
                 {/* TAB: Importar */}
                 {tab === 'import' && (
                     <div className="space-y-4">
-                        {!FEATURE_ENABLED ? (
-                            <div className="text-center py-6 space-y-3">
-                                <div className="w-14 h-14 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center mx-auto">
-                                    <WifiOff size={28} className="text-slate-400" />
-                                </div>
-                                <p className="text-sm font-bold text-slate-600 dark:text-slate-300">Función no disponible</p>
-                                <p className="text-xs text-slate-400 leading-relaxed">
-                                    La importación por código estará disponible próximamente.<br/>
-                                    Por ahora usa la <strong>restauración en la nube</strong> desde Configuración.
-                                </p>
-                            </div>
-                        ) : !importResult ? (
+                        {!importResult ? (
                             <>
                                 <p className="text-sm text-slate-500 dark:text-slate-400 text-center">
                                     Escribe el código de 6 dígitos para importar los datos.
@@ -352,8 +448,19 @@ export default function ShareInventoryModal({ isOpen, onClose }) {
                                     className="w-full py-3.5 bg-brand hover:bg-brand-dark text-white font-black rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
                                 >
                                     {loading ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
-                                    {loading ? 'Buscando...' : 'Importar Datos'}
+                                    {loading ? 'Buscando...' : 'Importar con Código'}
                                 </button>
+
+                                <div className="relative flex py-1 items-center">
+                                    <div className="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
+                                    <span className="flex-shrink mx-2 text-[10px] font-bold text-slate-400 uppercase">o seleccionar archivo</span>
+                                    <div className="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
+                                </div>
+
+                                <label className="w-full py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer text-xs select-none">
+                                    <Download size={14} /> Cargar desde archivo JSON
+                                    <input type="file" accept=".json" onChange={handleFileUpload} className="hidden" />
+                                </label>
                             </>
                         ) : (
                             <div className="text-center py-1">

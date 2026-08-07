@@ -1,3 +1,5 @@
+import { round2, ceilR, divR, mulR } from '../utils/dinero';
+
 /**
  * Service responsible for monetary calculations and formatting rules.
  * Follows SRP: Only handles number crunching and string formatting related to currency.
@@ -81,9 +83,8 @@ export const CurrencyService = {
      * @returns {string}
      */
     applyRoundingRule: (value, currencyId) => {
-        if (currencyId === 'VES') return Math.ceil(value).toString();
-        // Ensure we handle cases where toFixed might be needed even for small numbers
-        return value.toFixed(2);
+        if (currencyId === 'VES') return ceilR(value).toString();
+        return round2(value).toFixed(2);
     },
 
     /**
@@ -95,6 +96,6 @@ export const CurrencyService = {
      */
     calculateExchange: (amount, rateFrom, rateTo) => {
         if (!rateTo || rateTo === 0 || !rateFrom) return 0;
-        return (amount * rateFrom) / rateTo;
+        return divR(mulR(amount, rateFrom), rateTo);
     }
 };

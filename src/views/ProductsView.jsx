@@ -604,7 +604,7 @@ export const ProductsView = ({ rates, triggerHaptic }) => {
     // ─── RENDER ─────────────────────────────────────────────
 
     return (
-        <div ref={revealRef} className="flex flex-col h-full bg-surface-50 dark:bg-surface-950 p-3 sm:p-6 overflow-y-auto">
+        <div ref={revealRef} className="flex flex-col h-full bg-surface-50 dark:bg-surface-950 p-3 sm:p-6 pb-24 sm:pb-28 overflow-y-auto">
 
             {/* Header — Toolbar */}
             <ProductsToolbar
@@ -913,7 +913,7 @@ export const ProductsView = ({ rates, triggerHaptic }) => {
 
                         {/* Pagination */}
                         {totalPages > 1 && (
-                            <div className="flex justify-center items-center gap-4 py-4 shrink-0">
+                            <div className="flex justify-center items-center gap-4 pt-4 pb-16 sm:pb-20 shrink-0">
                                 {/* v1.2.0: touch targets ≥ 48px (a11y WCAG AA) + surface tokens */}
                                 <button onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1}
                                     className="p-2.5 min-h-[48px] min-w-[48px] flex items-center justify-center rounded-xl bg-surface dark:bg-surface-900 border border-surface-200 dark:border-surface-800 disabled:opacity-50 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">

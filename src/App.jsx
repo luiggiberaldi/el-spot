@@ -43,13 +43,28 @@ export default function App() {
   const [showIOSInstall, setShowIOSInstall] = useState(false);
   const [mountedViews, setMountedViews] = useState({});
   const [showPairingScan, setShowPairingScan] = useState(false);
-  const isMonitorMode = localStorage.getItem('pda_pairing_mode') === 'monitor';
-
   useEffect(() => {
     setMountedViews(prev => ({...prev, [activeTab]: true}));
   }, [activeTab]);
 
   const { isPremium, isDemo, demoTimeLeft, demoExpiredMsg, dismissExpiredMsg, deviceId, isMonthlyGracePeriod, monthlyGraceDaysLeft, forceHeartbeat } = useSecurity();
+
+  // Guardraill: Un dispositivo NUNCA puede ser monitor de sí mismo.
+  // Si pairedDeviceId coincide con deviceId (Caja Principal), limpiar modo monitor.
+  const isMonitorMode = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    const rawMode = localStorage.getItem('pda_pairing_mode');
+    const pairedId = localStorage.getItem('pda_paired_device_id');
+    if (rawMode !== 'monitor' || !pairedId) return false;
+    if (deviceId && pairedId === deviceId) {
+      console.warn('[App] Dispositivo principal no puede ser monitor de sí mismo. Reseteando modo monitor.');
+      localStorage.removeItem('pda_pairing_mode');
+      localStorage.removeItem('pda_paired_device_id');
+      return false;
+    }
+    return true;
+  }, [deviceId]);
+
   const { isOnline, cacheRates } = useOfflineQueue();
   useAutoBackup(isPremium, isDemo, deviceId);
 

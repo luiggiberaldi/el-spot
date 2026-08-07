@@ -89,8 +89,40 @@ function _debouncePush(key, value) {
     const delay = HEAVY_KEYS.includes(key) ? DEBOUNCE_HEAVY_MS : DEBOUNCE_LIGHT_MS;
     pendingPush[key] = setTimeout(() => {
         delete pendingPush[key];
-        pushCloudSync(key, value).catch(() => {});
+        pushCloudSync(key, value).catch(() => { });
     }, delay);
+}
+
+const pushBackoffs = {};
+
+/**
+ * Optimiza y recorta payloads masivos antes de enviarlos a sync_documents (P2P real-time sync).
+ * Mantiene la tabla ligera para prevenir 'statement timeout' (Postgres error 57014 / HTTP 500).
+ */
+export function sanitizeSyncPayload(key, value) {
+    if (!value) return value;
+    if (key === 'bodega_products_v1' && Array.isArray(value)) {
+        // Remover Base64 pesadas de imágenes para evitar 'statement timeout' en Supabase (HTTP 500)
+        return value.map(p => {
+            if (p && typeof p.image === 'string' && p.image.length > 512) {
+                const { image, ...rest } = p;
+                return rest;
+            }
+            return p;
+        });
+    }
+    if (key === 'bodega_sales_v1' && Array.isArray(value)) {
+        // En sync_documents solo necesitamos las 100 ventas recientes para el monitor P2P
+        if (value.length > 100) {
+            return value.slice(-100);
+        }
+    }
+    if (key === 'abasto_audit_log_v1' && Array.isArray(value)) {
+        if (value.length > 100) {
+            return value.slice(-100);
+        }
+    }
+    return value;
 }
 
 export const pushCloudSync = async (key, value) => {
@@ -98,29 +130,45 @@ export const pushCloudSync = async (key, value) => {
     if (isSyncingFromCloudGlobal()) return;   // SYNC-014: respeta flag global (local + externo)
     if (!SYNC_KEYS.includes(key)) return;
     if (!_currentDeviceId) return;
-    // SYNC-010: defensa en profundidad — no upsert si _currentDeviceId se corrompiò.
+    // SYNC-010: defensa en profundidad — no upsert si _currentDeviceId se corrompió.
     if (!isValidDeviceId(_currentDeviceId)) return;
 
     // SEC-002: jamás empujar `abasto-auth-storage` aunque accidentalmente lo pidan.
     if (key === 'abasto-auth-storage') return;
 
+    // Si hubo fallo reciente de red/timeout en esta key, esperar 45s antes de reintentar
+    const now = Date.now();
+    if (pushBackoffs[key] && (now - pushBackoffs[key] < 45000)) {
+        return;
+    }
+
     try {
         const collectionType = LOCAL_KEYS.includes(key) ? 'local' : 'store';
+        const sanitizedValue = sanitizeSyncPayload(key, value);
 
-        await supabaseCloud.from('sync_documents').upsert({
+        const { error } = await supabaseCloud.from('sync_documents').upsert({
             device_id: _currentDeviceId,
             collection: collectionType,
             doc_id: key,
-            data: { payload: value },
-            updated_at: new Date().toISOString()
+            data: { payload: sanitizedValue },
+            updated_at: new Date(now).toISOString()
         }, { onConflict: 'device_id,collection,doc_id' });
+
+        if (error) {
+            console.warn(`[CloudSync] Error al sincronizar ${key}:`, error.message || error);
+            pushBackoffs[key] = now;
+            return;
+        }
+
+        delete pushBackoffs[key];
 
         // Update local hash to prevent periodic push from re-uploading
         const hashKey = LAST_PUSH_HASH_PREFIX + key;
         localStorage.setItem(hashKey, quickHash(value));
 
     } catch (e) {
-        // Silencioso en producción
+        console.warn(`[CloudSync] Excepción al sincronizar ${key}:`, e);
+        pushBackoffs[key] = now;
     }
 };
 
@@ -170,6 +218,8 @@ export const queueCloudSync = (key, value) => {
  */
 async function _applyFromCloud(docId, collection, payload) {
     return runWithoutEco(async () => {
+        const hashKey = LAST_PUSH_HASH_PREFIX + docId;
+
         if (collection === 'local') {
             // Ignorar payload nulo/undefined para no escribir "undefined" en localStorage
             if (payload == null) return;
@@ -184,27 +234,30 @@ async function _applyFromCloud(docId, collection, payload) {
             }));
             window.dispatchEvent(new CustomEvent('app_storage_update', { detail: { key: docId } }));
         } else {
-            // Colección 'store' → IndexedDB directo, sin pasar por storageService.setItem
             const lf = localforage.createInstance({ name: 'ElSpotPOSApp', storeName: 'el_spot_app_data' });
 
-            // Guardarraíl BUG-C: Protección contra sobrescritura de inventario local más completo por la nube
+            // Eco: si el payload entrante es idéntico al último push propio, es nuestro reflejo — ignorar
+            const lastPushHash = localStorage.getItem(hashKey);
+            if (lastPushHash && quickHash(payload) === lastPushHash) {
+                return;
+            }
+
+            // Guardarraíl: si el inventario local tiene más productos que la nube, subir el local
             if (docId === 'bodega_products_v1') {
                 const localCurrent = await lf.getItem(docId);
                 if (Array.isArray(localCurrent) && Array.isArray(payload) && localCurrent.length > payload.length) {
-                    console.warn(`[CloudSync] Guardarraíl activado: El inventario local (${localCurrent.length}) tiene más productos que el de la nube (${payload.length}). Preservando local y sincronizando a la nube.`);
+                    console.warn(`[CloudSync] Guardarraíl activado: inventario local (${localCurrent.length}) > nube (${payload.length}). Subiendo local.`);
                     pushCloudSync(docId, localCurrent).catch(() => {});
                     return;
                 }
             }
 
             await lf.setItem(docId, payload);
-
             // Notificar a los componentes React que lean este store
             window.dispatchEvent(new CustomEvent('app_storage_update', { detail: { key: docId } }));
         }
 
-        // Update local hash to prevent periodic push from re-uploading what we just downloaded
-        const hashKey = LAST_PUSH_HASH_PREFIX + docId;
+        // Guardar hash del payload recibido para detectar ecos futuros
         localStorage.setItem(hashKey, quickHash(payload));
     });
 }
@@ -217,7 +270,7 @@ export function useCloudSync(deviceId) {
         if (!supabaseCloud || !deviceId) {
             isCloudSyncActive = false;
             if (globalSubscription) {
-                try { supabaseCloud.removeChannel(globalSubscription).catch(() => {}); } catch { }
+                try { supabaseCloud.removeChannel(globalSubscription).catch(() => { }); } catch { }
                 globalSubscription = null;
                 isInitialized.current = false;
                 _currentDeviceId = '';
@@ -236,7 +289,7 @@ export function useCloudSync(deviceId) {
         // Si el deviceId cambió con respecto al inicializado, forzar reinicio y cleanup de suscripción
         if (isInitialized.current && _currentDeviceId !== deviceId) {
             if (globalSubscription) {
-                try { supabaseCloud.removeChannel(globalSubscription).catch(() => {}); } catch { }
+                try { supabaseCloud.removeChannel(globalSubscription).catch(() => { }); } catch { }
                 globalSubscription = null;
             }
             isInitialized.current = false;
@@ -252,7 +305,7 @@ export function useCloudSync(deviceId) {
                 try {
                     const { data: { session } } = await supabaseCloud.auth.getSession();
                     hasAuth = session && !(session.expires_at && session.expires_at * 1000 < Date.now());
-                } catch (e) {}
+                } catch (e) { }
 
                 // SEC-010: Activar sincronización para que la caja envíe sus documentos a sync_documents
                 isCloudSyncActive = true;
@@ -260,7 +313,7 @@ export function useCloudSync(deviceId) {
 
                 // ── Pull Inicial / Sincronización de Importación ──
                 const backupImported = localStorage.getItem('pda_backup_imported_flag') === 'true';
-                
+
                 if (backupImported) {
                     console.log('[CloudSync] Detectado backup importado localmente. Subiendo datos locales a la nube...');
                     const lf = localforage.createInstance({ name: 'ElSpotPOSApp', storeName: 'el_spot_app_data' });
@@ -307,9 +360,12 @@ export function useCloudSync(deviceId) {
                         const localValue = await lf.getItem(key);
                         if (!localValue) continue;
 
-                        await pushCloudSync(key, localValue);
                         const hashKey = LAST_PUSH_HASH_PREFIX + key;
-                        localStorage.setItem(hashKey, quickHash(localValue));
+                        const currentHash = quickHash(localValue);
+                        if (localStorage.getItem(hashKey) === currentHash) continue;
+
+                        await pushCloudSync(key, localValue);
+                        localStorage.setItem(hashKey, currentHash);
                     }
                 } catch (e) {
                     // Silencioso
@@ -365,7 +421,7 @@ export function useCloudSync(deviceId) {
         };
 
         window.addEventListener('online', forcePushLocalData);
-        
+
         // Ejecución periódica cada 20 segundos para asegurar sincronización en tiempo real
         const intervalId = setInterval(forcePushLocalData, 20000);
 
@@ -376,7 +432,7 @@ export function useCloudSync(deviceId) {
 
             // HOOK-012: limpiar suscripción en cleanup para evitar leaks.
             if (globalSubscription) {
-                try { supabaseCloud.removeChannel(globalSubscription).catch(() => {}); } catch { }
+                try { supabaseCloud.removeChannel(globalSubscription).catch(() => { }); } catch { }
                 globalSubscription = null;
                 isInitialized.current = false;
                 _currentDeviceId = '';
