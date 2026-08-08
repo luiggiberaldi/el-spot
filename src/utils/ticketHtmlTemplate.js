@@ -34,6 +34,11 @@ export function buildTicketHtml(sale, bcvRate, paperConfig, settings) {
     const hora = d.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
     const hasFiado = sale.fiadoUsd > 0;
 
+    let catalogProducts = [];
+    try {
+        catalogProducts = JSON.parse(localStorage.getItem('bodega_products_v1') || '[]');
+    } catch (_) {}
+
     // Generar filas de productos
     const itemsHtml = (sale.items || []).map(item => {
         // FIN-024: formatUsd para qty peso, sin toFixed.
@@ -62,22 +67,23 @@ export function buildTicketHtml(sale, bcvRate, paperConfig, settings) {
                 : `$${formatUsd(item.priceUsd)} (Bs ${formatBs(priceBs)})`;
         }
 
-        const warrantyText = item.hasWarranty
-            ? `<div style="font-size:${fTiny || '9px'};color:#047857;font-weight:bold;margin-top:1px;">🛡️ Garantía: ${item.warrantyDays ? `${item.warrantyDays} días` : 'Sí'}</div>`
+        const origProd = catalogProducts.find(p =>
+            p.id === item.id ||
+            p.id === item._originalId ||
+            (p.name && item.name && p.name.trim().toLowerCase() === item.name.trim().toLowerCase())
+        );
+        const itemHasWarranty = item.hasWarranty ?? origProd?.hasWarranty;
+        const itemWarrantyDays = item.warrantyDays ?? origProd?.warrantyDays;
+        const hasWarranty = Boolean(itemHasWarranty || (itemWarrantyDays != null && Number(itemWarrantyDays) > 0));
+        const warrantyText = hasWarranty
+            ? `<div style="font-size:${fTiny || '9px'};font-weight:bold;margin-top:2px;margin-bottom:2px;">🛡️ Cobertura de Garantía: ${itemWarrantyDays ? `${itemWarrantyDays} días` : 'Sí'}</div>`
             : '';
-
-        const priceModeText = item._priceMode === 'bcv'
-            ? `<div style="font-size:${fTiny || '9px'};color:#1d4ed8;font-weight:bold;margin-top:1px;">🏛️ Precio BCV</div>`
-            : (item._priceMode === 'usdt'
-                ? `<div style="font-size:${fTiny || '9px'};color:#047857;font-weight:bold;margin-top:1px;">💵 Precio USDT</div>`
-                : '');
 
         return `
             <tr>
                 <td colspan="2" style="text-align:left;font-size:${fBase};font-weight:bold;padding:6px 0 1px 0;line-height:1.25;word-break:break-word;">
                     ${name}
                     ${warrantyText}
-                    ${priceModeText}
                 </td>
             </tr>
             <tr>
@@ -175,6 +181,17 @@ export function buildTicketHtml(sale, bcvRate, paperConfig, settings) {
         ${isCop ? `<div class="total-bs" style="font-size:${is80 ? '16px' : '13px'};">COP ${formatCop(sale.totalCop || mulR(sale.totalUsd, sale.tasaCop))}</div>` : ''}
         <div class="total-bs" style="margin-bottom:4px">Bs ${formatBs(ticketBs)}</div>`;
     }
+
+    const anyHasWarranty = (sale.items || []).some(item => {
+        const origProd = catalogProducts.find(p =>
+            p.id === item.id ||
+            p.id === item._originalId ||
+            (p.name && item.name && p.name.trim().toLowerCase() === item.name.trim().toLowerCase())
+        );
+        const itemHasWarranty = item.hasWarranty ?? origProd?.hasWarranty;
+        const itemWarrantyDays = item.warrantyDays ?? origProd?.warrantyDays;
+        return Boolean(itemHasWarranty || (itemWarrantyDays != null && Number(itemWarrantyDays) > 0));
+    });
 
     return `<!DOCTYPE html>
 <html>
@@ -296,6 +313,10 @@ export function buildTicketHtml(sale, bcvRate, paperConfig, settings) {
 
     <!-- Pie -->
     <div class="center bold" style="font-size:${fBase};margin:8px 0 4px;">Gracias por tu compra!</div>
+    ${anyHasWarranty ? `
+    <div class="center" style="font-size:${fTiny};font-weight:bold;margin:6px 0 4px;padding:4px 6px;border:1px dashed #000;border-radius:4px;line-height:1.3;">
+        📌 Conserve este comprobante y su empaque original para hacer efectiva la garantía.
+    </div>` : ''}
     <div class="center" style="font-size:${fDisclaimer};color:#888;margin-top:4px;line-height:1.4;">Este documento no constituye factura fiscal.<br>Comprobante de control interno sin validez tributaria.</div>
 </body>
 </html>`;

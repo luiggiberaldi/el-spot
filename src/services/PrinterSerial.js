@@ -272,16 +272,22 @@ class PrinterSerial {
                     ? nameLine.substring(0, maxNameLen - 1) + '…'
                     : nameLine;
                 chunks.push(encode(twoCol(nameShort, lineTotal, w) + '\n'));
-                // Price per unit line (indented)
-                chunks.push(encode(`  @ ${fmtUsd(item.priceUsd)}/u\n`));
-                if (item.hasWarranty) {
-                    const daysStr = item.warrantyDays ? `${item.warrantyDays} dias` : 'Si';
+                let catalogProducts = [];
+                try {
+                    catalogProducts = JSON.parse(localStorage.getItem('bodega_products_v1') || '[]');
+                } catch (_) {}
+                const origProd = catalogProducts.find(p =>
+                    p.id === item.id ||
+                    p.id === item._originalId ||
+                    (p.name && item.name && p.name.trim().toLowerCase() === item.name.trim().toLowerCase())
+                );
+                const itemHasWarranty = item.hasWarranty ?? origProd?.hasWarranty;
+                const itemWarrantyDays = item.warrantyDays ?? origProd?.warrantyDays;
+                const hasWarranty = Boolean(itemHasWarranty || (itemWarrantyDays != null && Number(itemWarrantyDays) > 0));
+
+                if (hasWarranty) {
+                    const daysStr = itemWarrantyDays ? `${itemWarrantyDays} dias` : 'Si';
                     chunks.push(encode(`  [Garantia: ${daysStr}]\n`));
-                }
-                if (item._priceMode === 'bcv') {
-                    chunks.push(encode(`  [Precio BCV]\n`));
-                } else if (item._priceMode === 'usdt') {
-                    chunks.push(encode(`  [Precio USDT]\n`));
                 }
             }
         }
@@ -339,8 +345,28 @@ class PrinterSerial {
         // ── Footer ─────────────────────────────────────────────────
         chunks.push(encode(line(w)));
         chunks.push(CMD.ALIGN_CENTER);
-        chunks.push(encode('Gracias por su compra!\n'));
-        chunks.push(encode('PreciosAlDia Bodega\n'));
+        chunks.push(encode('Gracias por tu compra!\n'));
+
+        const anyHasWarranty = (sale.items || []).some(item => {
+            let catalogProducts = [];
+            try {
+                catalogProducts = JSON.parse(localStorage.getItem('bodega_products_v1') || '[]');
+            } catch (_) {}
+            const origProd = catalogProducts.find(p =>
+                p.id === item.id ||
+                p.id === item._originalId ||
+                (p.name && item.name && p.name.trim().toLowerCase() === item.name.trim().toLowerCase())
+            );
+            const itemHasWarranty = item.hasWarranty ?? origProd?.hasWarranty;
+            const itemWarrantyDays = item.warrantyDays ?? origProd?.warrantyDays;
+            return Boolean(itemHasWarranty || (itemWarrantyDays != null && Number(itemWarrantyDays) > 0));
+        });
+
+        if (anyHasWarranty) {
+            chunks.push(encode('Conserve este comprobante y\n'));
+            chunks.push(encode('empaque para su garantia.\n'));
+        }
+
         chunks.push(CMD.FEED_5);
         chunks.push(CMD.CUT);
 

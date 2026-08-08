@@ -30,7 +30,20 @@ export function shareSaleWhatsApp(sale, saleCustomer, bcvRate) {
             const qty = item.isWeight ? `${round3(item.qty)}Kg` : `${item.qty} Und`;
             // Subtotal línea: mulR para evitar drift.
             const lineTotal = mulR(item.priceUsd, item.qty);
-            text += `- ${item.name}\n  ${qty} x ${fmtUsd(item.priceUsd)} = *${fmtUsd(lineTotal)}*\n`;
+            let catalogProducts = [];
+            try {
+                catalogProducts = JSON.parse(localStorage.getItem('bodega_products_v1') || '[]');
+            } catch (_) {}
+            const origProd = catalogProducts.find(p =>
+                p.id === item.id ||
+                p.id === item._originalId ||
+                (p.name && item.name && p.name.trim().toLowerCase() === item.name.trim().toLowerCase())
+            );
+            const itemHasWarranty = item.hasWarranty ?? origProd?.hasWarranty;
+            const itemWarrantyDays = item.warrantyDays ?? origProd?.warrantyDays;
+            const hasWarranty = Boolean(itemHasWarranty || (itemWarrantyDays != null && Number(itemWarrantyDays) > 0));
+            const warrantyText = hasWarranty ? `\n  🛡️ Cobertura de Garantía: ${itemWarrantyDays ? `${itemWarrantyDays} días` : 'Sí'}` : '';
+            text += `- ${item.name}${warrantyText}\n  ${qty} x ${fmtUsd(item.priceUsd)} = *${fmtUsd(lineTotal)}*\n`;
         });
         text += `\n===================================\n`;
     }
@@ -51,9 +64,21 @@ export function shareSaleWhatsApp(sale, saleCustomer, bcvRate) {
             text += ` Equivalente: ${formatBs(fiadoBs)} Bs (tasa actual)\n`;
         }
     }
+    const anyHasWarranty = (sale.items || []).some(item => {
+        let catalogProducts = [];
+        try { catalogProducts = JSON.parse(localStorage.getItem('bodega_products_v1') || '[]'); } catch (_) {}
+        const origProd = catalogProducts.find(p => p.id === item.id || p.id === item._originalId || (p.name && item.name && p.name.trim().toLowerCase() === item.name.trim().toLowerCase()));
+        const itemHasWarranty = item.hasWarranty ?? origProd?.hasWarranty;
+        const itemWarrantyDays = item.warrantyDays ?? origProd?.warrantyDays;
+        return Boolean(itemHasWarranty || (itemWarrantyDays != null && Number(itemWarrantyDays) > 0));
+    });
+
     text += `\n===================================\n`;
-    text += `*¡Gracias por su compra!*\n\n`;
-    text += `_Este documento no constituye factura fiscal. Comprobante de control interno._`;
+    text += `*¡Gracias por su compra!*\n`;
+    if (anyHasWarranty) {
+        text += `\n📌 *Nota:* Conserve este comprobante y el empaque original para hacer efectiva la garantía.\n`;
+    }
+    text += `\n_Este documento no constituye factura fiscal. Comprobante de control interno._`;
 
     const encoded = encodeURIComponent(text);
 

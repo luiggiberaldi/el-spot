@@ -30,22 +30,36 @@ export function buildReceiptWhatsAppUrl(receipt, currentRate) {
         const priceBs = item.priceUsd * ticketRate;
         const subBs = item.priceUsd * item.qty * ticketRate;
 
+        let catalogProducts = [];
+        try {
+            catalogProducts = JSON.parse(localStorage.getItem('bodega_products_v1') || '[]');
+        } catch (_) {}
+        const origProd = catalogProducts.find(p =>
+            p.id === item.id ||
+            p.id === item._originalId ||
+            (p.name && item.name && p.name.trim().toLowerCase() === item.name.trim().toLowerCase())
+        );
+        const itemHasWarranty = item.hasWarranty ?? origProd?.hasWarranty;
+        const itemWarrantyDays = item.warrantyDays ?? origProd?.warrantyDays;
+        const hasWarranty = Boolean(itemHasWarranty || (itemWarrantyDays != null && Number(itemWarrantyDays) > 0));
+        const warrantyStr = hasWarranty ? `\n  🛡️ Cobertura de Garantía: ${itemWarrantyDays ? `${itemWarrantyDays} días` : 'Sí'}` : '';
+
         if (receiptCurrencyMode === 'usd') {
             const subStr = isCop ? `USD ${subUsd}` : `$${subUsd}`;
             const unitStr = isCop ? `USD ${unitPriceUsd}` : `$${unitPriceUsd}`;
-            return `- ${item.name}\n  ${qty} x ${unitStr} = ${subStr}`;
+            return `- ${item.name}${warrantyStr}\n  ${qty} x ${unitStr} = ${subStr}`;
         }
         
         if (receiptCurrencyMode === 'bs') {
             const subStr = `Bs ${formatBs(subBs)}`;
             const unitStr = `Bs ${formatBs(priceBs)}`;
-            return `- ${item.name}\n  ${qty} x ${unitStr} = ${subStr}`;
+            return `- ${item.name}${warrantyStr}\n  ${qty} x ${unitStr} = ${subStr}`;
         }
 
         // mixto
         const subStr = isCop ? `USD ${subUsd}` : `$${subUsd}`;
         const unitStr = isCop ? `USD ${unitPriceUsd}` : `$${unitPriceUsd}`;
-        let line = `- ${item.name}\n  ${qty} x ${unitStr} = ${subStr}`;
+        let line = `- ${item.name}${warrantyStr}\n  ${qty} x ${unitStr} = ${subStr}`;
         if (isCop) {
             const copSub = (item.priceUsd * item.qty * r.tasaCop).toLocaleString('es-CO', { maximumFractionDigits: 0 });
             line += ` (${copSub} COP)`;
@@ -140,6 +154,14 @@ export function buildReceiptWhatsAppUrl(receipt, currentRate) {
         sep,
         r.tasaCop > 0 ? `Tasa COP: ${r.tasaCop.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n` : '',
         `Gracias por su compra!`,
+        (r.items ?? []).some(item => {
+            let catalogProducts = [];
+            try { catalogProducts = JSON.parse(localStorage.getItem('bodega_products_v1') || '[]'); } catch (_) {}
+            const origProd = catalogProducts.find(p => p.id === item.id || p.id === item._originalId || (p.name && item.name && p.name.trim().toLowerCase() === item.name.trim().toLowerCase()));
+            const itemHasWarranty = item.hasWarranty ?? origProd?.hasWarranty;
+            const itemWarrantyDays = item.warrantyDays ?? origProd?.warrantyDays;
+            return Boolean(itemHasWarranty || (itemWarrantyDays != null && Number(itemWarrantyDays) > 0));
+        }) ? `\n📌 *Nota:* Conserve este comprobante y el empaque original para validar la garantía.` : '',
         ``,
         `_Este documento no constituye factura fiscal. Comprobante de control interno._`,
         `El Spot - Sistema POS`,

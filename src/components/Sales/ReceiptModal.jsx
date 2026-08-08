@@ -157,11 +157,29 @@ export default function ReceiptModal({ receipt, onClose, onShareWhatsApp, curren
                                     );
                                 }
 
+                                let catalogProducts = [];
+                                try {
+                                    catalogProducts = JSON.parse(localStorage.getItem('bodega_products_v1') || '[]');
+                                } catch (_) {}
+                                const origProd = catalogProducts.find(p =>
+                                    p.id === item.id ||
+                                    p.id === item._originalId ||
+                                    (p.name && item.name && p.name.trim().toLowerCase() === item.name.trim().toLowerCase())
+                                );
+                                const itemHasWarranty = item.hasWarranty ?? origProd?.hasWarranty;
+                                const itemWarrantyDays = item.warrantyDays ?? origProd?.warrantyDays;
+                                const hasWarranty = Boolean(itemHasWarranty || (itemWarrantyDays != null && Number(itemWarrantyDays) > 0));
+
                                 if (receiptCurrencyMode === 'usd') {
                                     return (
                                         <div key={i} className="flex justify-between items-start text-sm border-b border-slate-200/50 pb-2 last:border-0 last:pb-0">
                                             <div className="flex-1 pr-4">
                                                 <span className="font-bold text-slate-700 block leading-tight">{item.name}</span>
+                                                {hasWarranty && (
+                                                    <span className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 block mt-0.5">
+                                                        🛡️ Cobertura de Garantía: {itemWarrantyDays ? `${itemWarrantyDays} días` : 'Sí'}
+                                                    </span>
+                                                )}
                                                 <span className="text-xs text-slate-400">{item.isWeight ? `${item.qty.toFixed(3)} Kg` : `${item.qty} u`} × ${item.priceUsd.toFixed(2)}</span>
                                             </div>
                                             <div className="text-right">
@@ -176,6 +194,11 @@ export default function ReceiptModal({ receipt, onClose, onShareWhatsApp, curren
                                         <div key={i} className="flex justify-between items-start text-sm border-b border-slate-200/50 pb-2 last:border-0 last:pb-0">
                                             <div className="flex-1 pr-4">
                                                 <span className="font-bold text-slate-700 block leading-tight">{item.name}</span>
+                                                {hasWarranty && (
+                                                    <span className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 block mt-0.5">
+                                                        🛡️ Cobertura de Garantía: {itemWarrantyDays ? `${itemWarrantyDays} días` : 'Sí'}
+                                                    </span>
+                                                )}
                                                 <span className="text-xs text-slate-400">{item.isWeight ? `${item.qty.toFixed(3)} Kg` : `${item.qty} u`} × Bs {formatBs(priceBs)}</span>
                                             </div>
                                             <div className="text-right">
@@ -190,6 +213,11 @@ export default function ReceiptModal({ receipt, onClose, onShareWhatsApp, curren
                                     <div key={i} className="flex justify-between items-start text-sm border-b border-slate-200/50 pb-2 last:border-0 last:pb-0">
                                         <div className="flex-1 pr-4">
                                             <span className="font-bold text-slate-700 block leading-tight">{item.name}</span>
+                                            {hasWarranty && (
+                                                <span className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 block mt-0.5">
+                                                    🛡️ Cobertura de Garantía: {itemWarrantyDays ? `${itemWarrantyDays} días` : 'Sí'}
+                                                </span>
+                                            )}
                                             {isCop ? (
                                                 copPrimary ? (
                                                     <>
@@ -317,6 +345,21 @@ export default function ReceiptModal({ receipt, onClose, onShareWhatsApp, curren
                                 {new Date(receipt.timestamp).toLocaleString()}
                             </p>
                         </div>
+
+                        {receipt.items?.some(i => {
+                            let catalogProducts = [];
+                            try { catalogProducts = JSON.parse(localStorage.getItem('bodega_products_v1') || '[]'); } catch (_) {}
+                            const origProd = catalogProducts.find(p => p.id === i.id || p.id === i._originalId || (p.name && i.name && p.name.trim().toLowerCase() === i.name.trim().toLowerCase()));
+                            const itemHasWarranty = i.hasWarranty ?? origProd?.hasWarranty;
+                            const itemWarrantyDays = i.warrantyDays ?? origProd?.warrantyDays;
+                            return Boolean(itemHasWarranty || (itemWarrantyDays != null && Number(itemWarrantyDays) > 0));
+                        }) && (
+                            <div className="mt-4 p-2.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/40 rounded-xl text-center">
+                                <p className="text-[11px] font-bold text-amber-800 dark:text-amber-300 leading-tight">
+                                    📌 Conserve este comprobante y su empaque original para hacer efectiva la garantía.
+                                </p>
+                            </div>
+                        )}
                     </div>
                 </div>
 

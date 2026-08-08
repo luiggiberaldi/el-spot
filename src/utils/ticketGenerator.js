@@ -34,7 +34,7 @@ export async function generateTicketPDF(sale, bcvRate) {
     const hasFiado = sale.fiadoUsd > 0;
 
     // Altura MUY generosa para que nunca se corte
-    const H = 160 + (itemCount * 14) + (paymentCount * 7) + (hasFiado ? 18 : 0);
+    const H = 160 + (itemCount * 18) + (paymentCount * 7) + (hasFiado ? 18 : 0);
 
     const doc = new jsPDF('p', 'mm', [WIDTH, H]);
 
@@ -171,6 +171,28 @@ export async function generateTicketPDF(sale, bcvRate) {
             }
             doc.text(detailLine, M + 10, y);
             y += 5;
+
+            let catalogProducts = [];
+            try {
+                catalogProducts = JSON.parse(localStorage.getItem('bodega_products_v1') || '[]');
+            } catch (_) {}
+            const origProd = catalogProducts.find(p =>
+                p.id === item.id ||
+                p.id === item._originalId ||
+                (p.name && item.name && p.name.trim().toLowerCase() === item.name.trim().toLowerCase())
+            );
+            const itemHasWarranty = item.hasWarranty ?? origProd?.hasWarranty;
+            const itemWarrantyDays = item.warrantyDays ?? origProd?.warrantyDays;
+            const hasWarranty = Boolean(itemHasWarranty || (itemWarrantyDays != null && Number(itemWarrantyDays) > 0));
+
+            if (hasWarranty) {
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(is80 ? 6 : 5.5);
+                doc.setTextColor(4, 120, 87);
+                const warrantyStr = `Cobertura de Garantia: ${itemWarrantyDays ? `${itemWarrantyDays} dias` : 'Si'}`;
+                doc.text(warrantyStr, M + 10, y);
+                y += 4.5;
+            }
         });
     }
 
@@ -327,6 +349,21 @@ export async function generateTicketPDF(sale, bcvRate) {
         dash(y); y += 7;
     }
 
+    let catalogProductsPdf = [];
+    try {
+        catalogProductsPdf = JSON.parse(localStorage.getItem('bodega_products_v1') || '[]');
+    } catch (_) {}
+    const pdfAnyHasWarranty = (sale.items || []).some(item => {
+        const origProd = catalogProductsPdf.find(p =>
+            p.id === item.id ||
+            p.id === item._originalId ||
+            (p.name && item.name && p.name.trim().toLowerCase() === item.name.trim().toLowerCase())
+        );
+        const itemHasWarranty = item.hasWarranty ?? origProd?.hasWarranty;
+        const itemWarrantyDays = item.warrantyDays ?? origProd?.warrantyDays;
+        return Boolean(itemHasWarranty || (itemWarrantyDays != null && Number(itemWarrantyDays) > 0));
+    });
+
     // ════════════════════════════════════
     //  PIE
     // ════════════════════════════════════
@@ -335,6 +372,16 @@ export async function generateTicketPDF(sale, bcvRate) {
     doc.setTextColor(...INK);
     doc.text('¡Gracias por tu compra!', CX, y, { align: 'center' });
     y += 6;
+
+    if (pdfAnyHasWarranty) {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(5.5);
+        doc.setTextColor(...INK);
+        doc.text('Conserve este comprobante y empaque original', CX, y, { align: 'center' });
+        y += 3.5;
+        doc.text('para hacer efectiva la garantia.', CX, y, { align: 'center' });
+        y += 5;
+    }
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(5.5);

@@ -109,6 +109,8 @@ export async function processSaleTransaction({
             exactBs: i.exactBs || null,
             _priceMode: i._priceMode || null,
             _bcvRate: i._bcvRate || i.bcvRate || null,
+            hasWarranty: Boolean(i.hasWarranty),
+            warrantyDays: i.warrantyDays || null,
         })),
         cartSubtotalUsd: cartSubtotalUsd,
         discountType:       discountData?.type      || null,
