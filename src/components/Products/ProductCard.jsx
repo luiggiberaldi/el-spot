@@ -75,44 +75,44 @@ export default function ProductCard({
             suffix = isMixto ? '_80_mixto' : '_80_unico';
             LABEL_W = 80;
             labelH = isMixto ? 80 : (hasSecondaryPrice ? 68 : 60);
-            marginX = 6;
-            marginY = 4.5;
+            marginX = 5.0;
+            marginY = 4.0;
             centerX = 40.0;
 
             defNameX = '0';
             defNameY = '0';
             defPriceX = '0';
-            defPriceY = isMixto ? '-6' : '-2';
+            defPriceY = '0';
             defSecPriceX = '0';
-            defSecPriceY = isMixto ? '-3' : '2';
+            defSecPriceY = '0';
             defFooterX = '0';
             defFooterY = '0';
 
-            defFontName = '4';
-            defFontPrice = '14';
-            defFontSecPrice = isMixto ? '12' : '0';
-            defFontFooter = '3';
+            defFontName = '0';
+            defFontPrice = '0';
+            defFontSecPrice = '0';
+            defFontFooter = '0';
         } else {
             suffix = isMixto ? '_mixto' : '_unico';
             LABEL_W = 58;
             labelH = isMixto ? 60 : (hasSecondaryPrice ? 50 : 44);
-            marginX = 4.5;
+            marginX = 4.0;
             marginY = 3.5;
-            centerX = isMixto ? (LABEL_W / 2 - 3) : (LABEL_W / 2 + 0.5);
+            centerX = 33.0;
 
-            defNameX = isMixto ? '-1.5' : '1';
-            defNameY = isMixto ? '2' : '0';
-            defPriceX = isMixto ? '-1.5' : '1';
-            defPriceY = isMixto ? '-7.5' : '-3';
-            defSecPriceX = isMixto ? '-1.5' : '1';
-            defSecPriceY = isMixto ? '-3' : '2';
-            defFooterX = isMixto ? '-1.5' : '1';
-            defFooterY = isMixto ? '-1' : '1';
+            defNameX = '0';
+            defNameY = '0';
+            defPriceX = '0';
+            defPriceY = '0';
+            defSecPriceX = '0';
+            defSecPriceY = '0';
+            defFooterX = '0';
+            defFooterY = '0';
 
-            defFontName = isMixto ? '5' : '5';
-            defFontPrice = isMixto ? '10' : '10';
-            defFontSecPrice = isMixto ? '12.5' : '0';
-            defFontFooter = isMixto ? '4' : '4';
+            defFontName = '0';
+            defFontPrice = '0';
+            defFontSecPrice = '0';
+            defFontFooter = '0';
         }
 
         const nameX = parseFloat(localStorage.getItem(`label_offset_name_x${suffix}`) || defNameX);
@@ -136,13 +136,13 @@ export default function ProductCard({
         // 1. TÍTULO
         const titleStartY = marginY + 2.5;
         const finalTitleY = titleStartY + nameY;
-        let baseTitleFontSize = paperWidth === '80' ? (isMixto ? 14 : 17) : ((mode === 'bs' || mode === 'usd') ? 11.5 : 10);
+        let baseTitleFontSize = paperWidth === '80' ? (isMixto ? 16 : 18) : (isMixto ? 13 : 14.5);
         let calcTitleFontSize = baseTitleFontSize + fontName;
-        if (calcTitleFontSize < 5) calcTitleFontSize = 5;
+        if (calcTitleFontSize < 6) calcTitleFontSize = 6;
         // Altura del bloque de título
         const isLongName = p.name.length > (paperWidth === '80' ? 24 : 18);
         const linesCount = isLongName ? 2 : 1;
-        const titleHeight = linesCount * (calcTitleFontSize * 0.3527 * 1.25);
+        const titleHeight = linesCount * (calcTitleFontSize * 0.3527 * 1.15);
         const titleEndY = titleStartY + titleHeight;
 
         // 2. FOOTER
@@ -152,11 +152,11 @@ export default function ProductCard({
 
         // 3. PRECIOS
         const freeSpace = footerStartY - titleEndY;
-        let basePriceFontSize = paperWidth === '80' ? (isMixto ? 32 : 42) : ((mode === 'bs' || mode === 'usd') ? 28 : 24);
+        let basePriceFontSize = paperWidth === '80' ? (isMixto ? 44 : 54) : (isMixto ? 34 : 42);
         let finalPriceFontSize = basePriceFontSize + fontPrice;
-        if (finalPriceFontSize < 5) finalPriceFontSize = 5;
+        if (finalPriceFontSize < 8) finalPriceFontSize = 8;
 
-        let baseSecPriceFontSize = paperWidth === '80' ? (isMixto ? 18 : 11) : 11;
+        let baseSecPriceFontSize = paperWidth === '80' ? (isMixto ? 30 : 20) : (isMixto ? 24 : 16);
         let finalSecondaryFontSize = baseSecPriceFontSize + fontSecPrice;
         if (finalSecondaryFontSize < 5) finalSecondaryFontSize = 5;
 

@@ -69,43 +69,24 @@ export default function SettingsView({ onClose, theme, toggleTheme, triggerHapti
         const initialWidth = localStorage.getItem('printer_paper_width') || '58';
         const isMixto = initialMode === 'mixto';
         const is80 = initialWidth === '80';
-        
-        let suffix;
-        let fallback = defaultMixto;
-        if (is80) {
-            suffix = isMixto ? '_80_mixto' : '_80_unico';
-            // Sobrescribir fallback con defaults de 80mm
-            if (key === 'label_offset_name_x') fallback = '0';
-            else if (key === 'label_offset_name_y') fallback = '0';
-            else if (key === 'label_offset_price_x') fallback = '0';
-            else if (key === 'label_offset_price_y') fallback = isMixto ? '-6' : '-2';
-            else if (key === 'label_offset_sec_price_x') fallback = '0';
-            else if (key === 'label_offset_sec_price_y') fallback = isMixto ? '-3' : '2';
-            else if (key === 'label_offset_footer_x') fallback = '0';
-            else if (key === 'label_offset_footer_y') fallback = '0';
-            else if (key === 'label_offset_font_name') fallback = '4';
-            else if (key === 'label_offset_font_price') fallback = '14';
-            else if (key === 'label_offset_font_sec_price') fallback = isMixto ? '12' : '0';
-            else if (key === 'label_offset_font_footer') fallback = '3';
-        } else {
-            suffix = isMixto ? '_mixto' : '_unico';
-            fallback = isMixto ? defaultMixto : defaultUnico;
-        }
-        return localStorage.getItem(`${key}${suffix}`) || fallback;
+        const suffix = is80 ? (isMixto ? '_80_mixto' : '_80_unico') : (isMixto ? '_mixto' : '_unico');
+        const storedVal = localStorage.getItem(`${key}${suffix}`);
+        if (storedVal !== null) return storedVal;
+        return '0';
     };
 
-    const [labelOffsetNameX, setLabelOffsetNameX] = useState(() => getInitialOffset('label_offset_name_x', '-1.5', '1'));
-    const [labelOffsetNameY, setLabelOffsetNameY] = useState(() => getInitialOffset('label_offset_name_y', '2', '0'));
-    const [labelOffsetPriceX, setLabelOffsetPriceX] = useState(() => getInitialOffset('label_offset_price_x', '-1.5', '1'));
-    const [labelOffsetPriceY, setLabelOffsetPriceY] = useState(() => getInitialOffset('label_offset_price_y', '-7.5', '-3'));
-    const [labelOffsetSecPriceX, setLabelOffsetSecPriceX] = useState(() => getInitialOffset('label_offset_sec_price_x', '-1.5', '1'));
-    const [labelOffsetSecPriceY, setLabelOffsetSecPriceY] = useState(() => getInitialOffset('label_offset_sec_price_y', '-3', '2'));
-    const [labelOffsetFooterX, setLabelOffsetFooterX] = useState(() => getInitialOffset('label_offset_footer_x', '-1.5', '1'));
-    const [labelOffsetFooterY, setLabelOffsetFooterY] = useState(() => getInitialOffset('label_offset_footer_y', '-1', '1'));
-    const [labelOffsetFontName, setLabelOffsetFontName] = useState(() => getInitialOffset('label_offset_font_name', '5', '5'));
-    const [labelOffsetFontPrice, setLabelOffsetFontPrice] = useState(() => getInitialOffset('label_offset_font_price', '10', '10'));
-    const [labelOffsetFontSecPrice, setLabelOffsetFontSecPrice] = useState(() => getInitialOffset('label_offset_font_sec_price', '12.5', '0'));
-    const [labelOffsetFontFooter, setLabelOffsetFontFooter] = useState(() => getInitialOffset('label_offset_font_footer', '4', '4'));
+    const [labelOffsetNameX, setLabelOffsetNameX] = useState(() => getInitialOffset('label_offset_name_x', '0', '0'));
+    const [labelOffsetNameY, setLabelOffsetNameY] = useState(() => getInitialOffset('label_offset_name_y', '0', '0'));
+    const [labelOffsetPriceX, setLabelOffsetPriceX] = useState(() => getInitialOffset('label_offset_price_x', '0', '0'));
+    const [labelOffsetPriceY, setLabelOffsetPriceY] = useState(() => getInitialOffset('label_offset_price_y', '0', '0'));
+    const [labelOffsetSecPriceX, setLabelOffsetSecPriceX] = useState(() => getInitialOffset('label_offset_sec_price_x', '0', '0'));
+    const [labelOffsetSecPriceY, setLabelOffsetSecPriceY] = useState(() => getInitialOffset('label_offset_sec_price_y', '0', '0'));
+    const [labelOffsetFooterX, setLabelOffsetFooterX] = useState(() => getInitialOffset('label_offset_footer_x', '0', '0'));
+    const [labelOffsetFooterY, setLabelOffsetFooterY] = useState(() => getInitialOffset('label_offset_footer_y', '0', '0'));
+    const [labelOffsetFontName, setLabelOffsetFontName] = useState(() => getInitialOffset('label_offset_font_name', '0', '0'));
+    const [labelOffsetFontPrice, setLabelOffsetFontPrice] = useState(() => getInitialOffset('label_offset_font_price', '0', '0'));
+    const [labelOffsetFontSecPrice, setLabelOffsetFontSecPrice] = useState(() => getInitialOffset('label_offset_font_sec_price', '0', '0'));
+    const [labelOffsetFontFooter, setLabelOffsetFontFooter] = useState(() => getInitialOffset('label_offset_font_footer', '0', '0'));
     const [allowNegativeStock, setAllowNegativeStock] = useState(() => localStorage.getItem('allow_negative_stock') === 'true');
 
     // Sincronizar offsets en React cuando cambia el modo de moneda o el ancho de papel
@@ -113,51 +94,20 @@ export default function SettingsView({ onClose, theme, toggleTheme, triggerHapti
         const isMixto = labelCurrencyMode === 'mixto';
         const is80 = paperWidth === '80';
         const suffix = is80 ? (isMixto ? '_80_mixto' : '_80_unico') : (isMixto ? '_mixto' : '_unico');
-        
-        let defNameX, defNameY, defPriceX, defPriceY, defSecPriceX, defSecPriceY, defFooterX, defFooterY;
-        let defFontName, defFontPrice, defFontSecPrice, defFontFooter;
 
-        if (is80) {
-            defNameX = '0';
-            defNameY = '0';
-            defPriceX = '0';
-            defPriceY = isMixto ? '-6' : '-2';
-            defSecPriceX = '0';
-            defSecPriceY = isMixto ? '-3' : '2';
-            defFooterX = '0';
-            defFooterY = '0';
-            defFontName = '4';
-            defFontPrice = '14';
-            defFontSecPrice = isMixto ? '12' : '0';
-            defFontFooter = '3';
-        } else {
-            defNameX = isMixto ? '-1.5' : '1';
-            defNameY = isMixto ? '2' : '0';
-            defPriceX = isMixto ? '-1.5' : '1';
-            defPriceY = isMixto ? '-7.5' : '-3';
-            defSecPriceX = isMixto ? '-1.5' : '1';
-            defSecPriceY = isMixto ? '-3' : '2';
-            defFooterX = isMixto ? '-1.5' : '1';
-            defFooterY = isMixto ? '-1' : '1';
-            defFontName = isMixto ? '5' : '5';
-            defFontPrice = isMixto ? '10' : '10';
-            defFontSecPrice = isMixto ? '12.5' : '0';
-            defFontFooter = isMixto ? '4' : '4';
-        }
-
-        setLabelOffsetNameX(localStorage.getItem(`label_offset_name_x${suffix}`) || defNameX);
-        setLabelOffsetNameY(localStorage.getItem(`label_offset_name_y${suffix}`) || defNameY);
-        setLabelOffsetPriceX(localStorage.getItem(`label_offset_price_x${suffix}`) || defPriceX);
-        setLabelOffsetPriceY(localStorage.getItem(`label_offset_price_y${suffix}`) || defPriceY);
-        setLabelOffsetSecPriceX(localStorage.getItem(`label_offset_sec_price_x${suffix}`) || defSecPriceX);
-        setLabelOffsetSecPriceY(localStorage.getItem(`label_offset_sec_price_y${suffix}`) || defSecPriceY);
-        setLabelOffsetFooterX(localStorage.getItem(`label_offset_footer_x${suffix}`) || defFooterX);
-        setLabelOffsetFooterY(localStorage.getItem(`label_offset_footer_y${suffix}`) || defFooterY);
+        setLabelOffsetNameX(localStorage.getItem(`label_offset_name_x${suffix}`) || '0');
+        setLabelOffsetNameY(localStorage.getItem(`label_offset_name_y${suffix}`) || '0');
+        setLabelOffsetPriceX(localStorage.getItem(`label_offset_price_x${suffix}`) || '0');
+        setLabelOffsetPriceY(localStorage.getItem(`label_offset_price_y${suffix}`) || '0');
+        setLabelOffsetSecPriceX(localStorage.getItem(`label_offset_sec_price_x${suffix}`) || '0');
+        setLabelOffsetSecPriceY(localStorage.getItem(`label_offset_sec_price_y${suffix}`) || '0');
+        setLabelOffsetFooterX(localStorage.getItem(`label_offset_footer_x${suffix}`) || '0');
+        setLabelOffsetFooterY(localStorage.getItem(`label_offset_footer_y${suffix}`) || '0');
         
-        setLabelOffsetFontName(localStorage.getItem(`label_offset_font_name${suffix}`) || defFontName);
-        setLabelOffsetFontPrice(localStorage.getItem(`label_offset_font_price${suffix}`) || defFontPrice);
-        setLabelOffsetFontSecPrice(localStorage.getItem(`label_offset_font_sec_price${suffix}`) || defFontSecPrice);
-        setLabelOffsetFontFooter(localStorage.getItem(`label_offset_font_footer${suffix}`) || defFontFooter);
+        setLabelOffsetFontName(localStorage.getItem(`label_offset_font_name${suffix}`) || '0');
+        setLabelOffsetFontPrice(localStorage.getItem(`label_offset_font_price${suffix}`) || '0');
+        setLabelOffsetFontSecPrice(localStorage.getItem(`label_offset_font_sec_price${suffix}`) || '0');
+        setLabelOffsetFontFooter(localStorage.getItem(`label_offset_font_footer${suffix}`) || '0');
     }, [labelCurrencyMode, paperWidth]);
 
     const visibleTabs = TABS;
