@@ -4,7 +4,7 @@
  * miniatura, codigo/barcode, nombre, precio USD y precio BCV.
  */
 
-import { ceilR, mulR } from './dinero';
+import { ceilR, mulR, round0 } from './dinero';
 import { getUsd } from './calculatorUtils';
 
 const PAGE_W   = 210;
@@ -15,7 +15,7 @@ const THUMB_W  = 38;
 const THUMB_H  = 28;
 const CELL_W   = (PAGE_W - MARGIN * 2) / COL;
 const CELL_H   = THUMB_H + 24;
-const HEADER_H = 28;
+const HEADER_H = 22;
 
 async function loadImgData(src) {
     if (!src) return null;
@@ -57,6 +57,18 @@ export async function generarCatalogoPDF({ products, bcvRate, categories = [] })
     const { jsPDF } = await import('jspdf');
     if (!products || products.length === 0) return;
 
+    // Precargar logo de la tienda
+    let imgLogo = null;
+    for (const src of ['./logo.png', '/logo.png', 'logo.png', 'public/logo.png']) {
+        try {
+            const img = new Image();
+            img.src = src;
+            await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+            imgLogo = img;
+            break;
+        } catch (_) {}
+    }
+
     const imgCache = await Promise.all(products.map(p => loadImgData(p.image)));
 
     const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
@@ -67,25 +79,44 @@ export async function generarCatalogoPDF({ products, bcvRate, categories = [] })
     let currentPage = 1;
 
     const drawHeader = () => {
-        doc.setFillColor(15, 15, 15);
+        // Fondo blanco limpio (optimizaciones de tinta para B/N)
+        doc.setFillColor(255, 255, 255);
         doc.rect(0, 0, PAGE_W, HEADER_H, 'F');
+
+        // Logo de la tienda a la izquierda
+        if (imgLogo) {
+            try {
+                const rawW = imgLogo.naturalWidth || imgLogo.width || 120;
+                const rawH = imgLogo.naturalHeight || imgLogo.height || 60;
+                const aspectRatio = rawW / rawH;
+                const maxW = 35;
+                const maxH = 14;
+                let logoW = maxW;
+                let logoH = logoW / aspectRatio;
+                if (logoH > maxH) {
+                    logoH = maxH;
+                    logoW = logoH * aspectRatio;
+                }
+                doc.addImage(imgLogo, 'PNG', MARGIN, 4, logoW, logoH);
+            } catch (_) {}
+        }
+
+        // Título central "CATÁLOGO DE INVENTARIO" en el medio
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(13);
-        doc.setTextColor(255, 255, 255);
-        doc.text('EL SPOT CONCEPT STORE', MARGIN, 11);
+        doc.setFontSize(12);
+        doc.setTextColor(20, 20, 20);
+        doc.text('CATÁLOGO DE INVENTARIO', PAGE_W / 2, 13, { align: 'center' });
+
+        // Fecha, hora y total de artículos a la derecha
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
-        doc.setTextColor(180, 180, 180);
-        doc.text('CATALOGO DE INVENTARIO', MARGIN, 17);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8);
-        doc.setTextColor(100, 220, 140);
-        doc.text('BCV: Bs ' + (bcvRate > 0 ? bcvRate.toFixed(2) : '-') + ' / $1', PAGE_W - MARGIN, 11, { align: 'right' });
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(160, 160, 160);
-        doc.text(dateStr + '  ' + timeStr + '  -  ' + products.length + ' articulos', PAGE_W - MARGIN, 17, { align: 'right' });
-        doc.setFillColor(0, 200, 100);
-        doc.rect(0, HEADER_H - 2, PAGE_W, 2, 'F');
+        doc.setFontSize(7.5);
+        doc.setTextColor(100, 100, 100);
+        doc.text(dateStr + '  ' + timeStr + '  ·  ' + products.length + ' artículos', PAGE_W - MARGIN, 13, { align: 'right' });
+
+        // Línea divisoria sutil para separación estética
+        doc.setDrawColor(210, 210, 210);
+        doc.setLineWidth(0.3);
+        doc.line(MARGIN, HEADER_H - 2, PAGE_W - MARGIN, HEADER_H - 2);
     };
 
     const drawFooter = (pgNum) => {
@@ -95,8 +126,8 @@ export async function generarCatalogoPDF({ products, bcvRate, categories = [] })
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(7);
         doc.setTextColor(170, 170, 170);
-        doc.text('El Spot Concept Store - Catalogo de Inventario - Sin valor fiscal', MARGIN, PAGE_H - 5.5);
-        doc.text('Pag. ' + pgNum, PAGE_W - MARGIN, PAGE_H - 5.5, { align: 'right' });
+        doc.text('El Spot Concept Store - Catálogo de Inventario - Sin valor fiscal', MARGIN, PAGE_H - 5.5);
+        doc.text('Pág. ' + pgNum, PAGE_W - MARGIN, PAGE_H - 5.5, { align: 'right' });
     };
 
     drawHeader();
@@ -118,8 +149,11 @@ export async function generarCatalogoPDF({ products, bcvRate, categories = [] })
     for (let i = 0; i < products.length; i++) {
         const p       = products[i];
         const imgData = imgCache[i];
-        const priceUsd = getUsd(p, 0);
-        const priceBs  = bcvRate > 0 && priceUsd > 0 ? ceilR(mulR(priceUsd, bcvRate)) : 0;
+
+        const cashUsd = getUsd(p, 0);
+        const bcvUsd  = (p.price2Usd && parseFloat(p.price2Usd) > 0) ? round0(parseFloat(p.price2Usd)) : 0;
+        const hasTwoPrices = bcvUsd > 0 && Math.abs(bcvUsd - cashUsd) > 0.01;
+
         const catInfo  = categories.find(c => c.id === p.category);
         const catLabel = catInfo?.name ?? '';
 
@@ -174,16 +208,19 @@ export async function generarCatalogoPDF({ products, bcvRate, categories = [] })
         }
 
         const priceY = cy + CELL_H - 9;
+        
+        // Precio Principal (Efectivo / Cash $)
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(10);
         doc.setTextColor(5, 150, 70);
-        doc.text(priceUsd > 0 ? '$' + priceUsd.toFixed(2) : '-', cx + (CELL_W - 1.5) / 2, priceY, { align: 'center' });
+        doc.text(cashUsd > 0 ? '$' + cashUsd.toFixed(2) : '-', cx + (CELL_W - 1.5) / 2, priceY, { align: 'center' });
 
-        if (priceBs > 0) {
+        // Segundo Precio en $ (Precio BCV USD)
+        if (hasTwoPrices) {
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(7);
             doc.setTextColor(100, 100, 100);
-            doc.text('Bs ' + priceBs.toLocaleString('es-VE'), cx + (CELL_W - 1.5) / 2, priceY + 4.5, { align: 'center' });
+            doc.text('$' + bcvUsd + ' BCV', cx + (CELL_W - 1.5) / 2, priceY + 4.5, { align: 'center' });
         }
 
         colIdx++;
