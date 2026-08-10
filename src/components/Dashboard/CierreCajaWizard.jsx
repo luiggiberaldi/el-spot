@@ -186,13 +186,13 @@ export default function CierreCajaWizard({
     };
 
     return (
-        <div className="fixed inset-0 z-[200] bg-slate-950/90 backdrop-blur-md flex items-end sm:items-center justify-center animate-in fade-in duration-200" onClick={handleClose}>
+        <div className="fixed inset-0 z-[200] bg-slate-950/90 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200" onClick={handleClose}>
             <div
-                className="bg-white dark:bg-slate-900 w-full sm:max-w-md sm:rounded-3xl rounded-t-3xl max-h-[92vh] flex flex-col shadow-2xl border-t border-slate-200 dark:border-slate-700 animate-in slide-in-from-bottom duration-300"
+                className="bg-white dark:bg-slate-900 w-full sm:max-w-md sm:rounded-3xl rounded-t-3xl max-h-[88vh] sm:max-h-[85vh] flex flex-col shadow-2xl border-t sm:border border-slate-200 dark:border-slate-700 animate-in slide-in-from-bottom duration-300"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Progress Bar */}
-                <div className="px-6 pt-5 pb-3">
+                <div className="px-6 pt-5 pb-3 shrink-0">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-lg font-black text-slate-800 dark:text-white">Cierre de Caja</h2>
                         <button onClick={handleClose} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
@@ -212,7 +212,7 @@ export default function CierreCajaWizard({
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto px-6 pb-6 scrollbar-hide">
+                <div className="flex-1 overflow-y-auto min-h-0 px-6 pt-1 pb-10 touch-pan-y overscroll-contain">
 
                     {/* ═══ STEP 1: Resumen del Dia ═══ */}
                     {step === 1 && (

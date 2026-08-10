@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Store, Plus, Trash2, Pencil, Search, LayoutGrid, List, Percent, CheckSquare, Boxes } from 'lucide-react';
+import { Store, Plus, Trash2, Pencil, Search, LayoutGrid, List, Percent, CheckSquare, Boxes, FileDown } from 'lucide-react';
 import { CATEGORY_COLORS } from '../../config/categories';
 
 const ProductsToolbar = ({
@@ -24,6 +24,8 @@ const ProductsToolbar = ({
     setIsStockBatchOpen,
     triggerHaptic,
     onSelectAllToast,
+    onDownloadCatalog,
+    isCatalogGenerating = false,
 }) => {
     const [showLeftFade, setShowLeftFade] = useState(false);
 
@@ -119,6 +121,14 @@ const ProductsToolbar = ({
                             </button>
                         )}
                         <button
+                                onClick={() => { triggerHaptic && triggerHaptic(); onDownloadCatalog && onDownloadCatalog(); }}
+                                disabled={isCatalogGenerating || !products.length}
+                                className="p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed" title="Descargar Catálogo PDF">
+                                {isCatalogGenerating
+                                    ? <span className="block w-3.5 h-3.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                                    : <FileDown size={14} strokeWidth={2.5} />}
+                            </button>
+                        <button
                             onClick={toggleViewMode}
                             className="p-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-brand hover:border-brand-light transition-all active:scale-95"
                             title={viewMode === 'grid' ? 'Vista lista' : 'Vista cuadrícula'}
@@ -165,6 +175,14 @@ const ProductsToolbar = ({
                             <span>Nuevo</span>
                         </button>
                     )}
+                    <button
+                            onClick={() => { triggerHaptic && triggerHaptic(); onDownloadCatalog && onDownloadCatalog(); }}
+                            disabled={isCatalogGenerating || !products.length}
+                            className="p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed" title="Descargar Catálogo PDF">
+                            {isCatalogGenerating
+                                ? <span className="block w-3.5 h-3.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                                : <FileDown size={14} strokeWidth={2.5} />}
+                        </button>
                     <button
                         onClick={toggleViewMode}
                         className="p-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-brand hover:border-brand-light transition-all active:scale-95"

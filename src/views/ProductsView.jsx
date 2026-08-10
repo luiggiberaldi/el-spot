@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useReveal } from '../hooks/useReveal';
 import { storageService } from '../utils/storageService';
 import { showToast } from '../components/Toast';
-import { Package, Plus, Trash2, X, Store, Tag, Pencil, Banknote, Search, ChevronLeft, ChevronRight, AlertTriangle, Box, LayoutGrid, List, Minus, ArrowUpDown, Clock, Percent, Printer, CheckSquare } from 'lucide-react';
+import { Package, Plus, Trash2, X, Store, Tag, Pencil, Banknote, Search, ChevronLeft, ChevronRight, AlertTriangle, Box, LayoutGrid, List, Minus, ArrowUpDown, Clock, Percent, Printer, CheckSquare, Download } from 'lucide-react';
 import { Modal } from '../components/Modal';
 import { ProductShareModal } from '../components/ProductShareModal';
 import { useAuthStore } from '../hooks/store/useAuthStore';
@@ -32,6 +32,7 @@ import { buildProductPayload } from '../utils/productProcessor';
 import { uploadProductImage, migrateProductImagesToStorage } from '../utils/imageUpload';
 // useAuthStore removed - single-user app
 import { useAudit } from '../hooks/useAudit';
+import { generarCatalogoPDF } from '../utils/inventoryCatalogGenerator';
 
 export const ProductsView = ({ rates, triggerHaptic }) => {
     // v1.2.0: reveal-on-scroll para banners y secciones de cabecera (NO en grid paginado para evitar re-trigger).
@@ -87,6 +88,26 @@ export const ProductsView = ({ rates, triggerHaptic }) => {
     const [isBulkPriceOpen, setIsBulkPriceOpen] = useState(false);
     const [isStockBatchOpen, setIsStockBatchOpen] = useState(false);
     const [deleteCategoryConfirmId, setDeleteCategoryConfirmId] = useState(null);
+    const [isCatalogGenerating, setIsCatalogGenerating] = useState(false);
+
+    const handleDownloadCatalog = async () => {
+        if (isCatalogGenerating || products.length === 0) return;
+        triggerHaptic && triggerHaptic();
+        setIsCatalogGenerating(true);
+        try {
+            await generarCatalogoPDF({
+                products,         // todos (no filtrados por pagina)
+                bcvRate: effectiveRate,
+                categories,
+            });
+        } catch (e) {
+            console.error('[CatalogPDF] Error generando PDF:', e);
+            showToast('Error generando el catálogo. Intenta de nuevo.', 'error');
+        } finally {
+            setIsCatalogGenerating(false);
+        }
+    };
+
 
     // Share State
     const [shareProduct, setShareProduct] = useState(null);
@@ -628,6 +649,8 @@ export const ProductsView = ({ rates, triggerHaptic }) => {
                 setIsStockBatchOpen={setIsStockBatchOpen}
                 triggerHaptic={triggerHaptic}
                 onSelectAllToast={() => showToast('Todo el inventario seleccionado', 'success')}
+                onDownloadCatalog={handleDownloadCatalog}
+                isCatalogGenerating={isCatalogGenerating}
             />
 
             {/* ─── COP PRICE CORRECTION BANNER ─── */}

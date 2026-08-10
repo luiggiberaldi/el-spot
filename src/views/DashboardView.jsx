@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { processVoidSale } from '../utils/voidSaleProcessor';
 import { storageService } from '../utils/storageService';
 import { showToast } from '../components/Toast';
-import { BarChart3, TrendingUp, Package, AlertTriangle, ShoppingCart, Store, Users, Settings, Wallet, LogOut } from 'lucide-react';
+import { BarChart3, TrendingUp, Package, AlertTriangle, ShoppingCart, Store, Users, Settings, Wallet, LogOut, Lock } from 'lucide-react';
 import { formatBs, formatCop } from '../utils/calculatorUtils';
 import DashboardStats from '../components/Dashboard/DashboardStats';
 import DashboardPaymentBreakdown from '../components/Dashboard/DashboardPaymentBreakdown';
@@ -535,25 +535,62 @@ export default function DashboardView({ rates, triggerHaptic, onNavigate, theme,
 
 
 
-            {/* ── CAJERO: vista simplificada — v1.2.0: reveal + shadow-tone-sm + font-display en totales ── */}
+            {/* ── CAJERO: vista simplificada + Cierre de Caja — v1.2.0: reveal + shadow-tone-sm + font-display en totales ── */}
             {isCajero ? (
-                <div className="grid grid-cols-2 gap-3 mb-5">
-                    <div className="reveal card !p-4 !rounded-2xl relative overflow-hidden">
-                        <div className="absolute -right-4 -top-4 w-16 h-16 bg-brand-light dark:bg-surface-800/10 rounded-full blur-2xl" />
-                        <div className="w-9 h-9 bg-brand-light dark:bg-surface-800/30 rounded-xl flex items-center justify-center mb-2">
-                            <ShoppingCart size={18} className="text-brand" />
+                <div className="space-y-3 mb-5">
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="reveal card !p-4 !rounded-2xl relative overflow-hidden">
+                            <div className="absolute -right-4 -top-4 w-16 h-16 bg-brand-light dark:bg-surface-800/10 rounded-full blur-2xl" />
+                            <div className="w-9 h-9 bg-brand-light dark:bg-surface-800/30 rounded-xl flex items-center justify-center mb-2">
+                                <ShoppingCart size={18} className="text-brand" />
+                            </div>
+                            <p className="font-outfit text-4xl font-semibold text-surface-700 dark:text-surface-100 leading-none">{todaySales.length}</p>
+                            <p className="text-[11px] text-surface-400 mt-1">{todaySales.length === 1 ? 'venta hoy' : 'ventas hoy'}</p>
                         </div>
-                        <p className="font-outfit text-4xl font-semibold text-surface-700 dark:text-surface-100 leading-none">{todaySales.length}</p>
-                        <p className="text-[11px] text-surface-400 mt-1">{todaySales.length === 1 ? 'venta hoy' : 'ventas hoy'}</p>
-                    </div>
-                    <div className="reveal card !p-4 !rounded-2xl relative overflow-hidden">
-                        <div className="absolute -right-4 -top-4 w-16 h-16 bg-emerald-50 dark:bg-emerald-900/10 rounded-full blur-2xl" />
-                        <div className="w-9 h-9 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center mb-2">
-                            <Package size={18} className="text-emerald-500" />
+                        <div className="reveal card !p-4 !rounded-2xl relative overflow-hidden">
+                            <div className="absolute -right-4 -top-4 w-16 h-16 bg-emerald-50 dark:bg-emerald-900/10 rounded-full blur-2xl" />
+                            <div className="w-9 h-9 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center mb-2">
+                                <Package size={18} className="text-emerald-500" />
+                            </div>
+                            <p className="font-outfit text-4xl font-semibold text-surface-700 dark:text-surface-100 leading-none">{todayItemsSold}</p>
+                            <p className="text-[11px] text-surface-400 mt-1">{todayItemsSold === 1 ? 'artículo vendido' : 'artículos vendidos'}</p>
                         </div>
-                        <p className="font-outfit text-4xl font-semibold text-surface-700 dark:text-surface-100 leading-none">{todayItemsSold}</p>
-                        <p className="text-[11px] text-surface-400 mt-1">{todayItemsSold === 1 ? 'artículo vendido' : 'artículos vendidos'}</p>
                     </div>
+
+                    {/* BOTÓN DE CIERRE DE CAJA PARA EL CAJERO */}
+                    {(todayCashFlow.length > 0 || todaySales.length > 0) ? (
+                        <button
+                            onClick={handleDailyClose}
+                            className="w-full bg-slate-900 hover:bg-black text-white rounded-2xl p-4 border border-slate-800 shadow-xl shadow-slate-900/20 active:scale-[0.98] transition-all flex items-center justify-between group cursor-pointer"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="w-11 h-11 bg-amber-500/20 border border-amber-500/30 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                                    <Lock size={22} className="text-amber-400" />
+                                </div>
+                                <div className="text-left">
+                                    <p className="text-sm font-black text-white">Cerrar Caja</p>
+                                    <p className="text-[11px] font-medium text-slate-300">
+                                        {copEnabled && copPrimary && tasaCop > 0 
+                                            ? `${formatCop(todayTotalCop || Math.round(todayTotalUsd * tasaCop))} COP · $${todayTotalUsd.toFixed(2)}` 
+                                            : `$${todayTotalUsd.toFixed(2)}${copEnabled && tasaCop > 0 ? ` · ${formatCop(todayTotalCop || Math.round(todayTotalUsd * tasaCop))} COP` : ''}`} | {todaySales.length} {todaySales.length === 1 ? 'venta' : 'ventas'}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="w-8 h-8 bg-amber-500/20 border border-amber-500/30 rounded-lg flex items-center justify-center group-hover:translate-x-1 transition-transform">
+                                <Lock size={16} className="text-amber-400" />
+                            </div>
+                        </button>
+                    ) : (
+                        <div className="w-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 flex items-center gap-3">
+                            <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center">
+                                <Lock size={20} className="text-emerald-500" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Caja lista para operaciones</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">El botón de cierre se activará cuando haya movimientos o ventas en el turno.</p>
+                            </div>
+                        </div>
+                    )}
                 </div>
             ) : (
             /* ── ADMIN: layout completo ── */
