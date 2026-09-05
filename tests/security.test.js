@@ -342,15 +342,21 @@ describe('SEC-008: Fingerprint robusto', () => {
     expect(r).toBe(true);
   });
 
-  it('verifyStoredFingerprint rechaza un ID arbitrario inyectado', async () => {
-    const r = await verifyStoredFingerprint('PDA-DEAD');
-    expect(r).toBe(false);
+  it('verifyStoredFingerprint acepta cualquier ID bien formado (relajado, SEC-008)', async () => {
+    // SEC-008 (relajado): se acepta cualquier deviceId con formato válido para no
+    // revocar licencias legítimas por cambios de navegador/zona horaria/idioma.
+    // La identidad autoritativa es la fila licenses.device_id del backend.
+    expect(await verifyStoredFingerprint('PDA-DEAD')).toBe(true);
+    expect(await verifyStoredFingerprint('monitor_web')).toBe(true);
   });
 
   it('verifyStoredFingerprint rechaza strings malformados', async () => {
     expect(await verifyStoredFingerprint('')).toBe(false);
     expect(await verifyStoredFingerprint(null)).toBe(false);
-    expect(await verifyStoredFingerprint('not-a-pda-id')).toBe(false);
+    expect(await verifyStoredFingerprint('   ')).toBe(false);
+    // Fuera del formato /^[A-Za-z0-9_-]{1,128}$/ (y distintos al fingerprint actual)
+    expect(await verifyStoredFingerprint('id con espacios')).toBe(false);
+    expect(await verifyStoredFingerprint('PDA-DEAD!')).toBe(false);
   });
 });
 

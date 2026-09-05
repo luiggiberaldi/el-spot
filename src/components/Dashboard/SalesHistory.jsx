@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Clock, Send, Ban, ChevronDown, ChevronUp, Trash2, Shuffle, Recycle, Receipt, Printer, LockIcon, CornerDownLeft, Smartphone, DollarSign } from 'lucide-react';
+import { Clock, Send, Ban, ChevronDown, ChevronUp, Trash2, Shuffle, Recycle, Receipt, Printer, LockIcon, CornerDownLeft, Smartphone, DollarSign, X } from 'lucide-react';
 import { formatBs, formatCop } from '../../utils/calculatorUtils';
 import { getPaymentLabel, getPaymentMethod, PAYMENT_ICONS, toTitleCase, getPaymentIcon } from '../../config/paymentMethods';
 import EmptyState from '../EmptyState';
@@ -21,6 +21,11 @@ export default function SalesHistory({
     onRecycleSale,
     onPrintTicket,
     isAdmin,
+    // Filtro de fecha activo (día seleccionado en la gráfica semanal). Se muestra
+    // como chip visible para que el filtro NUNCA sea invisible — antes quedaba
+    // pegado al cambiar de usuario y ocultaba ventas sin explicación aparente.
+    selectedChartDate = null,
+    onClearDateFilter,
     copEnabled,
     copPrimary,
     tasaCop
@@ -81,6 +86,16 @@ export default function SalesHistory({
                     <Clock size={12} /> Historial de Ventas
                 </h3>
                 <div className="flex items-center gap-2">
+                    {selectedChartDate && (
+                        <button
+                            onClick={onClearDateFilter}
+                            className="flex items-center gap-1 text-[10px] font-black text-brand dark:text-amber-400 bg-brand/10 dark:bg-amber-400/10 border border-brand/20 dark:border-amber-400/20 px-2 py-0.5 rounded-full active:scale-95 transition-transform"
+                            title="Filtro de día activo (gráfica semanal) — toca para quitarlo"
+                        >
+                            <span>📅 {selectedChartDate}</span>
+                            <X size={10} strokeWidth={3} />
+                        </button>
+                    )}
                     <span className="text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">{totalSalesCount} histórico</span>
                     {isAdmin && (
                         <button

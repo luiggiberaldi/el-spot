@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { storageService } from '../utils/storageService';
 import { getActivePaymentMethods } from '../config/paymentMethods';
 import { getLocalISODate } from '../utils/dateHelpers';
+import { useAuthStore } from './store/useAuthStore';
 
 export const SALES_KEY = 'bodega_sales_v1';
 
@@ -11,6 +12,7 @@ export function useSalesData({ setCart, cartRef, isActive }) {
     const [isLoadingLocal, setIsLoadingLocal] = useState(true);
     const [salesData, setSalesData] = useState([]);
     const [todayAperturaData, setTodayAperturaData] = useState(null);
+    const usuarioActivo = useAuthStore(s => s.usuarioActivo);
 
     // Load data
     useEffect(() => {
@@ -71,7 +73,9 @@ export function useSalesData({ setCart, cartRef, isActive }) {
             });
             setTodayAperturaData(apertura || null);
         }).catch(err => console.error('[useSalesData] Error al recargar datos:', err));
-    }, [isActive]);
+    // BUGFIX: incluir usuarioActivo?.id para recargar los datos al cambiar de
+    // sesión (admin ↔ cajero) sin desmontar la vista.
+    }, [isActive, usuarioActivo?.id]);
 
     useEffect(() => {
         handleReloadContent();

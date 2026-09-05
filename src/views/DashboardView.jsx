@@ -175,6 +175,14 @@ export default function DashboardView({ rates, triggerHaptic, onNavigate, theme,
 
     const recentSales = useMemo(() => getRecentSales(selectedChartDate), [getRecentSales, selectedChartDate]);
 
+    // BUGFIX: al cambiar de sesión (admin ↔ cajero) limpiar el filtro de fecha de la
+    // gráfica. Las vistas nunca se desmontan en App.jsx, así que selectedChartDate
+    // sobrevivía al logout/login y el cajero — que no ve la gráfica — heredaba un
+    // filtro invisible que dejaba el Historial de Ventas vacío o parcial.
+    useEffect(() => {
+        setSelectedChartDate(null);
+    }, [usuarioActivo?.id]);
+
     // Notificar cierre de caja pendiente (>7pm con ventas o cobros sin cerrar)
     useEffect(() => {
         if (todayCashFlow.length > 0) {
@@ -728,6 +736,8 @@ export default function DashboardView({ rates, triggerHaptic, onNavigate, theme,
                 bcvRate={bcvRate}
                 totalSalesCount={sales.filter(s => s.tipo === 'VENTA' || s.tipo === 'VENTA_FIADA' || s.tipo === 'VENTA_CASHEA').length}
                 isAdmin={!isCajero}
+                selectedChartDate={selectedChartDate}
+                onClearDateFilter={() => setSelectedChartDate(null)}
                 onVoidSale={handleVoidSale}
                 onShareWhatsApp={handleShareWhatsApp}
                 onDownloadPDF={handleDownloadPDF}
