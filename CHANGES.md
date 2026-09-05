@@ -234,3 +234,39 @@ bun run build
 
 **Worklog completo:** `/home/z/my-project/worklog.md` (8 secciones: 4 auditorías + 4 implementaciones).
 **Issues documentados:** `/home/z/my-project/preciosaldia-bodega/ISSUES.md` (129 issues con ID, severidad, ubicación, recomendación).
+
+---
+
+## Fix post-auditoría (2026-09-05) — `DASH-001`
+
+> **Síntoma reportado:** al salir de admin y entrar como cajero, las ventas "desaparecen" de la interfaz. Los datos siguen en el sistema (no se borran), pero dejan de mostrarse en el Historial de Ventas.
+> **Commit:** `2fdc86c` — `fix(dashboard): ventas visibles al cambiar de sesion admin/cajero`
+
+### Causa raíz
+
+- `DashboardView` mantiene el estado `selectedChartDate`, que se activa al tocar una barra de la gráfica semanal ("Actividad Semanal") y filtra `getRecentSales()` a un solo día (`useDashboardMetrics.js`).
+- `App.jsx` nunca desmonta las vistas (solo las oculta por CSS), por lo que ese filtro **sobrevive al logout/login**.
+- La vista del cajero renderiza una rama sin gráfica semanal (`DashboardView.jsx`, bloque `isCajero`), así que el cajero **hereda el filtro sin poder verlo ni limpiarlo** → el historial muestra un día pasado (a menudo vacío) y parece que las ventas se borraron.
+- Se descartó eliminación de datos: `useAuthStore.logout()` solo limpia `usuarioActivo`; nada escribe o borra `bodega_sales_v1` en el cambio de sesión.
+
+### Fix aplicado
+
+| Archivo | Cambio |
+|---|---|
+| `src/views/DashboardView.jsx` | `useEffect` sobre `usuarioActivo?.id` que resetea `selectedChartDate` a `null` al cambiar de sesión. Pasa `selectedChartDate`/`onClearDateFilter` al historial. |
+| `src/components/Dashboard/SalesHistory.jsx` | Chip visible `📅 fecha ✕` en el header del historial cuando hay filtro de día activo (ambos roles). Tocarlo lo limpia: ningún filtro vuelve a ser invisible. |
+| `src/hooks/useDashboardData.js` | El efecto de carga incluye `usuarioActivo?.id` en deps → recarga ventas/clientes al cambiar de sesión. |
+| `src/hooks/useSalesData.js` | Igual: `handleReloadContent` se re-ejecuta al cambiar de sesión. |
+
+### Ajuste de tests relacionado
+
+- Los 2 tests de `verifyStoredFingerprint` (`tests/security.test.js`) esperaban el comportamiento estricto pre-SEC-008-relajado (rechazar cualquier ID bien formado). La función fue relajada intencionalmente (ver comentario del módulo: no revocar licencias legítimas por cambios de navegador/zona horaria; la identidad autoritativa es `licenses.device_id` en el backend). Tests actualizados al comportamiento documentado; la verificación de formato (`/^[A-Za-z0-9_-]{1,128}$/`) sigue cubierta con casos malformados.
+
+### Verificación
+
+```bash
+npm run build   # → OK (vite, PWA generada)
+npm test        # → 179 passed, 10 skipped (14 archivos)
+```
+
+Verificación E2E en dev server con datos sembrados (5 ventas en 3 días, API cruda de IndexedDB): admin → tap en barra "Mié" → filtro activo (1 fila, chip visible) → tap en chip → filtro limpio (5 filas) → "Salir" (SPA, sin reload) → login cajero → **historial completo (5 ventas), sin chip residual**, controles de admin correctamente ocultos.

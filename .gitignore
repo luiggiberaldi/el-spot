@@ -69,6 +69,7 @@ TASASALDIA_MANUAL_TEXTO.md
 .agent/
 CONTEXT.md
 .vercel
+.freebuff/
 .wrangler/
 
 # ── OS y temporales ──
